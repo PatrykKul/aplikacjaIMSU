@@ -1,7 +1,7 @@
 # STATUS
 
-- **Ostatni ukończony etap:** Etap 3 – personalizacja bloków + kurs demonstracyjny V/A/K ([raport](etap-3.md)).
-- **W toku:** Etap 4 – adaptacja (zdarzenia nauki, quiz po temacie, wagi, poziom trudności, „dlaczego to widzisz").
+- **Ostatni ukończony etap:** Etap 4 – adaptacja w czasie ([raport](etap-4.md)).
+- **W toku:** Etap 5 – panele ucznia, nauczyciela, admina.
 - **Blokery:** brak.
 - **Otwarte pytania:** [PYTANIA.md](PYTANIA.md).
 
@@ -29,3 +29,4 @@ Konta testowe: `admin@stylnauki.pl` / `Admin123!`, `nauczyciel@stylnauki.pl` / `
 - [Etap 1](etap-1.md)
 - [Etap 2](etap-2.md)
 - [Etap 3](etap-3.md)
+- [Etap 4](etap-4.md)
