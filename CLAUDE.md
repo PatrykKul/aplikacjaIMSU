@@ -97,9 +97,9 @@ Ostatni ukończony etap · co w toku · blokery · otwarte pytania (link do PYTA
 
 ## Etapy
 - **Etap 0** ✅ – czysty start: repo git, README, migracje Alembic, pusta baza + szkielet seeda, porządki w backendzie (jeden endpoint zmiany kolejności kursów, błędy 500 bez treści wyjątku, wywołanie Gemini nie blokuje serwera).
-- **Etap 1** – auth + role + seed użytkowników.
-- **Etap 2** – ankieta VAK + flaga + wymuszenie po logowaniu (frontend i backend).
-- **Etap 3** – personalizacja bloków (`styl`, nowe typy multimedialne, filtrowanie) + seed przykładowego kursu V/A/K.
+- **Etap 1** ✅ – auth + role + seed użytkowników.
+- **Etap 2** ✅ – ankieta VAK + flaga + wymuszenie po logowaniu (frontend i backend).
+- **Etap 3** ✅ – personalizacja bloków (`styl`, nowe typy multimedialne, filtrowanie) + seed przykładowego kursu V/A/K.
 - **Etap 4** – adaptacja: zdarzenia nauki, quiz po temacie, aktualizacja wag, poziom trudności, „dlaczego to widzisz".
 - **Etap 5** – panele ucznia, nauczyciela, admina.
 - **Etap 6** – dopracowanie UI, dokumentacja do zaliczenia.

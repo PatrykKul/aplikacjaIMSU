@@ -22,7 +22,7 @@ python -m venv venv
 pip install -r requirements.txt
 copy env.example .env        # ustaw JWT_SECRET, opcjonalnie GEMINI_API_KEY
 alembic upgrade head         # tworzy pustą bazę stylnauki.db
-python -m app.seed           # dane startowe (konta testowe)
+python -m app.seed           # konta testowe, 20 pytań ankiety, kurs demonstracyjny V/A/K
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -64,6 +64,7 @@ Pozostałe komendy: `npm run lint`, `npm run build`, `npm run start`.
 | `backend/.env` | `DATABASE_URL` | adres bazy, domyślnie `sqlite:///./stylnauki.db` |
 | `backend/.env` | `JWT_SECRET` | sekret do podpisywania tokenów JWT (bez niego tokeny wygasają po restarcie serwera) |
 | `backend/.env` | `JWT_EXPIRE_MINUTES` | czas życia tokenu, domyślnie 480 |
+| `backend/.env` | `MEDIA_ROOT` | opcjonalny katalog na wgrywane obrazki i nagrania, domyślnie `backend/uploads` |
 | `backend/.env` | `GEMINI_API_KEY` | opcjonalny klucz do generatora materiałów AI |
 | `backend/.env` | `GEMINI_MODEL` | opcjonalna nazwa modelu Gemini |
 | `frontend/.env.local` | `NEXT_PUBLIC_API_URL` | adres API backendu |
