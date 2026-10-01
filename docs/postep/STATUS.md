@@ -1,7 +1,7 @@
 # STATUS
 
-- **Ostatni ukończony etap:** Etap 4 – adaptacja w czasie ([raport](etap-4.md)).
-- **W toku:** Etap 5 – panele ucznia, nauczyciela, admina.
+- **Ostatni ukończony etap:** Etap 5 – panele ucznia, nauczyciela, admina ([raport](etap-5.md)).
+- **W toku:** Etap 6 – dopracowanie UI, dokumentacja do zaliczenia.
 - **Blokery:** brak.
 - **Otwarte pytania:** [PYTANIA.md](PYTANIA.md).
 
@@ -30,3 +30,4 @@ Konta testowe: `admin@stylnauki.pl` / `Admin123!`, `nauczyciel@stylnauki.pl` / `
 - [Etap 2](etap-2.md)
 - [Etap 3](etap-3.md)
 - [Etap 4](etap-4.md)
+- [Etap 5](etap-5.md)
