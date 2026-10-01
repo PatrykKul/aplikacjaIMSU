@@ -1,5 +1,8 @@
-from pydantic import BaseModel, ConfigDict, Field
+import re
+from datetime import datetime
 from typing import List, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 BLOK_TYP = Literal["teoria", "przyklad", "uwaga", "zadanie", "wideo"]
 
@@ -155,3 +158,79 @@ class DzialSearchHit(BaseModel):
 class GlobalSearchResponse(BaseModel):
     dzialy: List[DzialSearchHit] = []
     tematy: List[TematSummary] = []
+
+
+# ==========================================
+# UŻYTKOWNICY / AUTH
+# ==========================================
+
+ROLA = Literal["admin", "nauczyciel", "uczen"]
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _normalizuj_email(v: str) -> str:
+    v = v.strip().lower()
+    if len(v) > 254 or not _EMAIL_RE.match(v):
+        raise ValueError("Nieprawidłowy adres e-mail")
+    return v
+
+
+class RejestracjaIn(BaseModel):
+    email: str
+    imie: str = Field(..., min_length=1, max_length=80)
+    # bcrypt uses at most 72 bytes of the password
+    haslo: str = Field(..., min_length=8, max_length=72)
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, v: str) -> str:
+        return _normalizuj_email(v)
+
+    @field_validator("imie")
+    @classmethod
+    def _imie(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Imię nie może być puste")
+        return v
+
+    @field_validator("haslo")
+    @classmethod
+    def _haslo(cls, v: str) -> str:
+        if len(v.encode("utf-8")) > 72:
+            raise ValueError("Hasło jest za długie")
+        return v
+
+
+class LogowanieIn(BaseModel):
+    email: str
+    haslo: str = Field(..., max_length=200)
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class UzytkownikOut(BaseModel):
+    id: int
+    email: str
+    imie: str
+    rola: ROLA
+    aktywny: bool
+    ankieta_wypelniona: bool
+    styl_uczenia: Optional[str] = None
+    styl_zrodlo: Optional[str] = None
+    utworzono: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    uzytkownik: UzytkownikOut
+
+
+class ZmianaRoliIn(BaseModel):
+    rola: ROLA

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -68,3 +69,21 @@ class Blok(Base):
     image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     temat: Mapped["Temat"] = relationship(back_populates="bloki")
+
+
+def _teraz() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class Uzytkownik(Base):
+    __tablename__ = "uzytkownicy"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    imie: Mapped[str] = mapped_column(String, nullable=False, default="")
+    haslo_hash: Mapped[str] = mapped_column(String, nullable=False)
+    rola: Mapped[str] = mapped_column(String, nullable=False, default="uczen")
+    aktywny: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    ankieta_wypelniona: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    styl_uczenia: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    styl_zrodlo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    utworzono: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_teraz)

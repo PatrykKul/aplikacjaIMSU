@@ -11,6 +11,7 @@ from typing import List
 
 from app import models, schemas
 from app.database import SessionLocal
+from app.deps import ROLA_UCZEN, get_current_user, get_db, wymagaj_edytora
 from app.materialy_paths import get_materialy_public_root
 from app.services import ai_generator
 from app.slugify import slugify
@@ -19,7 +20,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.post("/upload-image")
+@router.post("/upload-image", dependencies=[Depends(wymagaj_edytora)])
 async def upload_image(
     file: UploadFile = File(...),
     kurs_nazwa: str = Form(...),
@@ -52,12 +53,14 @@ async def upload_image(
     return {"image_url": relative_url}
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def _tylko_opublikowane(user: models.Uzytkownik) -> bool:
+    return user.rola == ROLA_UCZEN
+
+
+def _sprawdz_widocznosc(kurs: models.Kurs | None, user: models.Uzytkownik, detail: str) -> None:
+    # Students must not see unpublished courses (404 instead of 403: do not reveal existence)
+    if kurs is None or (_tylko_opublikowane(user) and not kurs.is_published):
+        raise HTTPException(status_code=404, detail=detail)
 
 
 def _reload_temat(db: Session, temat_id: int) -> models.Temat:
@@ -109,7 +112,7 @@ def _nastepna_kolejnosc_temat(db: Session, dzial_id: int) -> int:
 # =========================================================
 
 
-@router.post("/kursy", response_model=schemas.Kurs)
+@router.post("/kursy", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Kurs)
 def utworz_kurs(kurs: schemas.KursCreate, db: Session = Depends(get_db)):
     data = kurs.model_dump()
     if "kolejnosc" not in data or data["kolejnosc"] == 0:
@@ -122,12 +125,18 @@ def utworz_kurs(kurs: schemas.KursCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/kursy", response_model=List[schemas.Kurs])
-def pobierz_kursy(db: Session = Depends(get_db)):
-    return db.query(models.Kurs).order_by(models.Kurs.kolejnosc.asc(), models.Kurs.id.asc()).all()
+def pobierz_kursy(
+    db: Session = Depends(get_db),
+    user: models.Uzytkownik = Depends(get_current_user),
+):
+    q = db.query(models.Kurs)
+    if _tylko_opublikowane(user):
+        q = q.filter(models.Kurs.is_published.is_(True))
+    return q.order_by(models.Kurs.kolejnosc.asc(), models.Kurs.id.asc()).all()
 
 
 # Must be declared before /kursy/{kurs_id}, otherwise "reorder" is parsed as an id
-@router.put("/kursy/reorder", response_model=List[schemas.Kurs])
+@router.put("/kursy/reorder", dependencies=[Depends(wymagaj_edytora)], response_model=List[schemas.Kurs])
 def reorder_kursy(body: schemas.ItemReorder, db: Session = Depends(get_db)):
     kursy = db.query(models.Kurs).all()
     _validate_ids_exact(
@@ -143,20 +152,27 @@ def reorder_kursy(body: schemas.ItemReorder, db: Session = Depends(get_db)):
 
 
 @router.get("/kursy/{kurs_id}", response_model=schemas.Kurs)
-def pobierz_kurs(kurs_id: int, db: Session = Depends(get_db)):
+def pobierz_kurs(
+    kurs_id: int,
+    db: Session = Depends(get_db),
+    user: models.Uzytkownik = Depends(get_current_user),
+):
     kurs = (
         db.query(models.Kurs)
         .options(joinedload(models.Kurs.dzialy))
         .filter(models.Kurs.id == kurs_id)
         .first()
     )
-    if not kurs:
-        raise HTTPException(status_code=404, detail="Kurs nie znaleziony")
+    _sprawdz_widocznosc(kurs, user, "Kurs nie znaleziony")
     return kurs
 
 
 @router.get("/dzialy/{dzial_id}", response_model=schemas.Dzial)
-def pobierz_dzial(dzial_id: int, db: Session = Depends(get_db)):
+def pobierz_dzial(
+    dzial_id: int,
+    db: Session = Depends(get_db),
+    user: models.Uzytkownik = Depends(get_current_user),
+):
     dzial = (
         db.query(models.Dzial)
         .options(joinedload(models.Dzial.tematy))
@@ -165,15 +181,22 @@ def pobierz_dzial(dzial_id: int, db: Session = Depends(get_db)):
     )
     if not dzial:
         raise HTTPException(status_code=404, detail="Dział nie znaleziony")
+    _sprawdz_widocznosc(dzial.kurs, user, "Dział nie znaleziony")
     return dzial
 
 
 @router.get("/tematy/{temat_id}", response_model=schemas.Temat)
-def pobierz_temat(temat_id: int, db: Session = Depends(get_db)):
-    return _reload_temat(db, temat_id)
+def pobierz_temat(
+    temat_id: int,
+    db: Session = Depends(get_db),
+    user: models.Uzytkownik = Depends(get_current_user),
+):
+    temat = _reload_temat(db, temat_id)
+    _sprawdz_widocznosc(temat.dzial.kurs, user, "Temat nie znaleziony")
+    return temat
 
 
-@router.put("/kursy/{kurs_id}", response_model=schemas.Kurs)
+@router.put("/kursy/{kurs_id}", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Kurs)
 def edytuj_kurs(kurs_id: int, dane: schemas.KursUpdate, db: Session = Depends(get_db)):
     kurs = db.query(models.Kurs).filter(models.Kurs.id == kurs_id).first()
     if not kurs:
@@ -185,7 +208,7 @@ def edytuj_kurs(kurs_id: int, dane: schemas.KursUpdate, db: Session = Depends(ge
     return kurs
 
 
-@router.delete("/kursy/{kurs_id}")
+@router.delete("/kursy/{kurs_id}", dependencies=[Depends(wymagaj_edytora)])
 def usun_kurs(kurs_id: int, db: Session = Depends(get_db)):
     kurs = db.query(models.Kurs).filter(models.Kurs.id == kurs_id).first()
     if not kurs:
@@ -200,7 +223,7 @@ def usun_kurs(kurs_id: int, db: Session = Depends(get_db)):
 # =========================================================
 
 
-@router.post("/kursy/{kurs_id}/dzialy", response_model=schemas.Dzial)
+@router.post("/kursy/{kurs_id}/dzialy", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Dzial)
 def utworz_dzial(kurs_id: int, dzial: schemas.DzialCreate, db: Session = Depends(get_db)):
     kurs = db.query(models.Kurs).filter(models.Kurs.id == kurs_id).first()
     if not kurs:
@@ -215,7 +238,7 @@ def utworz_dzial(kurs_id: int, dzial: schemas.DzialCreate, db: Session = Depends
     return nowy_dzial
 
 
-@router.put("/dzialy/{dzial_id}", response_model=schemas.Dzial)
+@router.put("/dzialy/{dzial_id}", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Dzial)
 def edytuj_dzial(dzial_id: int, dane: schemas.DzialUpdate, db: Session = Depends(get_db)):
     dzial = db.query(models.Dzial).filter(models.Dzial.id == dzial_id).first()
     if not dzial:
@@ -227,7 +250,7 @@ def edytuj_dzial(dzial_id: int, dane: schemas.DzialUpdate, db: Session = Depends
     return dzial
 
 
-@router.delete("/dzialy/{dzial_id}")
+@router.delete("/dzialy/{dzial_id}", dependencies=[Depends(wymagaj_edytora)])
 def usun_dzial(dzial_id: int, db: Session = Depends(get_db)):
     dzial = db.query(models.Dzial).filter(models.Dzial.id == dzial_id).first()
     if not dzial:
@@ -242,7 +265,7 @@ def usun_dzial(dzial_id: int, db: Session = Depends(get_db)):
 # =========================================================
 
 
-@router.post("/dzialy/{dzial_id}/tematy", response_model=schemas.Temat)
+@router.post("/dzialy/{dzial_id}/tematy", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Temat)
 def utworz_temat(dzial_id: int, temat: schemas.TematCreate, db: Session = Depends(get_db)):
     dzial = db.query(models.Dzial).filter(models.Dzial.id == dzial_id).first()
     if not dzial:
@@ -257,7 +280,7 @@ def utworz_temat(dzial_id: int, temat: schemas.TematCreate, db: Session = Depend
     return _reload_temat(db, nowy_temat.id)
 
 
-@router.put("/tematy/{temat_id}", response_model=schemas.Temat)
+@router.put("/tematy/{temat_id}", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Temat)
 def edytuj_temat(temat_id: int, dane: schemas.TematUpdate, db: Session = Depends(get_db)):
     temat = db.query(models.Temat).filter(models.Temat.id == temat_id).first()
     if not temat:
@@ -268,7 +291,7 @@ def edytuj_temat(temat_id: int, dane: schemas.TematUpdate, db: Session = Depends
     return _reload_temat(db, temat_id)
 
 
-@router.delete("/tematy/{temat_id}")
+@router.delete("/tematy/{temat_id}", dependencies=[Depends(wymagaj_edytora)])
 def usun_temat(temat_id: int, db: Session = Depends(get_db)):
     temat = db.query(models.Temat).filter(models.Temat.id == temat_id).first()
     if not temat:
@@ -309,7 +332,7 @@ def _zapisz_bloki_ai(temat_id: int, dane_list: list[dict]) -> schemas.Temat:
         return schemas.Temat.model_validate(_reload_temat(db, temat_id))
 
 
-@router.put("/tematy/{temat_id}/generuj-bloki", response_model=schemas.Temat)
+@router.put("/tematy/{temat_id}/generuj-bloki", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Temat)
 async def generuj_bloki_ai(temat_id: int):
     # No DB session is held while waiting for the model; blocking calls run in the threadpool
     tytul, dzial = await run_in_threadpool(_naglowek_tematu, temat_id)
@@ -360,14 +383,14 @@ def _validate_ids_exact(ids_from_db: set[int], ids_from_body: list[int], detail:
         raise HTTPException(status_code=400, detail=detail)
 
 
-@router.put("/tematy/{temat_id}/reorder", response_model=schemas.Temat)
+@router.put("/tematy/{temat_id}/reorder", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Temat)
 def reorder_temat_bloki(
     temat_id: int, body: schemas.BlokReorder, db: Session = Depends(get_db)
 ):
     return _reorder_bloki_impl(temat_id, body, db)
 
 
-@router.put("/kursy/{kurs_id}/dzialy/reorder", response_model=schemas.Kurs)
+@router.put("/kursy/{kurs_id}/dzialy/reorder", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Kurs)
 def reorder_dzialy_w_kursie(
     kurs_id: int, body: schemas.ItemReorder, db: Session = Depends(get_db)
 ):
@@ -397,7 +420,7 @@ def reorder_dzialy_w_kursie(
     )
 
 
-@router.put("/dzialy/{dzial_id}/tematy/reorder", response_model=schemas.Dzial)
+@router.put("/dzialy/{dzial_id}/tematy/reorder", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Dzial)
 def reorder_tematy_w_dziale(
     dzial_id: int, body: schemas.ItemReorder, db: Session = Depends(get_db)
 ):
@@ -432,7 +455,7 @@ def reorder_tematy_w_dziale(
 # =========================================================
 
 
-@router.post("/tematy/{temat_id}/bloki", response_model=schemas.Blok)
+@router.post("/tematy/{temat_id}/bloki", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Blok)
 def utworz_blok(
     temat_id: int, body: schemas.BlokCreate, db: Session = Depends(get_db)
 ):
@@ -459,7 +482,7 @@ def utworz_blok(
     return blok
 
 
-@router.put("/bloki/{blok_id}", response_model=schemas.Blok)
+@router.put("/bloki/{blok_id}", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Blok)
 def edytuj_blok(blok_id: int, dane: schemas.BlokUpdate, db: Session = Depends(get_db)):
     blok = db.query(models.Blok).filter(models.Blok.id == blok_id).first()
     if not blok:
@@ -471,7 +494,7 @@ def edytuj_blok(blok_id: int, dane: schemas.BlokUpdate, db: Session = Depends(ge
     return blok
 
 
-@router.delete("/bloki/{blok_id}")
+@router.delete("/bloki/{blok_id}", dependencies=[Depends(wymagaj_edytora)])
 def usun_blok(blok_id: int, db: Session = Depends(get_db)):
     blok = db.query(models.Blok).filter(models.Blok.id == blok_id).first()
     if not blok:
@@ -487,20 +510,22 @@ def usun_blok(blok_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/szukaj", response_model=schemas.GlobalSearchResponse)
-def szukaj_wszystkiego(q: str = "", db: Session = Depends(get_db)):
+def szukaj_wszystkiego(
+    q: str = "",
+    db: Session = Depends(get_db),
+    user: models.Uzytkownik = Depends(get_current_user),
+):
     query = q.strip()
 
-    q_dzialy = (
-        db.query(models.Dzial)
-        .join(models.Kurs, models.Dzial.kurs_id == models.Kurs.id)
-        .filter(models.Kurs.is_published.is_(True))
-    )
+    q_dzialy = db.query(models.Dzial).join(models.Kurs, models.Dzial.kurs_id == models.Kurs.id)
     q_tematy = (
         db.query(models.Temat)
         .join(models.Dzial, models.Temat.dzial_id == models.Dzial.id)
         .join(models.Kurs, models.Dzial.kurs_id == models.Kurs.id)
-        .filter(models.Kurs.is_published.is_(True))
     )
+    if _tylko_opublikowane(user):
+        q_dzialy = q_dzialy.filter(models.Kurs.is_published.is_(True))
+        q_tematy = q_tematy.filter(models.Kurs.is_published.is_(True))
 
     if query:
         q_dzialy = q_dzialy.filter(models.Dzial.nazwa.contains(query))

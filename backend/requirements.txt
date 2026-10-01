@@ -5,6 +5,8 @@ sqlalchemy
 alembic
 python-dotenv
 python-multipart
+PyJWT
+bcrypt
 google-genai>=1.0.0
 
 # Tests
