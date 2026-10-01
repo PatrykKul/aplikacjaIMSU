@@ -5,9 +5,12 @@ from app import models
 from app.database import SessionLocal
 from app.security import hash_haslo
 from app.seed_ankieta import PYTANIA_VAK, STYLE_W_KOLEJNOSCI
+from app.media import get_media_root
 from app.seed_kurs import KURS_DEMO
+from app.seed_matematyka import KATALOG_WYKRESOW, KURS_MATEMATYKA, WSZYSTKIE_WYKRESY
 from app.services.adaptacja import wagi_startowe
 from app.services.vak import policz_wynik
+from app.wykresy import wykres_svg
 
 # Demo accounts (documented in README) — for presentation only
 KONTA_TESTOWE = [
@@ -88,13 +91,13 @@ def seed_ankieta(db: Session) -> int:
     return len(PYTANIA_VAK)
 
 
-def seed_kurs_demo(db: Session) -> int:
-    """Kurs, w którym każdy temat ma bloki wspólne oraz dla stylu V, A i K."""
-    if db.query(models.Kurs).filter(models.Kurs.nazwa == KURS_DEMO["nazwa"]).first():
+def _dodaj_kurs(db: Session, dane: dict) -> int:
+    """Dodaje opublikowany kurs z danych seeda; istniejącego kursu (po nazwie) nie rusza."""
+    if db.query(models.Kurs).filter(models.Kurs.nazwa == dane["nazwa"]).first():
         return 0
     ostatni = db.query(models.Kurs).count()
-    kurs = models.Kurs(nazwa=KURS_DEMO["nazwa"], opis=KURS_DEMO["opis"], is_published=True, kolejnosc=ostatni)
-    for i, dzial_dane in enumerate(KURS_DEMO["dzialy"]):
+    kurs = models.Kurs(nazwa=dane["nazwa"], opis=dane["opis"], is_published=True, kolejnosc=ostatni)
+    for i, dzial_dane in enumerate(dane["dzialy"]):
         dzial = models.Dzial(nazwa=dzial_dane["nazwa"], kolejnosc=i)
         for j, temat_dane in enumerate(dzial_dane["tematy"]):
             temat = models.Temat(tytul=temat_dane["tytul"], kolejnosc=j)
@@ -118,12 +121,33 @@ def seed_kurs_demo(db: Session) -> int:
     return 1
 
 
+def seed_kurs_demo(db: Session) -> int:
+    """Kurs, w którym każdy temat ma bloki wspólne oraz dla stylu V, A i K."""
+    return _dodaj_kurs(db, KURS_DEMO)
+
+
+def zapisz_wykresy_matematyki() -> int:
+    """Generuje wykresy SVG do katalogu media (nadpisuje — są w pełni wyliczane z danych kursu)."""
+    katalog = get_media_root().joinpath(*KATALOG_WYKRESOW)
+    katalog.mkdir(parents=True, exist_ok=True)
+    for wykres in WSZYSTKIE_WYKRESY:
+        (katalog / wykres.plik).write_text(wykres_svg(wykres), encoding="utf-8", newline="\n")
+    return len(WSZYSTKIE_WYKRESY)
+
+
+def seed_kurs_matematyka(db: Session) -> int:
+    """Drugi kurs demonstracyjny: funkcja liniowa. Wykresy odtwarzamy przy każdym uruchomieniu seeda."""
+    zapisz_wykresy_matematyki()
+    return _dodaj_kurs(db, KURS_MATEMATYKA)
+
+
 def seed(db: Session) -> dict[str, int]:
     return {
         "uzytkownicy": seed_uzytkownicy(db),
         "uczniowie_demo": seed_uczniowie_demo(db),
         "pytania_ankiety": seed_ankieta(db),
         "kurs_demo": seed_kurs_demo(db),
+        "kurs_matematyka": seed_kurs_matematyka(db),
     }
 
 
