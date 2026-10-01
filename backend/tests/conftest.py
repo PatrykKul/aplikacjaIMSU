@@ -8,6 +8,7 @@ import pytest
 _TMP_DIR = tempfile.mkdtemp(prefix="stylnauki-test-")
 os.environ["DATABASE_URL"] = f"sqlite:///{Path(_TMP_DIR, 'test.db').as_posix()}"
 os.environ["GEMINI_API_KEY"] = ""
+os.environ["MEDIA_ROOT"] = str(Path(_TMP_DIR, "media"))
 os.environ["JWT_SECRET"] = "test-secret-only-for-pytest-0123456789abcdef"
 
 from alembic import command  # noqa: E402
