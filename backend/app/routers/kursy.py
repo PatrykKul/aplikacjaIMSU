@@ -9,6 +9,7 @@ from typing import List, Optional
 from app import models, schemas
 from app.database import SessionLocal
 from app.deps import ROLA_UCZEN, get_db, get_uczestnik, wymagaj_edytora
+from app.routers.ankieta import ostatni_wynik
 from app.media import (
     MAX_AUDIO_BYTES,
     MAX_OBRAZ_BYTES,
@@ -16,7 +17,7 @@ from app.media import (
     ROZSZERZENIA_OBRAZ,
     zapisz_upload,
 )
-from app.services import ai_generator
+from app.services import adaptacja, ai_generator, nauka
 from app.services.personalizacja import filtruj_bloki, ukryj_klucz_quizu
 from app.services.quiz import ocen_quiz
 
@@ -51,17 +52,27 @@ async def upload_audio(
 
 
 def _widok_tematu(
-    temat: models.Temat, user: models.Uzytkownik, styl_parametr: str | None
+    db: Session, temat: models.Temat, user: models.Uzytkownik, styl_parametr: str | None
 ) -> schemas.Temat:
-    """Uczeń: bloki wspólne + jego stylu (bez klucza quizu). Edytor: wszystko albo podgląd `?styl=`."""
+    """Uczeń: bloki wspólne + jego stylu i poziomu (bez klucza quizu). Edytor: wszystko albo podgląd `?styl=`."""
     wynik = schemas.Temat.model_validate(temat)
     if user.rola == ROLA_UCZEN:
         # `?styl=` lets a student retry the topic in another style ("spróbuj inaczej")
         styl_widoku = styl_parametr or user.styl_uczenia
-        bloki = filtruj_bloki(wynik.bloki, styl_widoku)
+        poziom, wyniki = nauka.poziom_ucznia(db, user.id)
+        bloki = [
+            b for b in filtruj_bloki(wynik.bloki, styl_widoku) if adaptacja.blok_na_poziomie(b.poziom, poziom)
+        ]
         for blok in bloki:
             if blok.typ == "quiz":
                 blok.dane = ukryj_klucz_quizu(blok.dane)
+        ankieta = ostatni_wynik(db, user.id)
+        punkty = {"V": ankieta.punkty_v, "A": ankieta.punkty_a, "K": ankieta.punkty_k} if ankieta else None
+        dlaczego = [adaptacja.uzasadnienie_stylu(styl_widoku, user.styl_uczenia, user.styl_zrodlo, punkty)]
+        powod_poziomu = adaptacja.uzasadnienie_poziomu(poziom, wyniki)
+        if powod_poziomu:
+            dlaczego.append(powod_poziomu)
+        wynik.personalizacja = schemas.PersonalizacjaOut(styl=styl_widoku, poziom=poziom, dlaczego=dlaczego)
     elif styl_parametr:
         styl_widoku = styl_parametr
         bloki = filtruj_bloki(wynik.bloki, styl_widoku)
@@ -214,7 +225,7 @@ def pobierz_temat(
 ):
     temat = _reload_temat(db, temat_id)
     _sprawdz_widocznosc(temat.dzial.kurs, user, "Temat nie znaleziony")
-    return _widok_tematu(temat, user, styl)
+    return _widok_tematu(db, temat, user, styl)
 
 
 @router.put("/kursy/{kurs_id}", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Kurs)
@@ -507,6 +518,7 @@ def utworz_blok(
         image_url=body.image_url,
         styl=body.styl,
         media_url=body.media_url,
+        poziom=body.poziom,
     )
     blok.dane = _dane_bloku(body.typ, body.dane)
     db.add(blok)
@@ -547,13 +559,80 @@ def sprawdz_quiz(
         wynik = ocen_quiz(pytania, body.odpowiedzi)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return schemas.QuizWynikOut(
+    odpowiedz = schemas.QuizWynikOut(
         poprawne=wynik.poprawne,
         liczba_pytan=wynik.liczba_pytan,
         procent=wynik.procent,
         trafienia=list(wynik.trafienia),
         poprawne_odpowiedzi=list(wynik.poprawne_odpowiedzi),
     )
+    if user.rola == ROLA_UCZEN:
+        _zapisz_wynik_quizu(db, user, blok, wynik.procent, body.styl or user.styl_uczenia, odpowiedz)
+    return odpowiedz
+
+
+def _zapisz_wynik_quizu(
+    db: Session,
+    user: models.Uzytkownik,
+    blok: models.Blok,
+    procent: int,
+    styl: str | None,
+    odpowiedz: schemas.QuizWynikOut,
+) -> None:
+    """Adaptacja po quizie: zdarzenie, postęp tematu, wagi V/A/K, rekomendacja z uzasadnieniem."""
+    temat = blok.temat
+    sukces = adaptacja.czy_zaliczony(procent)
+    wczesniejsze = nauka.proby_w_temacie(db, user.id, temat.id)
+
+    # Weights: only the first success / first failure in this topic and style counts
+    w_tym_stylu = [adaptacja.czy_zaliczony(z.wartosc or 0) for z in wczesniejsze if z.styl == styl]
+    if adaptacja.liczy_sie_do_wag(w_tym_stylu, sukces):
+        nauka.ustaw_wagi(user, adaptacja.aktualizuj_wagi(nauka.wagi_ucznia(user), styl, sukces))
+
+    db.add(
+        models.ZdarzenieNauki(
+            user_id=user.id, temat_id=temat.id, blok_id=blok.id, typ=nauka.TYP_QUIZ, styl=styl, wartosc=procent
+        )
+    )
+    postep = nauka.postep_lub_nowy(db, user.id, temat.id)
+    postep.liczba_prob = (postep.liczba_prob or 0) + 1
+    postep.ostatni_wynik = procent
+    postep.ostatni_styl = styl
+    postep.najlepszy_wynik = max(postep.najlepszy_wynik or 0, procent)
+    postep.zaliczony = bool(postep.zaliczony) or sukces
+    db.flush()
+
+    nastepny = nauka.nastepny_temat(db, user.id, temat) if sukces else None
+    wyprobowane = {s for z in wczesniejsze for s in (z.styl or "")}
+    rek = adaptacja.rekomendacja_po_quizie(
+        procent=procent,
+        tytul_tematu=temat.tytul,
+        temat_id=temat.id,
+        styl_przerabiany=styl,
+        wagi=nauka.wagi_ucznia(user),
+        wyprobowane=wyprobowane,
+        nastepny_temat=(nastepny.id, nastepny.tytul) if nastepny else None,
+    )
+    db.commit()
+
+    odpowiedz.zaliczony = sukces
+    odpowiedz.rekomendacja = schemas.RekomendacjaOut(
+        typ=rek.typ, tytul=rek.tytul, dlaczego=rek.dlaczego, styl=rek.styl, temat_id=rek.temat_id
+    )
+    odpowiedz.wagi = nauka.wagi_ucznia(user)
+    proponowany = adaptacja.propozycja_zmiany_stylu(
+        nauka.wagi_ucznia(user), user.styl_uczenia, user.styl_zrodlo, user.odrzucona_propozycja
+    )
+    if proponowany:
+        wagi = nauka.wagi_ucznia(user)
+        odpowiedz.propozycja_stylu = schemas.PropozycjaStyluOut(
+            styl=proponowany,
+            komunikat=adaptacja.komunikat_propozycji(proponowany),
+            dlaczego=(
+                f"bo po quizach Twoje wagi to V {wagi['V']} / A {wagi['A']} / K {wagi['K']} "
+                f"— najwyżej jest styl „{adaptacja.NAZWA_STYLU[proponowany]}”."
+            ),
+        )
 
 
 @router.delete("/bloki/{blok_id}", dependencies=[Depends(wymagaj_edytora)])

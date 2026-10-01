@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
 from app.deps import get_current_user, get_db, wymagaj_edytora
+from app.services.adaptacja import wagi_startowe
 from app.services.vak import policz_wynik
 
 router = APIRouter(tags=["ankieta"])
@@ -89,6 +90,10 @@ def wyslij_odpowiedzi(
     user.ankieta_wypelniona = True
     user.styl_uczenia = wynik.styl_dominujacy
     user.styl_zrodlo = ZRODLO_ANKIETA
+    # Adaptation starts from the survey points
+    wagi = wagi_startowe(wynik.punkty_v, wynik.punkty_a, wynik.punkty_k)
+    user.waga_v, user.waga_a, user.waga_k = wagi["V"], wagi["A"], wagi["K"]
+    user.odrzucona_propozycja = None
     db.commit()
     db.refresh(user)
     return _profil(db, user)

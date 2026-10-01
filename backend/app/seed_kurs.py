@@ -80,6 +80,16 @@ TEMAT_ZMIENNE = {
             ),
         },
         {
+            "typ": "przyklad",
+            "poziom": 1,
+            "tresc": "Zacznijmy prościej. Zmienna to nazwa i wartość:\n\n```python\nkolor = \"zielony\"\nprint(kolor)   # zielony\n```\n\nPo lewej stronie znaku `=` zawsze stoi **nazwa**, po prawej **wartość**.",
+        },
+        {
+            "typ": "przyklad",
+            "poziom": 3,
+            "tresc": "Dla chętnych: typ można zmieniać funkcjami `int()`, `float()` i `str()`.\n\n```python\ntekst = \"25\"\nliczba = int(tekst) + 5\nprint(liczba)        # 30\nprint(str(liczba) + \" lat\")   # 30 lat\n```",
+        },
+        {
             "typ": "uwaga",
             "tresc": "Nazwa zmiennej nie może zaczynać się od cyfry ani zawierać spacji. `moj_wiek` – dobrze, `2wiek` i `moj wiek` – źle.",
         },
@@ -166,6 +176,16 @@ TEMAT_IF = {
             ),
         },
         {
+            "typ": "przyklad",
+            "poziom": 1,
+            "tresc": "Zacznijmy prościej — sam `if`, bez `else`:\n\n```python\npada = True\nif pada:\n    print(\"Weź parasol\")\n```\n\nJeśli `pada` ma wartość `True`, napis się pojawi. Jeśli `False` — nie wydarzy się nic.",
+        },
+        {
+            "typ": "przyklad",
+            "poziom": 3,
+            "tresc": "Dla chętnych: warunki można łączyć słowami `and` i `or`.\n\n```python\nwiek = 20\nma_bilet = True\nif wiek >= 18 and ma_bilet:\n    print(\"Zapraszamy na seans\")\n```",
+        },
+        {
             "typ": "uwaga",
             "tresc": "Porównanie zapisujemy podwójnym znakiem `==`. Pojedynczy `=` to przypisanie i w warunku spowoduje błąd.",
         },
@@ -246,6 +266,16 @@ TEMAT_FOR = {
             ),
         },
         {
+            "typ": "przyklad",
+            "poziom": 1,
+            "tresc": "Zacznijmy prościej — pętla, która tylko powtarza:\n\n```python\nfor i in range(2):\n    print(\"Hej!\")\n```\n\n`range(2)` oznacza „zrób to 2 razy”. Na ekranie pojawią się dwa napisy `Hej!`.",
+        },
+        {
+            "typ": "przyklad",
+            "poziom": 3,
+            "tresc": "Dla chętnych: `range` przyjmuje też krok, a pętle można zagnieżdżać.\n\n```python\nfor i in range(0, 10, 2):\n    print(i)          # 0 2 4 6 8\n\nfor a in range(1, 3):\n    for b in range(1, 3):\n        print(a * b)  # 1 2 2 4\n```",
+        },
+        {
             "typ": "uwaga",
             "tresc": "`range(5)` **nie zawiera** liczby 5. Jeśli chcesz liczyć od 1 do 5, użyj `range(1, 6)`.",
         },
@@ -324,6 +354,16 @@ TEMAT_FUNKCJE = {
                 "```python\ndef czy_parzysta(n):\n    return n % 2 == 0\n\nprint(czy_parzysta(10))   # True\nprint(czy_parzysta(7))    # False\n```\n\n"
                 "Funkcja może zwracać dowolny typ — tutaj `bool`."
             ),
+        },
+        {
+            "typ": "przyklad",
+            "poziom": 1,
+            "tresc": "Zacznijmy prościej — funkcja bez parametrów i bez `return`:\n\n```python\ndef przywitaj():\n    print(\"Dzień dobry!\")\n\nprzywitaj()\n```\n\nNazwa z nawiasami `przywitaj()` uruchamia kod funkcji.",
+        },
+        {
+            "typ": "przyklad",
+            "poziom": 3,
+            "tresc": "Dla chętnych: parametr może mieć wartość domyślną.\n\n```python\ndef potega(x, wykladnik=2):\n    return x ** wykladnik\n\nprint(potega(5))      # 25\nprint(potega(2, 10))  # 1024\n```",
         },
         {
             "typ": "uwaga",

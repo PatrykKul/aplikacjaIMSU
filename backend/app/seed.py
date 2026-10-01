@@ -66,6 +66,7 @@ def seed_kurs_demo(db: Session) -> int:
                     rozwiazanie=b.get("rozwiazanie"),
                     image_url=b.get("image_url"),
                     media_url=b.get("media_url"),
+                    poziom=b.get("poziom"),
                     kolejnosc=k,
                 )
                 blok.dane = b.get("dane")

@@ -75,6 +75,7 @@ class BlokBase(BaseModel):
     styl: Optional[BLOK_STYL] = None
     media_url: Optional[str] = None
     dane: Optional[Dict[str, Any]] = None
+    poziom: Optional[int] = Field(None, ge=1, le=3)
 
 
 class BlokCreate(BaseModel):
@@ -87,6 +88,7 @@ class BlokCreate(BaseModel):
     styl: Optional[BLOK_STYL] = None
     media_url: Optional[str] = None
     dane: Optional[Dict[str, Any]] = None
+    poziom: Optional[int] = Field(None, ge=1, le=3)
 
 
 class BlokUpdate(BaseModel):
@@ -99,6 +101,7 @@ class BlokUpdate(BaseModel):
     styl: Optional[BLOK_STYL] = None
     media_url: Optional[str] = None
     dane: Optional[Dict[str, Any]] = None
+    poziom: Optional[int] = Field(None, ge=1, le=3)
 
 
 class Blok(BlokBase):
@@ -110,6 +113,22 @@ class Blok(BlokBase):
 class QuizOdpowiedziIn(BaseModel):
     # One entry per question: index of the chosen answer or null
     odpowiedzi: List[Optional[int]] = Field(..., min_length=1, max_length=30)
+    # Style in which the student went through the topic (default: the student's own style)
+    styl: Optional[BLOK_STYL] = None
+
+
+class RekomendacjaOut(BaseModel):
+    typ: Literal["nastepny", "powtorka", "koniec", "powtorz"]
+    tytul: str
+    dlaczego: str
+    styl: Optional[str] = None
+    temat_id: Optional[int] = None
+
+
+class PropozycjaStyluOut(BaseModel):
+    styl: BLOK_STYL
+    komunikat: str
+    dlaczego: str
 
 
 class QuizWynikOut(BaseModel):
@@ -118,6 +137,19 @@ class QuizWynikOut(BaseModel):
     procent: int
     trafienia: List[bool]
     poprawne_odpowiedzi: List[int]
+    # Filled in for students only (adaptation)
+    zaliczony: Optional[bool] = None
+    rekomendacja: Optional[RekomendacjaOut] = None
+    propozycja_stylu: Optional[PropozycjaStyluOut] = None
+    wagi: Optional[Dict[str, int]] = None
+
+
+class PersonalizacjaOut(BaseModel):
+    """Dlaczego uczeń widzi akurat taki zestaw bloków."""
+
+    styl: Optional[str] = None
+    poziom: int
+    dlaczego: List[str]
 
 
 class BlokReorder(BaseModel):
@@ -160,6 +192,7 @@ class Temat(TematBase):
     bloki: List[Blok] = []
     # Style used to pick the blocks (None = all blocks, editor view)
     styl_widoku: Optional[str] = None
+    personalizacja: Optional[PersonalizacjaOut] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -416,3 +449,74 @@ class PytanieAnkietyEdycjaOut(BaseModel):
     aktywne: bool
     odpowiedzi: List[OdpowiedzAnkietyEdycjaOut]
     model_config = ConfigDict(from_attributes=True)
+
+
+# ==========================================
+# NAUKA / ADAPTACJA
+# ==========================================
+
+TYP_ZDARZENIA = Literal[
+    "otwarcie_tematu",
+    "odtworzenie_wideo",
+    "odtworzenie_audio",
+    "ukonczenie_cwiczenia",
+    "czas_w_temacie",
+]
+
+
+class ZdarzenieIn(BaseModel):
+    temat_id: int
+    blok_id: Optional[int] = None
+    typ: TYP_ZDARZENIA
+    styl: Optional[BLOK_STYL] = None
+    czas_s: Optional[int] = Field(None, ge=0, le=24 * 3600)
+
+
+class PostepOut(BaseModel):
+    temat_id: int
+    zaliczony: bool
+    najlepszy_wynik: Optional[int] = None
+    ostatni_wynik: Optional[int] = None
+    liczba_prob: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SciezkaTematOut(BaseModel):
+    id: int
+    tytul: str
+    dzial: str
+    zaliczony: bool
+    najlepszy_wynik: Optional[int] = None
+    ostatni_wynik: Optional[int] = None
+    liczba_prob: int
+
+
+class SciezkaKursOut(BaseModel):
+    id: int
+    nazwa: str
+    zaliczone: int
+    tematy: List[SciezkaTematOut]
+
+
+class NastepnyKrokOut(BaseModel):
+    temat_id: int
+    tytul: str
+    kurs: str
+    dlaczego: str
+
+
+class SciezkaOut(BaseModel):
+    styl_uczenia: Optional[str] = None
+    styl_zrodlo: Optional[str] = None
+    styl_ankiety: Optional[str] = None
+    wagi: Dict[str, int]
+    poziom: int
+    poziom_dlaczego: Optional[str] = None
+    kursy: List[SciezkaKursOut]
+    nastepny_krok: Optional[NastepnyKrokOut] = None
+    propozycja_stylu: Optional[PropozycjaStyluOut] = None
+
+
+class DecyzjaPropozycjiIn(BaseModel):
+    styl: BLOK_STYL
+    akceptuj: bool

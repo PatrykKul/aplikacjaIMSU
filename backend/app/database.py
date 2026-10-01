@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 load_dotenv()
@@ -14,6 +14,15 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     _connect_args = {"check_same_thread": False, "timeout": 20.0}
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=_connect_args)
+
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+
+    @event.listens_for(engine, "connect")
+    def _sqlite_foreign_keys(dbapi_connection, _record):
+        # SQLite ignores ON DELETE CASCADE / SET NULL unless this is switched on per connection
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

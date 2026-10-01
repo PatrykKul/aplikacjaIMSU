@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, List, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -72,6 +72,8 @@ class Blok(Base):
     media_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     # Structured content of quiz / cwiczenie blocks (JSON)
     dane_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Difficulty: 1 = easier extra, 2 / NULL = standard, 3 = extension
+    poziom: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     temat: Mapped["Temat"] = relationship(back_populates="bloki")
 
@@ -100,6 +102,12 @@ class Uzytkownik(Base):
     styl_uczenia: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     styl_zrodlo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     utworzono: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_teraz)
+    # Adaptation weights: start = survey points, then +1 / -1 after quizzes
+    waga_v: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    waga_a: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    waga_k: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Style suggestion the student declined (not offered again)
+    odrzucona_propozycja: Mapped[Optional[str]] = mapped_column(String(1), nullable=True)
 
 
 class PytanieAnkiety(Base):
@@ -134,3 +142,32 @@ class WynikAnkiety(Base):
     punkty_k: Mapped[int] = mapped_column(Integer, nullable=False)
     styl_dominujacy: Mapped[str] = mapped_column(String(3), nullable=False)
     data: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_teraz)
+
+
+class ZdarzenieNauki(Base):
+    __tablename__ = "zdarzenia_nauki"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("uzytkownicy.id", ondelete="CASCADE"), index=True)
+    temat_id: Mapped[int] = mapped_column(ForeignKey("tematy.id", ondelete="CASCADE"), index=True)
+    blok_id: Mapped[Optional[int]] = mapped_column(ForeignKey("bloki.id", ondelete="SET NULL"), nullable=True)
+    typ: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    # Style in which the student was going through the topic
+    styl: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
+    # Quiz result in percent
+    wartosc: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    czas_s: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    data: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_teraz)
+
+
+class PostepTematu(Base):
+    __tablename__ = "postepy_tematow"
+    __table_args__ = (UniqueConstraint("user_id", "temat_id", name="uq_postep_user_temat"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("uzytkownicy.id", ondelete="CASCADE"), index=True)
+    temat_id: Mapped[int] = mapped_column(ForeignKey("tematy.id", ondelete="CASCADE"), index=True)
+    zaliczony: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    najlepszy_wynik: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    ostatni_wynik: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    ostatni_styl: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
+    liczba_prob: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    data: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_teraz, onupdate=_teraz)
