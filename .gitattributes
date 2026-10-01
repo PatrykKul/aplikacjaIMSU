@@ -1,0 +1,15 @@
+# Text files: LF in the repository and in the working tree on every system
+* text=auto eol=lf
+
+# Binary files: never touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.mp3 binary
+*.ogg binary
+*.wav binary
+*.m4a binary
+*.db binary
