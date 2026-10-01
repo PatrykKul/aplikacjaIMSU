@@ -1,7 +1,7 @@
 # STATUS
 
-- **Ostatni ukończony etap:** Etap 1 – auth + role + seed użytkowników ([raport](etap-1.md)).
-- **W toku:** Etap 2 – ankieta VAK + flaga + wymuszenie po logowaniu.
+- **Ostatni ukończony etap:** Etap 2 – ankieta VAK + flaga + wymuszenie po logowaniu ([raport](etap-2.md)).
+- **W toku:** Etap 3 – personalizacja bloków (styl, typy multimedialne, filtrowanie) + seed kursu V/A/K.
 - **Blokery:** brak.
 - **Otwarte pytania:** [PYTANIA.md](PYTANIA.md).
 
@@ -27,3 +27,4 @@ Konta testowe: `admin@stylnauki.pl` / `Admin123!`, `nauczyciel@stylnauki.pl` / `
 ## Raporty
 - [Etap 0](etap-0.md)
 - [Etap 1](etap-1.md)
+- [Etap 2](etap-2.md)
