@@ -53,3 +53,23 @@ export interface GlobalSearchResponse {
   dzialy: DzialSearchHit[];
   tematy: TematSummary[];
 }
+
+export type Rola = "admin" | "nauczyciel" | "uczen";
+
+export interface Uzytkownik {
+  id: number;
+  email: string;
+  imie: string;
+  rola: Rola;
+  aktywny: boolean;
+  ankieta_wypelniona: boolean;
+  styl_uczenia: string | null;
+  styl_zrodlo: string | null;
+  utworzono: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  uzytkownik: Uzytkownik;
+}

@@ -13,26 +13,16 @@ import { useAdminStore } from "@/store/useAdminStore";
 
 type Props = {
   tematId: number;
-  initialTemat: Temat;
-  initialDzial: Dzial;
-  initialKurs: Kurs;
 };
 
-export function TematPageClient({
-  tematId,
-  initialTemat,
-  initialDzial,
-  initialKurs,
-}: Props) {
+export function TematPageClient({ tematId }: Props) {
   const isAdmin = useAdminStore((s) => s.isAdmin);
 
   const { data: temat, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["temat", tematId],
     queryFn: () => apiFetch<Temat>(`/tematy/${tematId}`),
     enabled: Number.isFinite(tematId),
-    initialData: initialTemat,
-    staleTime: isAdmin ? 0 : Infinity,
-    refetchOnMount: isAdmin,
+    staleTime: isAdmin ? 0 : 30_000,
     refetchOnWindowFocus: isAdmin,
   });
 
@@ -40,9 +30,7 @@ export function TematPageClient({
     queryKey: ["dzial", temat?.dzial_id],
     queryFn: () => apiFetch<Dzial>(`/dzialy/${temat!.dzial_id}`),
     enabled: !!temat?.dzial_id,
-    initialData: initialDzial,
-    staleTime: isAdmin ? 0 : Infinity,
-    refetchOnMount: isAdmin,
+    staleTime: isAdmin ? 0 : 30_000,
     refetchOnWindowFocus: isAdmin,
   });
 
@@ -50,9 +38,7 @@ export function TematPageClient({
     queryKey: ["kurs", dzial?.kurs_id],
     queryFn: () => apiFetch<Kurs>(`/kursy/${dzial!.kurs_id}`),
     enabled: !!dzial?.kurs_id,
-    initialData: initialKurs,
-    staleTime: isAdmin ? 0 : Infinity,
-    refetchOnMount: isAdmin,
+    staleTime: isAdmin ? 0 : 30_000,
     refetchOnWindowFocus: isAdmin,
   });
 
@@ -153,7 +139,6 @@ export function TematPageClient({
         <TematLessonView
           tematId={tematId}
           isAdmin={isAdmin}
-          initialData={initialTemat}
           materialyContext={
             kurs && dzial && temat
               ? {

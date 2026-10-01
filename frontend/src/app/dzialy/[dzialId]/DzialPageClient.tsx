@@ -34,15 +34,13 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { apiFetch, getApiBase, reorderTematy } from "@/lib/api";
+import { apiFetch, authFetch, getApiBase, reorderTematy } from "@/lib/api";
 import type { Dzial, Kurs, TematSummary } from "@/lib/types";
 import { InlineFieldModal } from "@/components/modals/InlineFieldModal";
 import { useAdminStore } from "@/store/useAdminStore";
 
 type Props = {
   dzialId: number;
-  initialDzial: Dzial;
-  initialKurs: Kurs;
 };
 
 function TematCardBody({
@@ -161,8 +159,6 @@ function SortableTematItem({
 
 export function DzialPageClient({
   dzialId,
-  initialDzial,
-  initialKurs,
 }: Props) {
   const queryClient = useQueryClient();
   const isAdmin = useAdminStore((s) => s.isAdmin);
@@ -172,7 +168,7 @@ export function DzialPageClient({
   const [tematTytul, setTematTytul] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [orderedTematy, setOrderedTematy] = useState<TematSummary[]>(
-    initialDzial.tematy ?? []
+    []
   );
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -183,9 +179,7 @@ export function DzialPageClient({
     queryKey: ["dzial", dzialId],
     queryFn: () => apiFetch<Dzial>(`/dzialy/${dzialId}`),
     enabled: Number.isFinite(dzialId),
-    initialData: initialDzial,
-    staleTime: isAdmin ? 0 : Infinity,
-    refetchOnMount: isAdmin,
+    staleTime: isAdmin ? 0 : 30_000,
     refetchOnWindowFocus: isAdmin,
   });
 
@@ -193,9 +187,7 @@ export function DzialPageClient({
     queryKey: ["kurs", dzial?.kurs_id],
     queryFn: () => apiFetch<Kurs>(`/kursy/${dzial!.kurs_id}`),
     enabled: !!dzial?.kurs_id,
-    initialData: initialKurs,
-    staleTime: isAdmin ? 0 : Infinity,
-    refetchOnMount: isAdmin,
+    staleTime: isAdmin ? 0 : 30_000,
     refetchOnWindowFocus: isAdmin,
   });
 
@@ -234,7 +226,7 @@ export function DzialPageClient({
     setSubmitting(true);
     try {
       if (tematModal === "create") {
-        const res = await fetch(`${api}/dzialy/${dzialId}/tematy`, {
+        const res = await authFetch(`${api}/dzialy/${dzialId}/tematy`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tytul: tematTytul }),
@@ -242,7 +234,7 @@ export function DzialPageClient({
         if (!res.ok) throw new Error(await res.text());
         toast.success("Temat dodany.");
       } else if (tematModal === "edit" && editingTemat) {
-        const res = await fetch(`${api}/tematy/${editingTemat.id}`, {
+        const res = await authFetch(`${api}/tematy/${editingTemat.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tytul: tematTytul }),
@@ -264,7 +256,7 @@ export function DzialPageClient({
     if (!window.confirm(`Usunąć temat „${t.tytul}”?`)) return;
     const api = getApiBase();
     try {
-      const res = await fetch(`${api}/tematy/${t.id}`, { method: "DELETE" });
+      const res = await authFetch(`${api}/tematy/${t.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(await res.text());
       toast.success("Temat usunięty.");
       invalidateDzial();

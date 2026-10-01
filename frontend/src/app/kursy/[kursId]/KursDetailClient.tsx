@@ -34,14 +34,13 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { apiFetch, getApiBase, reorderDzialy } from "@/lib/api";
+import { apiFetch, authFetch, getApiBase, reorderDzialy } from "@/lib/api";
 import type { Dzial, Kurs } from "@/lib/types";
 import { InlineFieldModal } from "@/components/modals/InlineFieldModal";
 import { useAdminStore } from "@/store/useAdminStore";
 
 type Props = {
   kursId: number;
-  initialKurs: Kurs;
 };
 
 function DzialCardBody({
@@ -161,7 +160,7 @@ function SortableDzialItem({
   );
 }
 
-export function KursDetailClient({ kursId, initialKurs }: Props) {
+export function KursDetailClient({ kursId }: Props) {
   const queryClient = useQueryClient();
   const isAdmin = useAdminStore((s) => s.isAdmin);
 
@@ -169,7 +168,7 @@ export function KursDetailClient({ kursId, initialKurs }: Props) {
   const [editingDzial, setEditingDzial] = useState<Dzial | null>(null);
   const [dzialNazwa, setDzialNazwa] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [orderedDzialy, setOrderedDzialy] = useState<Dzial[]>(initialKurs.dzialy ?? []);
+  const [orderedDzialy, setOrderedDzialy] = useState<Dzial[]>([]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -179,9 +178,7 @@ export function KursDetailClient({ kursId, initialKurs }: Props) {
     queryKey: ["kurs", kursId],
     queryFn: () => apiFetch<Kurs>(`/kursy/${kursId}`),
     enabled: Number.isFinite(kursId),
-    initialData: initialKurs,
-    staleTime: isAdmin ? 0 : Infinity,
-    refetchOnMount: isAdmin,
+    staleTime: isAdmin ? 0 : 30_000,
     refetchOnWindowFocus: isAdmin,
   });
 
@@ -217,7 +214,7 @@ export function KursDetailClient({ kursId, initialKurs }: Props) {
     setSubmitting(true);
     try {
       if (dzialModal === "create") {
-        const res = await fetch(`${api}/kursy/${kursId}/dzialy`, {
+        const res = await authFetch(`${api}/kursy/${kursId}/dzialy`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ nazwa: dzialNazwa }),
@@ -225,7 +222,7 @@ export function KursDetailClient({ kursId, initialKurs }: Props) {
         if (!res.ok) throw new Error(await res.text());
         toast.success("Dział dodany.");
       } else if (dzialModal === "edit" && editingDzial) {
-        const res = await fetch(`${api}/dzialy/${editingDzial.id}`, {
+        const res = await authFetch(`${api}/dzialy/${editingDzial.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ nazwa: dzialNazwa }),
@@ -247,7 +244,7 @@ export function KursDetailClient({ kursId, initialKurs }: Props) {
     if (!window.confirm(`Usunąć dział „${d.nazwa}” wraz z tematami?`)) return;
     const api = getApiBase();
     try {
-      const res = await fetch(`${api}/dzialy/${d.id}`, { method: "DELETE" });
+      const res = await authFetch(`${api}/dzialy/${d.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(await res.text());
       toast.success("Dział usunięty.");
       invalidateKurs();

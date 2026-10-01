@@ -38,10 +38,6 @@ import { useAdminStore } from "@/store/useAdminStore";
 const API_TIMEOUT_USER_MSG =
   "Serwer nie odpowiada w wyznaczonym czasie. Uruchom backend (np. uvicorn na porcie 8000), zrestartuj go albo sprawdź, czy plik bazy SQLite nie jest zablokowany przez inny program.";
 
-type Props = {
-  initialKursy: Kurs[];
-};
-
 function SortableKursItem({
   kurs,
   index,
@@ -104,7 +100,7 @@ function SortableKursItem({
   );
 }
 
-export function KursyListClient({ initialKursy }: Props) {
+export function KursyListClient() {
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<"create" | "edit" | null>(null);
@@ -124,12 +120,10 @@ export function KursyListClient({ initialKursy }: Props) {
   const kursyQuery = useQuery({
     queryKey: ["kursy"],
     queryFn: getKursy,
-    initialData: initialKursy,
-    staleTime: isAdmin ? 0 : Infinity,
-    refetchOnMount: isAdmin,
+    staleTime: isAdmin ? 0 : 30_000,
   });
   const { refetch } = kursyQuery;
-  const [kursy, setKursy] = useState<Kurs[]>(kursyQuery.data ?? initialKursy);
+  const [kursy, setKursy] = useState<Kurs[]>(kursyQuery.data ?? []);
 
   useEffect(() => {
     if (kursyQuery.data) {
@@ -193,8 +187,8 @@ export function KursyListClient({ initialKursy }: Props) {
       return { previous };
     },
     onError: (err, _vars, ctx) => {
-      queryClient.setQueryData(["kursy"], ctx?.previous ?? initialKursy);
-      setKursy(ctx?.previous ?? initialKursy);
+      queryClient.setQueryData(["kursy"], ctx?.previous ?? []);
+      setKursy(ctx?.previous ?? []);
       toast.error(
         err instanceof Error ? err.message : "Nie udało się zapisać kolejności kursów."
       );

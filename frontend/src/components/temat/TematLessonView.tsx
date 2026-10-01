@@ -35,8 +35,6 @@ import type { Blok, BlokTyp, Temat } from "@/lib/types";
 type Props = {
   tematId: number;
   isAdmin: boolean;
-  /** Dane z SSG — przy `!isAdmin` React Query nie odpala zapytania na starcie. */
-  initialData: Temat;
   /** Wymagane do wgrywania obrazków (ścieżka w public/kursy-materialy). */
   materialyContext?: UploadImageContext;
 };
@@ -391,7 +389,6 @@ async function copyBlockAsImage(blok: Blok) {
 export function TematLessonView({
   tematId,
   isAdmin,
-  initialData,
   materialyContext,
 }: Props) {
   const { resolvedTheme } = useTheme();
@@ -418,9 +415,7 @@ export function TematLessonView({
     queryKey: ["temat", tematId],
     queryFn: () => apiFetch<Temat>(`/tematy/${tematId}`),
     enabled: Number.isFinite(tematId),
-    initialData,
-    staleTime: isAdmin ? 0 : Infinity,
-    refetchOnMount: isAdmin,
+    staleTime: isAdmin ? 0 : 30_000,
     refetchOnWindowFocus: isAdmin,
   });
 

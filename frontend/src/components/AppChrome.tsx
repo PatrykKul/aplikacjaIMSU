@@ -1,8 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { AuthGate, PUBLIC_PATHS } from "@/components/auth/AuthGate";
 import { Navbar } from "@/components/Navbar";
-import type { GlobalSearchResponse } from "@/lib/types";
 
 function AmbientBackground() {
   return (
@@ -20,21 +20,17 @@ function AmbientBackground() {
   );
 }
 
-export function AppChrome({
-  children,
-  searchIndex,
-}: {
-  children: React.ReactNode;
-  searchIndex: GlobalSearchResponse;
-}) {
+export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const showCourseNavbar = pathname !== "/";
+  const showNavbar = !PUBLIC_PATHS.includes(pathname);
 
   return (
     <>
       <AmbientBackground />
-      {showCourseNavbar ? <Navbar searchIndex={searchIndex} /> : null}
-      <div className="relative z-0 flex flex-1 flex-col">{children}</div>
+      <AuthGate>
+        {showNavbar ? <Navbar /> : null}
+        <div className="relative z-0 flex flex-1 flex-col">{children}</div>
+      </AuthGate>
     </>
   );
 }

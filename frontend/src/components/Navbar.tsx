@@ -12,19 +12,27 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { GlobalSearchResponse } from "@/lib/types";
+import { useQuery } from "@tanstack/react-query";
+import { getSearchIndex } from "@/lib/api";
 import { useAdminStore } from "@/store/useAdminStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UserMenu } from "@/components/UserMenu";
 
 const DEBOUNCE_MS = 350;
 
-const IS_DEV = process.env.NODE_ENV === "development";
+const EMPTY_INDEX: GlobalSearchResponse = { dzialy: [], tematy: [] };
 
-type Props = {
-  searchIndex: GlobalSearchResponse;
-};
-
-export function Navbar({ searchIndex }: Props) {
+export function Navbar() {
   const pathname = usePathname();
+  const user = useAuthStore((s) => s.user);
+  const canEdit = user?.rola === "nauczyciel" || user?.rola === "admin";
+  const { data: searchIndex = EMPTY_INDEX } = useQuery({
+    queryKey: ["szukaj-indeks"],
+    queryFn: getSearchIndex,
+    enabled: !!user,
+    staleTime: 60_000,
+  });
   const isAdmin = useAdminStore((s) => s.isAdmin);
   const setIsAdmin = useAdminStore((s) => s.setIsAdmin);
   const [query, setQuery] = useState("");
@@ -197,7 +205,7 @@ export function Navbar({ searchIndex }: Props) {
 
         <ThemeToggle />
 
-        {IS_DEV && (
+        {canEdit && (
           <label className="flex shrink-0 cursor-pointer select-none items-center gap-3 rounded-2xl border border-slate-200 bg-white/70 px-3 py-2 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.03]">
             <span className="hidden text-xs font-medium text-slate-600 sm:inline dark:text-slate-400">
               Tryb Edycji
@@ -221,6 +229,8 @@ export function Navbar({ searchIndex }: Props) {
             </button>
           </label>
         )}
+
+        <UserMenu />
       </div>
     </header>
   );

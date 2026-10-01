@@ -46,12 +46,20 @@ export default function HomePage() {
           ))}
         </div>
 
-        <Link
-          href="/kursy"
-          className="inline-flex items-center rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground shadow-neon-sm transition hover:opacity-90"
-        >
-          Przejdź do kursów
-        </Link>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/rejestracja"
+            className="inline-flex items-center rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground shadow-neon-sm transition hover:opacity-90"
+          >
+            Załóż konto
+          </Link>
+          <Link
+            href="/logowanie"
+            className="inline-flex items-center rounded-xl border border-slate-300 bg-white/80 px-6 py-3 font-semibold text-slate-800 transition hover:border-primary/50 dark:border-white/15 dark:bg-white/[0.04] dark:text-slate-100"
+          >
+            Zaloguj się
+          </Link>
+        </div>
       </div>
     </main>
   );

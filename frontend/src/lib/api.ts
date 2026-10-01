@@ -1,4 +1,14 @@
-import type { Blok, BlokTyp, Dzial, Kurs, Temat } from "@/lib/types";
+import type {
+  Blok,
+  BlokTyp,
+  Dzial,
+  GlobalSearchResponse,
+  Kurs,
+  Temat,
+  TokenResponse,
+  Uzytkownik,
+} from "@/lib/types";
+import { useAuthStore } from "@/store/useAuthStore";
 
 /** Stały adres API (127.0.0.1:8000); opcjonalnie nadpisz NEXT_PUBLIC_API_URL. */
 export const API_BASE_DEFAULT = "http://127.0.0.1:8000";
@@ -35,18 +45,104 @@ export async function fetchWithTimeout(
   }
 }
 
+/** Błąd API z kodem HTTP i opcjonalnym kodem domenowym (np. ANKIETA_WYMAGANA). */
+export class ApiError extends Error {
+  status: number;
+  kod?: string;
+
+  constructor(message: string, status: number, kod?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.kod = kod;
+  }
+}
+
+async function toApiError(res: Response): Promise<ApiError> {
+  let message = res.statusText || "Błąd serwera";
+  let kod: string | undefined;
+  try {
+    const body = await res.json();
+    const detail = body?.detail;
+    if (typeof detail === "string") message = detail;
+    else if (Array.isArray(detail)) message = "Nieprawidłowe dane w formularzu.";
+    else if (detail && typeof detail === "object") {
+      kod = typeof detail.kod === "string" ? detail.kod : undefined;
+      if (typeof detail.komunikat === "string") message = detail.komunikat;
+    }
+  } catch {
+    // Non-JSON error body — keep the status text
+  }
+  return new ApiError(message, res.status, kod);
+}
+
+/** fetch z nagłówkiem Authorization; 401 kończy sesję, ANKIETA_WYMAGANA cofa flagę ankiety. */
+export async function authFetch(
+  input: string | URL,
+  init?: RequestInit,
+  timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
+): Promise<Response> {
+  const { token } = useAuthStore.getState();
+  const headers = new Headers(init?.headers);
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  const res = await fetchWithTimeout(input, { ...init, headers }, timeoutMs);
+  if (res.status === 401 && token) {
+    // Expired or revoked session — AuthGate redirects to the login page
+    useAuthStore.getState().logout();
+  }
+  return res;
+}
+
 export async function apiFetch<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
   const url = `${getApiBase()}${path.startsWith("/") ? path : `/${path}`}`;
-  const res = await fetchWithTimeout(url, init, DEFAULT_FETCH_TIMEOUT_MS);
+  const res = await authFetch(url, init);
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || res.statusText);
+    const err = await toApiError(res);
+    if (err.kod === "ANKIETA_WYMAGANA") {
+      const { user, setUser } = useAuthStore.getState();
+      if (user) setUser({ ...user, ankieta_wypelniona: false });
+    }
+    throw err;
   }
   return res.json() as Promise<T>;
 }
+
+function jsonInit(method: string, body?: unknown): RequestInit {
+  return {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  };
+}
+
+// --- Auth ---
+
+export async function login(data: { email: string; haslo: string }): Promise<TokenResponse> {
+  return apiFetch<TokenResponse>("/auth/logowanie", jsonInit("POST", data));
+}
+
+export async function register(data: {
+  email: string;
+  imie: string;
+  haslo: string;
+}): Promise<TokenResponse> {
+  return apiFetch<TokenResponse>("/auth/rejestracja", jsonInit("POST", data));
+}
+
+export async function getMe(): Promise<Uzytkownik> {
+  return apiFetch<Uzytkownik>("/auth/me");
+}
+
+export async function getSearchIndex(): Promise<GlobalSearchResponse> {
+  return apiFetch<GlobalSearchResponse>("/szukaj?q=");
+}
+
+// --- Kursy ---
 
 export type TematUpdatePayload = { tytul?: string };
 
@@ -192,14 +288,7 @@ export async function uploadImage(
   body.append("kurs_nazwa", ctx.kursNazwa);
   body.append("dzial_nazwa", ctx.dzialNazwa);
   body.append("temat_nazwa", ctx.tematNazwa);
-  const res = await fetchWithTimeout(
-    url,
-    { method: "POST", body },
-    DEFAULT_FETCH_TIMEOUT_MS * 2
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || res.statusText);
-  }
+  const res = await authFetch(url, { method: "POST", body }, DEFAULT_FETCH_TIMEOUT_MS * 2);
+  if (!res.ok) throw await toApiError(res);
   return res.json() as Promise<{ image_url: string }>;
 }

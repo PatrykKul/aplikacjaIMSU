@@ -3,8 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppChrome } from "@/components/AppChrome";
 import { Providers } from "@/components/Providers";
-import { serverFetchJson } from "@/lib/server-fetch";
-import type { GlobalSearchResponse } from "@/lib/types";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,18 +19,11 @@ export const metadata: Metadata = {
   description: "Kursy dopasowane do stylu uczenia się (VAK)",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let globalSearchIndex: GlobalSearchResponse = { dzialy: [], tematy: [] };
-  try {
-    globalSearchIndex = await serverFetchJson<GlobalSearchResponse>("/szukaj?q=");
-  } catch {
-    console.warn("Nie udało się pobrać globalnego indeksu wyszukiwania — czy backend działa?");
-  }
-
   return (
     <html
       lang="pl"
@@ -41,7 +32,7 @@ export default async function RootLayout({
     >
       <body className="flex min-h-full flex-col text-slate-900 dark:text-slate-100">
         <Providers>
-          <AppChrome searchIndex={globalSearchIndex}>{children}</AppChrome>
+          <AppChrome>{children}</AppChrome>
         </Providers>
       </body>
     </html>
