@@ -520,3 +520,46 @@ class SciezkaOut(BaseModel):
 class DecyzjaPropozycjiIn(BaseModel):
     styl: BLOK_STYL
     akceptuj: bool
+
+
+# ==========================================
+# PANELE: NAUCZYCIEL / ADMIN
+# ==========================================
+
+
+class UczenOut(BaseModel):
+    """Uczeń widziany przez nauczyciela: styl z ankiety i styl aktualny (ręczny / z adaptacji)."""
+
+    id: int
+    imie: str
+    email: str
+    aktywny: bool
+    ankieta_wypelniona: bool
+    styl_uczenia: Optional[str] = None
+    styl_zrodlo: Optional[str] = None
+    styl_ankiety: Optional[str] = None
+    punkty_ankiety: Optional[Dict[str, int]] = None
+    wagi: Dict[str, int]
+    zaliczone_tematy: int
+    liczba_prob: int
+    ostatnia_aktywnosc: Optional[datetime] = None
+
+
+class ZdarzenieOut(BaseModel):
+    typ: str
+    temat: str
+    styl: Optional[str] = None
+    wartosc: Optional[int] = None
+    czas_s: Optional[int] = None
+    data: datetime
+
+
+class UczenSzczegolyOut(BaseModel):
+    uczen: UczenOut
+    sciezka: SciezkaOut
+    historia_ankiet: List[WynikAnkietyOut]
+    zdarzenia: List[ZdarzenieOut]
+
+
+class ZmianaAktywnosciIn(BaseModel):
+    aktywny: bool

@@ -34,3 +34,22 @@ def zmien_role(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.put("/{user_id}/aktywny", response_model=schemas.UzytkownikOut)
+def zmien_aktywnosc(
+    user_id: int,
+    dane: schemas.ZmianaAktywnosciIn,
+    db: Session = Depends(get_db),
+    admin: models.Uzytkownik = Depends(wymagaj_admina),
+):
+    """Blokada / odblokowanie konta (zablokowany użytkownik nie może się logować)."""
+    user = db.get(models.Uzytkownik, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Użytkownik nie znaleziony")
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="Nie można zablokować własnego konta")
+    user.aktywny = dane.aktywny
+    db.commit()
+    db.refresh(user)
+    return user
