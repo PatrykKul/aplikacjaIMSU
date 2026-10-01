@@ -32,12 +32,74 @@ export interface QuizDane {
   pytania: PytanieQuizu[];
 }
 
+export interface Rekomendacja {
+  typ: "nastepny" | "powtorka" | "koniec" | "powtorz";
+  tytul: string;
+  dlaczego: string;
+  styl: Styl | null;
+  temat_id: number | null;
+}
+
+export interface PropozycjaStylu {
+  styl: Styl;
+  komunikat: string;
+  dlaczego: string;
+}
+
 export interface QuizWynik {
   poprawne: number;
   liczba_pytan: number;
   procent: number;
   trafienia: boolean[];
   poprawne_odpowiedzi: number[];
+  /** Adaptation fields — present for students only. */
+  zaliczony: boolean | null;
+  rekomendacja: Rekomendacja | null;
+  propozycja_stylu: PropozycjaStylu | null;
+  wagi: Record<Styl, number> | null;
+}
+
+export interface Personalizacja {
+  styl: string | null;
+  /** 1 = easier examples, 2 = standard, 3 = extensions. */
+  poziom: number;
+  dlaczego: string[];
+}
+
+export type TypZdarzenia =
+  | "otwarcie_tematu"
+  | "odtworzenie_wideo"
+  | "odtworzenie_audio"
+  | "ukonczenie_cwiczenia"
+  | "czas_w_temacie";
+
+export interface SciezkaTemat {
+  id: number;
+  tytul: string;
+  dzial: string;
+  zaliczony: boolean;
+  najlepszy_wynik: number | null;
+  ostatni_wynik: number | null;
+  liczba_prob: number;
+}
+
+export interface SciezkaKurs {
+  id: number;
+  nazwa: string;
+  zaliczone: number;
+  tematy: SciezkaTemat[];
+}
+
+export interface Sciezka {
+  styl_uczenia: string | null;
+  styl_zrodlo: string | null;
+  styl_ankiety: string | null;
+  wagi: Record<Styl, number>;
+  poziom: number;
+  poziom_dlaczego: string | null;
+  kursy: SciezkaKurs[];
+  nastepny_krok: { temat_id: number; tytul: string; kurs: string; dlaczego: string } | null;
+  propozycja_stylu: PropozycjaStylu | null;
 }
 
 export interface Blok {
@@ -53,6 +115,8 @@ export interface Blok {
   styl: Styl | null;
   media_url?: string | null;
   dane?: QuizDane | CwiczenieDane | null;
+  /** 1 = easier extra, 2 / null = standard, 3 = extension. */
+  poziom?: number | null;
 }
 
 export interface Kurs {
@@ -87,6 +151,8 @@ export interface Temat {
   bloki?: Blok[];
   /** Style used to pick the blocks; null = all blocks (editor view). */
   styl_widoku?: string | null;
+  /** Why the student sees this set of blocks (students only). */
+  personalizacja?: Personalizacja | null;
 }
 
 export interface DzialSearchHit {

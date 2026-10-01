@@ -12,6 +12,8 @@ import {
   ImageIcon,
   Loader2,
   Pencil,
+  CheckCircle2,
+  HelpCircle,
   Sparkles,
   Trash2,
   Upload,
@@ -27,13 +29,17 @@ import {
   getTemat,
   mediaSrc,
   reorderBloki,
+  ukonczTemat,
   updateBlok,
   uploadAudio,
   uploadImage,
+  zapiszZdarzenie,
 } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { STYLE, STYL_KOLOR, STYL_NAZWA } from "@/lib/labels";
 import { MathMarkdown } from "@/components/MathMarkdown";
+import { PropozycjaStylu } from "@/components/nauka/PropozycjaStylu";
+import { RekomendacjaCard } from "@/components/nauka/RekomendacjaCard";
 import { AudioBlock } from "@/components/temat/bloki/AudioBlock";
 import { CwiczenieBlock } from "@/components/temat/bloki/CwiczenieBlock";
 import { DiagramBlock } from "@/components/temat/bloki/DiagramBlock";
@@ -41,7 +47,7 @@ import { QuizBlock } from "@/components/temat/bloki/QuizBlock";
 import { WideoBlock, sanitizeVideoEmbedHtml } from "@/components/temat/bloki/WideoBlock";
 import { CwiczenieEditor, DEFAULT_CWICZENIE } from "@/components/temat/edytory/CwiczenieEditor";
 import { DEFAULT_QUIZ, QuizEditor } from "@/components/temat/edytory/QuizEditor";
-import type { Blok, BlokTyp, CwiczenieDane, QuizDane, Styl } from "@/lib/types";
+import type { Blok, BlokTyp, CwiczenieDane, QuizDane, QuizWynik, Styl, TypZdarzenia } from "@/lib/types";
 
 type Props = {
   tematId: number;
@@ -50,6 +56,14 @@ type Props = {
   materialyContext?: UploadImageContext;
   /** Podgląd / powtórka tematu w wybranym stylu; brak = styl użytkownika (uczeń) albo wszystko (edytor). */
   styl?: Styl | null;
+  /** Uczeń: zapisujemy zdarzenia nauki i pokazujemy rekomendacje. */
+  uczen?: boolean;
+};
+
+const POZIOM_LABEL: Record<number, string> = {
+  1: "łatwiejszy",
+  2: "standard",
+  3: "rozszerzenie",
 };
 
 const DEFAULT_TRESC: Record<BlokTyp, string> = {
@@ -453,6 +467,7 @@ export function TematLessonView({
   isAdmin,
   materialyContext,
   styl = null,
+  uczen = false,
 }: Props) {
   const { resolvedTheme } = useTheme();
   const markdownVariant = resolvedTheme === "dark" ? "dark" : "light";
@@ -466,6 +481,11 @@ export function TematLessonView({
   const [draftStyl, setDraftStyl] = useState<Styl | null>(null);
   const [draftMediaUrl, setDraftMediaUrl] = useState("");
   const [draftDane, setDraftDane] = useState<QuizDane | CwiczenieDane | null>(null);
+  const [draftPoziom, setDraftPoziom] = useState<number | null>(null);
+  const [wynikQuizu, setWynikQuizu] = useState<QuizWynik | null>(null);
+  const [propozycjaZamknieta, setPropozycjaZamknieta] = useState(false);
+  const [ukonczony, setUkonczony] = useState(false);
+  const zgloszone = useRef<Set<string>>(new Set());
   const audioInputRef = useRef<HTMLInputElement>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [insertBusy, setInsertBusy] = useState(false);
@@ -544,6 +564,7 @@ export function TematLessonView({
     setDraftStyl(b.styl ?? null);
     setDraftMediaUrl(b.media_url ?? "");
     setDraftDane(b.dane ?? null);
+    setDraftPoziom(b.poziom ?? null);
   };
 
   const onPickAudio = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -618,6 +639,7 @@ export function TematLessonView({
         styl: draftStyl,
         media_url: draftMediaUrl.trim() || null,
         dane: draftDane,
+        poziom: draftPoziom,
       });
       toast.success("Zapisano.");
       setEditingId(null);
@@ -678,6 +700,47 @@ export function TematLessonView({
   const stylWidoku = temat?.styl_widoku;
   const widokStyl: Styl | null =
     styl ?? (stylWidoku && STYLE.includes(stylWidoku as Styl) ? (stylWidoku as Styl) : null);
+
+  // One event per (type, block) during a visit
+  const zglos = useCallback(
+    (typ: TypZdarzenia, blokId?: number) => {
+      if (!uczen) return;
+      const klucz = `${typ}:${blokId ?? ""}`;
+      if (zgloszone.current.has(klucz)) return;
+      zgloszone.current.add(klucz);
+      zapiszZdarzenie({ temat_id: tematId, typ, blok_id: blokId ?? null, styl: widokStyl });
+    },
+    [uczen, tematId, widokStyl]
+  );
+
+  const tematZaladowany = !!temat;
+  useEffect(() => {
+    if (!uczen || !tematZaladowany) return;
+    zglos("otwarcie_tematu");
+    const start = Date.now();
+    return () => {
+      const czas = Math.round((Date.now() - start) / 1000);
+      // Ignore instant unmounts (e.g. React strict mode)
+      if (czas >= 3) zapiszZdarzenie({ temat_id: tematId, typ: "czas_w_temacie", czas_s: czas, styl: widokStyl });
+    };
+  }, [uczen, tematZaladowany, tematId, widokStyl, zglos]);
+
+  const onQuizWynik = (w: QuizWynik) => {
+    setWynikQuizu(w);
+    setPropozycjaZamknieta(false);
+    queryClient.invalidateQueries({ queryKey: ["sciezka"] });
+  };
+
+  const onUkoncz = async () => {
+    try {
+      await ukonczTemat(tematId);
+      setUkonczony(true);
+      queryClient.invalidateQueries({ queryKey: ["sciezka"] });
+      toast.success("Temat oznaczony jako ukończony.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Nie udało się zapisać postępu.");
+    }
+  };
 
   const toggleAns = (id: number) =>
     setOpenAnswers((p) => ({ ...p, [id]: !p[id] }));
@@ -758,7 +821,12 @@ export function TematLessonView({
             >
               <Trash2 className="h-4 w-4" />
             </button>
-            <span className="mr-1">
+            <span className="mr-1 flex items-center gap-1">
+              {b.poziom && b.poziom !== 2 ? (
+                <span className="inline-flex items-center rounded-full border border-amber-400/60 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-200">
+                  {POZIOM_LABEL[b.poziom]}
+                </span>
+              ) : null}
               <StylBadge styl={b.styl} />
             </span>
           </>
@@ -791,6 +859,19 @@ export function TematLessonView({
                 {st ? `${st} · ${STYL_NAZWA[st]}` : "wszyscy (wspólny)"}
               </button>
             ))}
+            <label className="ml-auto flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Poziom
+              <select
+                value={draftPoziom ?? ""}
+                onChange={(e) => setDraftPoziom(e.target.value ? Number(e.target.value) : null)}
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium normal-case tracking-normal text-slate-800 dark:border-white/10 dark:bg-slate-950 dark:text-slate-100"
+              >
+                <option value="">dla wszystkich</option>
+                <option value="1">1 · łatwiejszy (po słabszych quizach)</option>
+                <option value="2">2 · standard</option>
+                <option value="3">3 · rozszerzenie (po bardzo dobrych)</option>
+              </select>
+            </label>
           </div>
           {b.typ === "wideo" ? (
             <p className="text-xs text-slate-600 dark:text-slate-400">
@@ -975,7 +1056,7 @@ export function TematLessonView({
         <div className={cn(karta, "border-slate-200 dark:border-white/[0.08]")}>
           {blockToolbar}
           {naglowek("▶", "text-slate-600 dark:text-slate-400")}
-          <WideoBlock tresc={b.tresc} />
+          <WideoBlock tresc={b.tresc} onPlay={() => zglos("odtworzenie_wideo", b.id)} />
         </div>
       );
     }
@@ -1013,7 +1094,11 @@ export function TematLessonView({
         <div className={cn(karta, "border-violet-200 dark:border-violet-500/20")}>
           {blockToolbar}
           {naglowek("🎧", "text-violet-700 dark:text-violet-300")}
-          <AudioBlock tresc={b.tresc} mediaUrl={b.media_url} />
+          <AudioBlock
+            tresc={b.tresc}
+            mediaUrl={b.media_url}
+            onPlay={() => zglos("odtworzenie_audio", b.id)}
+          />
         </div>
       );
     }
@@ -1027,7 +1112,12 @@ export function TematLessonView({
             <MathMarkdown variant={markdownVariant}>{b.tresc}</MathMarkdown>
           </div>
           {b.dane && "kroki" in b.dane ? (
-            <CwiczenieBlock key={b.id} dane={b.dane} variant={markdownVariant} />
+            <CwiczenieBlock
+              key={b.id}
+              dane={b.dane}
+              variant={markdownVariant}
+              onComplete={() => zglos("ukonczenie_cwiczenia", b.id)}
+            />
           ) : null}
         </div>
       );
@@ -1042,7 +1132,28 @@ export function TematLessonView({
             <MathMarkdown variant={markdownVariant}>{b.tresc}</MathMarkdown>
           </div>
           {b.dane && "pytania" in b.dane ? (
-            <QuizBlock key={b.id} blokId={b.id} dane={b.dane} variant={markdownVariant} styl={widokStyl} />
+            <QuizBlock
+              key={b.id}
+              blokId={b.id}
+              dane={b.dane}
+              variant={markdownVariant}
+              styl={widokStyl}
+              onResult={onQuizWynik}
+            />
+          ) : null}
+          {uczen && wynikQuizu?.rekomendacja ? (
+            <div className="mt-5 space-y-4">
+              <RekomendacjaCard
+                rekomendacja={wynikQuizu.rekomendacja}
+                zaliczony={!!wynikQuizu.zaliczony}
+              />
+              {wynikQuizu.propozycja_stylu && !propozycjaZamknieta ? (
+                <PropozycjaStylu
+                  propozycja={wynikQuizu.propozycja_stylu}
+                  onDecyzja={() => setPropozycjaZamknieta(true)}
+                />
+              ) : null}
+            </div>
           ) : null}
         </div>
       );
@@ -1180,8 +1291,26 @@ export function TematLessonView({
     );
   }
 
+  const maQuiz = ordered.some((b) => b.typ === "quiz");
+
   return (
     <div className="space-y-6">
+      {uczen && temat.personalizacja ? (
+        <aside
+          className="rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]"
+          data-testid="styl-widoku"
+        >
+          <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <HelpCircle className="h-4 w-4" aria-hidden />
+            Dlaczego to widzisz
+          </p>
+          <ul className="space-y-1 text-slate-700 dark:text-slate-300">
+            {temat.personalizacja.dlaczego.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+        </aside>
+      ) : null}
       <input
         ref={imageInputRef}
         type="file"
@@ -1263,6 +1392,20 @@ export function TematLessonView({
           ))}
         </div>
       )}
+
+      {uczen && !maQuiz && ordered.length > 0 ? (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={onUkoncz}
+            disabled={ukonczony}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60"
+          >
+            <CheckCircle2 className="h-4 w-4" aria-hidden />
+            {ukonczony ? "Temat ukończony" : "Oznacz temat jako ukończony"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

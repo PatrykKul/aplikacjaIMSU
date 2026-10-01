@@ -57,6 +57,8 @@ export default function ProfilPage() {
 
   const { uzytkownik, wynik_ankiety: wynik } = profil;
   const reczny = uzytkownik.styl_zrodlo === "reczny";
+  // Style accepted from a suggestion based on quiz results
+  const adaptacja = uzytkownik.styl_zrodlo === "adaptacja";
   const busy = ustaw.isPending || przywroc.isPending;
 
   return (
@@ -85,6 +87,11 @@ export default function ProfilPage() {
                 {reczny && (
                   <>
                     {" · "}wybrany ręcznie: <strong>{nazwaStylu(uzytkownik.styl_uczenia)}</strong>
+                  </>
+                )}
+                {adaptacja && (
+                  <>
+                    {" · "}dopasowany po quizach: <strong>{nazwaStylu(uzytkownik.styl_uczenia)}</strong>
                   </>
                 )}
               </p>
@@ -120,7 +127,7 @@ export default function ProfilPage() {
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3">
-                {reczny && (
+                {(reczny || adaptacja) && (
                   <button
                     type="button"
                     disabled={busy}

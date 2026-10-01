@@ -41,7 +41,6 @@ export function WideoBlock({ tresc, onPlay }: Props) {
   if (/^(https?:\/\/|\/)\S+\.(mp4|webm|ogv)(\?\S*)?$/i.test(tekst)) {
     return (
       <div className={frame}>
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video controls src={mediaSrc(tekst)} className="h-full w-full" onPlay={() => onPlay?.()} />
       </div>
     );

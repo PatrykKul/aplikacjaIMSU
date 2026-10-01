@@ -9,9 +9,11 @@ import type {
   PytanieAnkiety,
   QuizDane,
   QuizWynik,
+  Sciezka,
   Styl,
   Temat,
   TokenResponse,
+  TypZdarzenia,
   Uzytkownik,
   WynikAnkiety,
 } from "@/lib/types";
@@ -182,6 +184,39 @@ export async function przywrocStylZAnkiety(): Promise<Profil> {
   return apiFetch<Profil>("/profil/styl", { method: "DELETE" });
 }
 
+// --- Nauka / adaptacja ---
+
+export async function getSciezka(): Promise<Sciezka> {
+  return apiFetch<Sciezka>("/nauka/sciezka");
+}
+
+export async function odpowiedzNaPropozycje(styl: Styl, akceptuj: boolean): Promise<Profil> {
+  return apiFetch<Profil>("/nauka/propozycja-stylu", jsonInit("POST", { styl, akceptuj }));
+}
+
+export async function ukonczTemat(tematId: number): Promise<{ zaliczony: boolean }> {
+  return apiFetch<{ zaliczony: boolean }>(`/tematy/${tematId}/ukoncz`, { method: "POST" });
+}
+
+/** Fire-and-forget learning event; failures never interrupt the lesson. */
+export function zapiszZdarzenie(dane: {
+  temat_id: number;
+  typ: TypZdarzenia;
+  blok_id?: number | null;
+  styl?: Styl | null;
+  czas_s?: number;
+}): void {
+  const { token } = useAuthStore.getState();
+  if (!token) return;
+  void fetch(`${getApiBase()}/nauka/zdarzenia`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(dane),
+    // Lets the request finish when it is sent while the page is being left
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
 // --- Kursy ---
 
 export type TematUpdatePayload = { tytul?: string };
@@ -207,6 +242,7 @@ export type BlokCreatePayload = {
   styl?: Styl | null;
   media_url?: string | null;
   dane?: QuizDane | CwiczenieDane | null;
+  poziom?: number | null;
 };
 
 export type BlokUpdatePayload = {
@@ -219,6 +255,7 @@ export type BlokUpdatePayload = {
   styl?: Styl | null;
   media_url?: string | null;
   dane?: QuizDane | CwiczenieDane | null;
+  poziom?: number | null;
 };
 
 /** Topic with blocks; `styl` = preview / retry in the given style. */

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ArrowLeft, BookOpen, ChevronRight, Loader2 } from "lucide-react";
@@ -8,7 +9,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { TematLessonView } from "@/components/temat/TematLessonView";
-import { STYLE, STYL_KOLOR, STYL_NAZWA, nazwaStylu } from "@/lib/labels";
+import { STYLE, STYL_KOLOR, STYL_NAZWA } from "@/lib/labels";
 import type { Dzial, Kurs, Styl, Temat } from "@/lib/types";
 import { useAdminStore } from "@/store/useAdminStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -23,6 +24,9 @@ export function TematPageClient({ tematId }: Props) {
   const canEdit = user?.rola === "nauczyciel" || user?.rola === "admin";
   // Teacher preview "through the eyes of" a V / A / K student; null = all blocks
   const [podglad, setPodglad] = useState<Styl | null>(null);
+  // Student retry in another style: /tematy/5?styl=A
+  const stylZUrl = useSearchParams().get("styl");
+  const stylPowtorki = STYLE.includes(stylZUrl as Styl) ? (stylZUrl as Styl) : null;
 
   const { data: temat, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["temat", tematId],
@@ -169,18 +173,22 @@ export function TematPageClient({ tematId }: Props) {
             ) : null}
           </div>
         ) : (
-          <p className="mb-6 text-sm text-slate-600 dark:text-slate-400" data-testid="styl-widoku">
-            Materiały dobrane do stylu: <strong>{nazwaStylu(user?.styl_uczenia)}</strong>.{" "}
-            <Link href="/profil" className="font-medium text-primary hover:underline">
-              Zmień styl
-            </Link>
-          </p>
+          stylPowtorki && (
+            <p className="mb-6 rounded-2xl border border-sky-400/50 bg-sky-50 px-4 py-3 text-sm text-slate-700 dark:bg-sky-950/20 dark:text-slate-300">
+              Powtarzasz temat w stylu: <strong>{STYL_NAZWA[stylPowtorki]}</strong>.{" "}
+              <Link href={`/tematy/${tematId}`} className="font-medium text-primary hover:underline">
+                Wróć do swojego stylu
+              </Link>
+            </p>
+          )
         )}
 
         <TematLessonView
           tematId={tematId}
+          key={canEdit ? "edytor" : (stylPowtorki ?? "auto")}
           isAdmin={isAdmin && !podglad}
-          styl={canEdit ? podglad : null}
+          styl={canEdit ? podglad : stylPowtorki}
+          uczen={user?.rola === "uczen"}
           materialyContext={
             kurs && dzial && temat
               ? {

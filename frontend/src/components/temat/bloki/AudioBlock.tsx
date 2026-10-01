@@ -50,7 +50,6 @@ export function AudioBlock({ tresc, mediaUrl, onPlay }: Props) {
   return (
     <div>
       {mediaUrl ? (
-        // eslint-disable-next-line jsx-a11y/media-has-caption
         <audio controls src={mediaSrc(mediaUrl)} className="mb-3 w-full" onPlay={() => onPlay?.()} />
       ) : null}
 
