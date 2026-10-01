@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" role="img" font-family="Segoe UI, Arial, sans-serif">
+<rect width="640" height="300" rx="20" fill="#f8fafc"/>
+<text x="320" y="44" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Zmienne to podpisane pudełka</text>
+<rect x="40" y="110" width="124" height="96" rx="12" fill="#ffffff" stroke="#0ea5e9" stroke-width="3"/>
+<rect x="54" y="88" width="96" height="34" rx="8" fill="#0ea5e9"/>
+<text x="102" y="111" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">wiek</text>
+<text x="102" y="170" text-anchor="middle" font-size="24" font-weight="700" fill="#0f172a" font-family="Consolas, monospace">17</text>
+<text x="102" y="240" text-anchor="middle" font-size="16" fill="#0ea5e9" font-weight="700">typ: int</text>
+<rect x="188" y="110" width="124" height="96" rx="12" fill="#ffffff" stroke="#8b5cf6" stroke-width="3"/>
+<rect x="202" y="88" width="96" height="34" rx="8" fill="#8b5cf6"/>
+<text x="250" y="111" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">imie</text>
+<text x="250" y="170" text-anchor="middle" font-size="24" font-weight="700" fill="#0f172a" font-family="Consolas, monospace">"Ola"</text>
+<text x="250" y="240" text-anchor="middle" font-size="16" fill="#8b5cf6" font-weight="700">typ: str</text>
+<rect x="336" y="110" width="124" height="96" rx="12" fill="#ffffff" stroke="#10b981" stroke-width="3"/>
+<rect x="350" y="88" width="96" height="34" rx="8" fill="#10b981"/>
+<text x="398" y="111" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">srednia</text>
+<text x="398" y="170" text-anchor="middle" font-size="24" font-weight="700" fill="#0f172a" font-family="Consolas, monospace">4.5</text>
+<text x="398" y="240" text-anchor="middle" font-size="16" fill="#10b981" font-weight="700">typ: float</text>
+<rect x="484" y="110" width="124" height="96" rx="12" fill="#ffffff" stroke="#f59e0b" stroke-width="3"/>
+<rect x="498" y="88" width="96" height="34" rx="8" fill="#f59e0b"/>
+<text x="546" y="111" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">zdal</text>
+<text x="546" y="170" text-anchor="middle" font-size="24" font-weight="700" fill="#0f172a" font-family="Consolas, monospace">True</text>
+<text x="546" y="240" text-anchor="middle" font-size="16" fill="#f59e0b" font-weight="700">typ: bool</text>
+<text x="320" y="278" text-anchor="middle" font-size="14" fill="#475569">etykieta = nazwa zmiennej · zawartość = wartość</text>
+</svg>

@@ -14,29 +14,42 @@ import {
   Pencil,
   Sparkles,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { AnimatePresence, motion, Reorder, useDragControls } from "framer-motion";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import type { UploadImageContext } from "@/lib/api";
 import {
-  apiFetch,
   createBlok,
   deleteBlok,
   generujBlokiAI,
+  getTemat,
+  mediaSrc,
   reorderBloki,
   updateBlok,
+  uploadAudio,
   uploadImage,
 } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { STYLE, STYL_KOLOR, STYL_NAZWA } from "@/lib/labels";
 import { MathMarkdown } from "@/components/MathMarkdown";
-import type { Blok, BlokTyp, Temat } from "@/lib/types";
+import { AudioBlock } from "@/components/temat/bloki/AudioBlock";
+import { CwiczenieBlock } from "@/components/temat/bloki/CwiczenieBlock";
+import { DiagramBlock } from "@/components/temat/bloki/DiagramBlock";
+import { QuizBlock } from "@/components/temat/bloki/QuizBlock";
+import { WideoBlock, sanitizeVideoEmbedHtml } from "@/components/temat/bloki/WideoBlock";
+import { CwiczenieEditor, DEFAULT_CWICZENIE } from "@/components/temat/edytory/CwiczenieEditor";
+import { DEFAULT_QUIZ, QuizEditor } from "@/components/temat/edytory/QuizEditor";
+import type { Blok, BlokTyp, CwiczenieDane, QuizDane, Styl } from "@/lib/types";
 
 type Props = {
   tematId: number;
   isAdmin: boolean;
-  /** Wymagane do wgrywania obrazków (ścieżka w public/kursy-materialy). */
+  /** Wymagane do wgrywania plików (podkatalog w /media). */
   materialyContext?: UploadImageContext;
+  /** Podgląd / powtórka tematu w wybranym stylu; brak = styl użytkownika (uczeń) albo wszystko (edytor). */
+  styl?: Styl | null;
 };
 
 const DEFAULT_TRESC: Record<BlokTyp, string> = {
@@ -44,8 +57,21 @@ const DEFAULT_TRESC: Record<BlokTyp, string> = {
   przyklad: "Treść przykładu.",
   uwaga: "Ważna uwaga.",
   zadanie: "Treść zadania.",
-  wideo:
-    "<!-- Wklej tutaj kod iframe z YouTube lub Vimeo (np. przycisk Udostępnij → Osadź). -->",
+  wideo: "",
+  obraz: "Podpis obrazu.",
+  diagram: "Tytuł diagramu\nPierwszy krok\n? Pytanie / decyzja\nKolejny krok",
+  audio: "Tekst omówienia — przeczyta go lektor, jeśli nie dodasz nagrania.",
+  cwiczenie: "Zrób to sam — wykonuj kroki po kolei.",
+  quiz: "Sprawdź, ile pamiętasz.",
+};
+
+/** Style suggested for a new block of the given type (teacher can change it). */
+const DEFAULT_STYL: Partial<Record<BlokTyp, Styl>> = {
+  wideo: "V",
+  obraz: "V",
+  diagram: "V",
+  audio: "A",
+  cwiczenie: "K",
 };
 
 const ADD_ACTIONS: { typ: BlokTyp; label: string }[] = [
@@ -53,27 +79,63 @@ const ADD_ACTIONS: { typ: BlokTyp; label: string }[] = [
   { typ: "przyklad", label: "Przykład" },
   { typ: "uwaga", label: "Uwaga" },
   { typ: "zadanie", label: "Zadanie" },
-  { typ: "wideo", label: "Wideo" },
+  { typ: "obraz", label: "Obraz (V)" },
+  { typ: "diagram", label: "Diagram (V)" },
+  { typ: "wideo", label: "Wideo (V)" },
+  { typ: "audio", label: "Audio (A)" },
+  { typ: "cwiczenie", label: "Ćwiczenie (K)" },
+  { typ: "quiz", label: "Quiz" },
 ];
+
+const TYP_LABEL: Record<BlokTyp, string> = {
+  teoria: "Teoria",
+  przyklad: "Przykład",
+  uwaga: "Uwaga",
+  zadanie: "Zadanie",
+  wideo: "Wideo",
+  obraz: "Obraz",
+  diagram: "Diagram",
+  audio: "Posłuchaj",
+  cwiczenie: "Zrób to sam",
+  quiz: "Quiz",
+};
+
+/** Types that can be copied to the clipboard as an image. */
+const SNAPSHOT_TYPY: BlokTyp[] = ["teoria", "przyklad", "uwaga", "zadanie"];
+
+function nowyBlokPayload(typ: BlokTyp) {
+  return {
+    typ,
+    tresc: DEFAULT_TRESC[typ],
+    styl: DEFAULT_STYL[typ] ?? null,
+    dane: typ === "quiz" ? DEFAULT_QUIZ : typ === "cwiczenie" ? DEFAULT_CWICZENIE : null,
+  };
+}
+
+function StylBadge({ styl }: { styl: Styl | null }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+        styl
+          ? STYL_KOLOR[styl].chip
+          : "border-slate-300 bg-slate-100 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400"
+      )}
+    >
+      {styl ? `${styl} · ${STYL_NAZWA[styl]}` : "wspólny"}
+    </span>
+  );
+}
 
 function sortBloki(b: Blok[]): Blok[] {
   return [...b].sort((a, b) => a.kolejnosc - b.kolejnosc);
-}
-
-function sanitizeVideoEmbedHtml(html: string): string {
-  const withoutScripts = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
-  const iframeMatch = withoutScripts.match(/<iframe[\s\S]*?<\/iframe>/i);
-  if (!iframeMatch) return "";
-
-  // Keep only iframe embed; drop inline JS handlers.
-  return iframeMatch[0].replace(/\son\w+="[^"]*"/gi, "");
 }
 
 function BlockIllustration({ url }: { url?: string | null }) {
   if (!url) return null;
   return (
     <img
-      src={url}
+      src={mediaSrc(url)}
       alt="Ilustracja do bloku"
       className="mx-auto mb-4 w-full max-w-lg rounded-2xl border border-slate-200 object-contain dark:border-slate-800"
     />
@@ -181,7 +243,7 @@ function BlockSnapshotForExport({ blok: b }: { blok: Blok }) {
   const illustration =
     b.image_url ? (
       <img
-        src={b.image_url}
+        src={mediaSrc(b.image_url)}
         alt=""
         className="mb-4 w-full max-w-lg mx-auto rounded-2xl border border-slate-200 object-contain"
       />
@@ -390,6 +452,7 @@ export function TematLessonView({
   tematId,
   isAdmin,
   materialyContext,
+  styl = null,
 }: Props) {
   const { resolvedTheme } = useTheme();
   const markdownVariant = resolvedTheme === "dark" ? "dark" : "light";
@@ -400,6 +463,10 @@ export function TematLessonView({
   const [draftOdp, setDraftOdp] = useState("");
   const [draftRozw, setDraftRozw] = useState("");
   const [draftImageUrl, setDraftImageUrl] = useState<string | null>(null);
+  const [draftStyl, setDraftStyl] = useState<Styl | null>(null);
+  const [draftMediaUrl, setDraftMediaUrl] = useState("");
+  const [draftDane, setDraftDane] = useState<QuizDane | CwiczenieDane | null>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [insertBusy, setInsertBusy] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -412,8 +479,8 @@ export function TematLessonView({
   const [aiLoading, setAiLoading] = useState(false);
 
   const { data: temat, isLoading, refetch } = useQuery({
-    queryKey: ["temat", tematId],
-    queryFn: () => apiFetch<Temat>(`/tematy/${tematId}`),
+    queryKey: ["temat", tematId, styl ?? "auto"],
+    queryFn: () => getTemat(tematId, styl),
     enabled: Number.isFinite(tematId),
     staleTime: isAdmin ? 0 : 30_000,
     refetchOnWindowFocus: isAdmin,
@@ -452,10 +519,7 @@ export function TematLessonView({
     async (index: number, typ: BlokTyp) => {
       setInsertBusy(true);
       try {
-        const created = await createBlok(tematId, {
-          typ,
-          tresc: DEFAULT_TRESC[typ],
-        });
+        const created = await createBlok(tematId, nowyBlokPayload(typ));
         const ids = ordered.map((b) => b.id);
         ids.splice(index, 0, created.id);
         await reorderBloki(tematId, ids);
@@ -477,6 +541,25 @@ export function TematLessonView({
     setDraftOdp(b.odpowiedz ?? "");
     setDraftRozw(b.rozwiazanie ?? "");
     setDraftImageUrl(b.image_url ?? null);
+    setDraftStyl(b.styl ?? null);
+    setDraftMediaUrl(b.media_url ?? "");
+    setDraftDane(b.dane ?? null);
+  };
+
+  const onPickAudio = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !materialyContext) return;
+    setImageUploading(true);
+    try {
+      const { media_url } = await uploadAudio(file, materialyContext);
+      setDraftMediaUrl(media_url);
+      toast.success("Nagranie wgrane — zapisz blok.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Nie udało się wgrać nagrania.");
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   const triggerImagePick = (blokId: number) => {
@@ -532,6 +615,9 @@ export function TematLessonView({
         tresc: draftTresc,
         odpowiedz: draftOdp.trim() || null,
         rozwiazanie: draftRozw.trim() || null,
+        styl: draftStyl,
+        media_url: draftMediaUrl.trim() || null,
+        dane: draftDane,
       });
       toast.success("Zapisano.");
       setEditingId(null);
@@ -558,10 +644,7 @@ export function TematLessonView({
 
   const addBlok = async (typ: BlokTyp) => {
     try {
-      await createBlok(tematId, {
-        typ,
-        tresc: DEFAULT_TRESC[typ],
-      });
+      await createBlok(tematId, nowyBlokPayload(typ));
       toast.success("Dodano blok.");
       invalidate();
       await refetch();
@@ -592,6 +675,10 @@ export function TematLessonView({
     }
   };
 
+  const stylWidoku = temat?.styl_widoku;
+  const widokStyl: Styl | null =
+    styl ?? (stylWidoku && STYLE.includes(stylWidoku as Styl) ? (stylWidoku as Styl) : null);
+
   const toggleAns = (id: number) =>
     setOpenAnswers((p) => ({ ...p, [id]: !p[id] }));
   const toggleSol = (id: number) =>
@@ -616,17 +703,19 @@ export function TematLessonView({
 
     const blockToolbar = !isEdit && (
       <div className="absolute right-2 top-2 z-20 flex flex-row-reverse items-center gap-0.5">
-        <button
-          type="button"
-          title="Kopiuj jako obraz na tablicę (wklej w Miro: Ctrl+V)"
-          onClick={(e) => {
-            e.stopPropagation();
-            void copyBlockAsImage(b);
-          }}
-          className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white"
-        >
-          <Copy className="h-4 w-4" />
-        </button>
+        {SNAPSHOT_TYPY.includes(b.typ) ? (
+          <button
+            type="button"
+            title="Kopiuj jako obraz na tablicę (wklej w Miro: Ctrl+V)"
+            onClick={(e) => {
+              e.stopPropagation();
+              void copyBlockAsImage(b);
+            }}
+            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
+        ) : null}
         {showAdminChrome ? (
           <>
             <button
@@ -640,7 +729,7 @@ export function TematLessonView({
             >
               <Pencil className="h-4 w-4" />
             </button>
-            {b.typ !== "wideo" ? (
+            {!["wideo", "audio", "quiz", "cwiczenie", "diagram"].includes(b.typ) ? (
               <button
                 type="button"
                 title="Dodaj zdjęcie"
@@ -669,6 +758,9 @@ export function TematLessonView({
             >
               <Trash2 className="h-4 w-4" />
             </button>
+            <span className="mr-1">
+              <StylBadge styl={b.styl} />
+            </span>
           </>
         ) : null}
       </div>
@@ -677,22 +769,106 @@ export function TematLessonView({
     if (isEdit) {
       return (
         <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/90 p-5 dark:border-white/10 dark:bg-slate-900/80">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              {TYP_LABEL[b.typ]} · dla kogo:
+            </span>
+            {([null, ...STYLE] as (Styl | null)[]).map((st) => (
+              <button
+                key={st ?? "wspolny"}
+                type="button"
+                aria-pressed={draftStyl === st}
+                onClick={() => setDraftStyl(st)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-semibold transition",
+                  draftStyl === st
+                    ? st
+                      ? STYL_KOLOR[st].chip
+                      : "border-slate-500 bg-slate-200 text-slate-900 dark:bg-white/15 dark:text-white"
+                    : "border-slate-300 text-slate-600 hover:border-primary/40 dark:border-white/10 dark:text-slate-400"
+                )}
+              >
+                {st ? `${st} · ${STYL_NAZWA[st]}` : "wszyscy (wspólny)"}
+              </button>
+            ))}
+          </div>
           {b.typ === "wideo" ? (
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              Wklej poniżej kod osadzenia (iframe) z YouTube lub Vimeo.
+              Wklej link do YouTube, adres pliku .mp4 albo kod osadzenia (iframe).
+            </p>
+          ) : null}
+          {b.typ === "diagram" ? (
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Pierwsza linia to tytuł, każda kolejna to jeden krok. Linia zaczynająca się od „?” to decyzja.
+            </p>
+          ) : null}
+          {b.typ === "audio" ? (
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Tekst omówienia (transkrypcja). Bez nagrania przeczyta go lektor przeglądarki.
             </p>
           ) : null}
           <textarea
             value={draftTresc}
             onChange={(e) => setDraftTresc(e.target.value)}
-            rows={b.typ === "wideo" ? 12 : 8}
+            rows={b.typ === "quiz" || b.typ === "cwiczenie" ? 2 : 8}
             placeholder={
               b.typ === "wideo"
-                ? 'np. <iframe width="560" height="315" src="https://www.youtube.com/embed/..." ...></iframe>'
+                ? "np. https://www.youtube.com/watch?v=..."
                 : undefined
             }
             className="mt-2 w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-slate-100"
           />
+          {b.typ === "audio" ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                value={draftMediaUrl}
+                onChange={(e) => setDraftMediaUrl(e.target.value)}
+                placeholder="Adres nagrania (opcjonalnie) — wgraj plik lub wklej URL"
+                aria-label="Adres nagrania"
+                className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white"
+              />
+              <input
+                ref={audioInputRef}
+                type="file"
+                accept=".mp3,.ogg,.wav,.m4a,audio/*"
+                className="sr-only"
+                aria-hidden
+                tabIndex={-1}
+                onChange={onPickAudio}
+              />
+              <button
+                type="button"
+                disabled={imageUploading}
+                onClick={() => {
+                  if (!materialyContext) {
+                    toast.error("Brak kontekstu kursu.");
+                    return;
+                  }
+                  audioInputRef.current?.click();
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-primary/40 disabled:opacity-50 dark:border-white/15 dark:bg-white/[0.04] dark:text-slate-200"
+              >
+                {imageUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4 text-primary" />
+                )}
+                Wgraj nagranie
+              </button>
+            </div>
+          ) : null}
+          {b.typ === "quiz" ? (
+            <QuizEditor
+              value={(draftDane as QuizDane | null) ?? DEFAULT_QUIZ}
+              onChange={setDraftDane}
+            />
+          ) : null}
+          {b.typ === "cwiczenie" ? (
+            <CwiczenieEditor
+              value={(draftDane as CwiczenieDane | null) ?? DEFAULT_CWICZENIE}
+              onChange={setDraftDane}
+            />
+          ) : null}
           <input
             ref={imageInputRef}
             type="file"
@@ -702,7 +878,7 @@ export function TematLessonView({
             tabIndex={-1}
             onChange={onPickImage}
           />
-          {b.typ !== "wideo" ? (
+          {!["wideo", "audio", "quiz", "cwiczenie", "diagram"].includes(b.typ) ? (
             <div className="mt-4 space-y-3">
               <button
                 type="button"
@@ -735,7 +911,7 @@ export function TematLessonView({
                     <Trash2 className="h-4 w-4" />
                   </button>
                   <img
-                    src={draftImageUrl}
+                    src={mediaSrc(draftImageUrl)}
                     alt=""
                     className="max-h-48 max-w-full rounded-2xl border border-slate-300 object-contain dark:border-slate-700"
                   />
@@ -785,19 +961,89 @@ export function TematLessonView({
       );
     }
 
+    const karta =
+      "relative w-full max-w-full rounded-2xl border bg-white/90 p-4 md:p-6 dark:bg-slate-950/50";
+    const naglowek = (ikona: string, kolor: string) => (
+      <div className={cn("mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest", kolor)}>
+        <span aria-hidden>{ikona}</span>
+        {TYP_LABEL[b.typ]}
+      </div>
+    );
+
     if (b.typ === "wideo") {
-      const safeEmbedHtml = sanitizeVideoEmbedHtml(b.tresc);
       return (
-        <div className="relative w-full max-w-full rounded-2xl border border-slate-200 bg-white/90 p-4 md:p-6 dark:border-white/[0.08] dark:bg-slate-950/50">
+        <div className={cn(karta, "border-slate-200 dark:border-white/[0.08]")}>
           {blockToolbar}
-          <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-            <span aria-hidden>▶</span>
-            Wideo
+          {naglowek("▶", "text-slate-600 dark:text-slate-400")}
+          <WideoBlock tresc={b.tresc} />
+        </div>
+      );
+    }
+
+    if (b.typ === "obraz") {
+      return (
+        <figure className={cn(karta, "border-sky-200 dark:border-sky-500/20")}>
+          {blockToolbar}
+          {naglowek("🖼", "text-sky-700 dark:text-sky-300")}
+          <BlockIllustration url={b.image_url} />
+          {!b.image_url && showAdminChrome ? (
+            <p className="mb-3 rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-slate-700">
+              Brak obrazu — użyj ikony zdjęcia, aby go dodać.
+            </p>
+          ) : null}
+          <figcaption className="text-center text-sm text-slate-600 dark:text-slate-400">
+            <MathMarkdown variant={markdownVariant}>{b.tresc}</MathMarkdown>
+          </figcaption>
+        </figure>
+      );
+    }
+
+    if (b.typ === "diagram") {
+      return (
+        <div className={cn(karta, "border-sky-200 dark:border-sky-500/20")}>
+          {blockToolbar}
+          {naglowek("◇", "text-sky-700 dark:text-sky-300")}
+          <DiagramBlock tresc={b.tresc} />
+        </div>
+      );
+    }
+
+    if (b.typ === "audio") {
+      return (
+        <div className={cn(karta, "border-violet-200 dark:border-violet-500/20")}>
+          {blockToolbar}
+          {naglowek("🎧", "text-violet-700 dark:text-violet-300")}
+          <AudioBlock tresc={b.tresc} mediaUrl={b.media_url} />
+        </div>
+      );
+    }
+
+    if (b.typ === "cwiczenie") {
+      return (
+        <div className={cn(karta, "border-emerald-200 dark:border-emerald-500/20")}>
+          {blockToolbar}
+          {naglowek("✋", "text-emerald-700 dark:text-emerald-300")}
+          <div className="mb-4">
+            <MathMarkdown variant={markdownVariant}>{b.tresc}</MathMarkdown>
           </div>
-          <div
-            className="relative aspect-video w-full max-w-full overflow-hidden rounded-2xl bg-black/30 shadow-[0_0_32px_rgba(0,0,0,0.25)] [&_iframe]:absolute [&_iframe]:inset-0 [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:max-w-full [&_iframe]:border-0"
-            dangerouslySetInnerHTML={{ __html: safeEmbedHtml }}
-          />
+          {b.dane && "kroki" in b.dane ? (
+            <CwiczenieBlock key={b.id} dane={b.dane} variant={markdownVariant} />
+          ) : null}
+        </div>
+      );
+    }
+
+    if (b.typ === "quiz") {
+      return (
+        <div className={cn(karta, "border-primary/30")}>
+          {blockToolbar}
+          {naglowek("?", "text-primary")}
+          <div className="mb-4">
+            <MathMarkdown variant={markdownVariant}>{b.tresc}</MathMarkdown>
+          </div>
+          {b.dane && "pytania" in b.dane ? (
+            <QuizBlock key={b.id} blokId={b.id} dane={b.dane} variant={markdownVariant} styl={widokStyl} />
+          ) : null}
         </div>
       );
     }

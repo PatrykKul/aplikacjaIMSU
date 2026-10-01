@@ -1,4 +1,44 @@
-export type BlokTyp = "teoria" | "przyklad" | "uwaga" | "zadanie" | "wideo";
+export type BlokTyp =
+  | "teoria"
+  | "przyklad"
+  | "uwaga"
+  | "zadanie"
+  | "wideo"
+  | "obraz"
+  | "diagram"
+  | "audio"
+  | "cwiczenie"
+  | "quiz";
+
+export type Styl = "V" | "A" | "K";
+
+export interface KrokCwiczenia {
+  polecenie: string;
+  podpowiedz: string | null;
+}
+
+export interface CwiczenieDane {
+  kroki: KrokCwiczenia[];
+}
+
+export interface PytanieQuizu {
+  tresc: string;
+  odpowiedzi: string[];
+  /** Present only for teachers; students never receive the answer key. */
+  poprawna?: number;
+}
+
+export interface QuizDane {
+  pytania: PytanieQuizu[];
+}
+
+export interface QuizWynik {
+  poprawne: number;
+  liczba_pytan: number;
+  procent: number;
+  trafienia: boolean[];
+  poprawne_odpowiedzi: number[];
+}
 
 export interface Blok {
   id: number;
@@ -9,6 +49,10 @@ export interface Blok {
   rozwiazanie: string | null;
   kolejnosc: number;
   image_url?: string | null;
+  /** Learning style; null = shared block. */
+  styl: Styl | null;
+  media_url?: string | null;
+  dane?: QuizDane | CwiczenieDane | null;
 }
 
 export interface Kurs {
@@ -41,6 +85,8 @@ export interface Temat {
   dzial_id: number;
   kolejnosc?: number;
   bloki?: Blok[];
+  /** Style used to pick the blocks; null = all blocks (editor view). */
+  styl_widoku?: string | null;
 }
 
 export interface DzialSearchHit {
@@ -73,8 +119,6 @@ export interface TokenResponse {
   token_type: string;
   uzytkownik: Uzytkownik;
 }
-
-export type Styl = "V" | "A" | "K";
 
 export interface OdpowiedzAnkiety {
   id: number;

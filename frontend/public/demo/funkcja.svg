@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 300" role="img" font-family="Segoe UI, Arial, sans-serif">
+<rect width="640" height="300" rx="20" fill="#f8fafc"/>
+<text x="320" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Funkcja to maszyna</text>
+<rect x="30" y="118" width="130" height="64" rx="12" fill="#e0f2fe" stroke="#0ea5e9" stroke-width="3"/>
+<text x="95" y="146" text-anchor="middle" font-size="14" fill="#0369a1" font-weight="700">argumenty</text>
+<text x="95" y="168" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a" font-family="Consolas, monospace">3, 4</text>
+<path d="M164 150 H222" stroke="#0f172a" stroke-width="4"/><polygon points="236,150 220,141 220,159" fill="#0f172a"/>
+<rect x="240" y="84" width="170" height="132" rx="16" fill="#ede9fe" stroke="#8b5cf6" stroke-width="3"/>
+<text x="325" y="116" text-anchor="middle" font-size="15" font-weight="700" fill="#5b21b6" font-family="Consolas, monospace">pole_prostokata</text>
+<text x="325" y="156" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a" font-family="Consolas, monospace">a * b</text>
+<text x="325" y="194" text-anchor="middle" font-size="14" fill="#5b21b6" font-weight="700">return</text>
+<path d="M414 150 H472" stroke="#0f172a" stroke-width="4"/><polygon points="486,150 470,141 470,159" fill="#0f172a"/>
+<rect x="490" y="118" width="120" height="64" rx="12" fill="#d1fae5" stroke="#10b981" stroke-width="3"/>
+<text x="550" y="146" text-anchor="middle" font-size="14" fill="#047857" font-weight="700">wynik</text>
+<text x="550" y="168" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a" font-family="Consolas, monospace">12</text>
+<text x="320" y="262" text-anchor="middle" font-size="14" fill="#475569">def definiuje maszynę · wywołanie ją uruchamia · return oddaje wynik</text>
+</svg>

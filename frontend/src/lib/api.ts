@@ -1,11 +1,14 @@
 import type {
   Blok,
   BlokTyp,
+  CwiczenieDane,
   Dzial,
   GlobalSearchResponse,
   Kurs,
   Profil,
   PytanieAnkiety,
+  QuizDane,
+  QuizWynik,
   Styl,
   Temat,
   TokenResponse,
@@ -22,6 +25,11 @@ export const DEFAULT_FETCH_TIMEOUT_MS = 20_000;
 
 export function getApiBase(): string {
   return (process.env.NEXT_PUBLIC_API_URL ?? API_BASE_DEFAULT).replace(/\/$/, "");
+}
+
+/** Uploaded files live on the API server under /media; other URLs are used as-is. */
+export function mediaSrc(url: string): string {
+  return url.startsWith("/media/") ? `${getApiBase()}${url}` : url;
 }
 
 /**
@@ -196,6 +204,9 @@ export type BlokCreatePayload = {
   rozwiazanie?: string | null;
   kolejnosc?: number | null;
   image_url?: string | null;
+  styl?: Styl | null;
+  media_url?: string | null;
+  dane?: QuizDane | CwiczenieDane | null;
 };
 
 export type BlokUpdatePayload = {
@@ -205,7 +216,23 @@ export type BlokUpdatePayload = {
   rozwiazanie?: string | null;
   kolejnosc?: number;
   image_url?: string | null;
+  styl?: Styl | null;
+  media_url?: string | null;
+  dane?: QuizDane | CwiczenieDane | null;
 };
+
+/** Topic with blocks; `styl` = preview / retry in the given style. */
+export async function getTemat(tematId: number, styl?: Styl | null): Promise<Temat> {
+  return apiFetch<Temat>(`/tematy/${tematId}${styl ? `?styl=${styl}` : ""}`);
+}
+
+export async function sprawdzQuiz(
+  blokId: number,
+  odpowiedzi: (number | null)[],
+  styl?: Styl | null
+): Promise<QuizWynik> {
+  return apiFetch<QuizWynik>(`/bloki/${blokId}/quiz`, jsonInit("POST", { odpowiedzi, styl: styl ?? null }));
+}
 
 export async function createBlok(
   tematId: number,
@@ -310,17 +337,21 @@ export type UploadImageContext = {
   tematNazwa: string;
 };
 
-export async function uploadImage(
-  file: File,
-  ctx: UploadImageContext
-): Promise<{ image_url: string }> {
-  const url = `${getApiBase()}/upload-image`;
+async function uploadFile<T>(path: string, file: File, ctx: UploadImageContext): Promise<T> {
   const body = new FormData();
   body.append("file", file);
   body.append("kurs_nazwa", ctx.kursNazwa);
   body.append("dzial_nazwa", ctx.dzialNazwa);
   body.append("temat_nazwa", ctx.tematNazwa);
-  const res = await authFetch(url, { method: "POST", body }, DEFAULT_FETCH_TIMEOUT_MS * 2);
+  const res = await authFetch(`${getApiBase()}${path}`, { method: "POST", body }, DEFAULT_FETCH_TIMEOUT_MS * 2);
   if (!res.ok) throw await toApiError(res);
-  return res.json() as Promise<{ image_url: string }>;
+  return res.json() as Promise<T>;
+}
+
+export async function uploadImage(file: File, ctx: UploadImageContext): Promise<{ image_url: string }> {
+  return uploadFile("/upload-image", file, ctx);
+}
+
+export async function uploadAudio(file: File, ctx: UploadImageContext): Promise<{ media_url: string }> {
+  return uploadFile("/upload-audio", file, ctx);
 }

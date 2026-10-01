@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, BookOpen, ChevronRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { TematLessonView } from "@/components/temat/TematLessonView";
-import type { Dzial, Kurs, Temat } from "@/lib/types";
+import { STYLE, STYL_KOLOR, STYL_NAZWA, nazwaStylu } from "@/lib/labels";
+import type { Dzial, Kurs, Styl, Temat } from "@/lib/types";
 import { useAdminStore } from "@/store/useAdminStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 type Props = {
   tematId: number;
@@ -17,6 +19,10 @@ type Props = {
 
 export function TematPageClient({ tematId }: Props) {
   const isAdmin = useAdminStore((s) => s.isAdmin);
+  const user = useAuthStore((s) => s.user);
+  const canEdit = user?.rola === "nauczyciel" || user?.rola === "admin";
+  // Teacher preview "through the eyes of" a V / A / K student; null = all blocks
+  const [podglad, setPodglad] = useState<Styl | null>(null);
 
   const { data: temat, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["temat", tematId],
@@ -136,9 +142,45 @@ export function TematPageClient({ tematId }: Props) {
           </h1>
         </motion.header>
 
+        {canEdit ? (
+          <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Podgląd oczami ucznia:
+            </span>
+            {([null, ...STYLE] as (Styl | null)[]).map((st) => (
+              <button
+                key={st ?? "wszystko"}
+                type="button"
+                aria-pressed={podglad === st}
+                onClick={() => setPodglad(st)}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                  podglad === st
+                    ? st
+                      ? STYL_KOLOR[st].chip
+                      : "border-slate-500 bg-slate-200 text-slate-900 dark:bg-white/15 dark:text-white"
+                    : "border-slate-300 text-slate-600 hover:border-primary/40 dark:border-white/10 dark:text-slate-400"
+                }`}
+              >
+                {st ? `${st} · ${STYL_NAZWA[st]}` : "wszystkie bloki"}
+              </button>
+            ))}
+            {podglad && isAdmin ? (
+              <span className="text-xs text-slate-500">Edycja jest wyłączona w podglądzie.</span>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mb-6 text-sm text-slate-600 dark:text-slate-400" data-testid="styl-widoku">
+            Materiały dobrane do stylu: <strong>{nazwaStylu(user?.styl_uczenia)}</strong>.{" "}
+            <Link href="/profil" className="font-medium text-primary hover:underline">
+              Zmień styl
+            </Link>
+          </p>
+        )}
+
         <TematLessonView
           tematId={tematId}
-          isAdmin={isAdmin}
+          isAdmin={isAdmin && !podglad}
+          styl={canEdit ? podglad : null}
           materialyContext={
             kurs && dzial && temat
               ? {
