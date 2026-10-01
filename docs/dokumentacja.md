@@ -49,7 +49,8 @@ przeglądarka ──HTTP/JSON──> backend FastAPI ──SQLAlchemy──> SQL
 | `services/adaptacja.py` | **czyste funkcje** adaptacji (wagi, poziom, rekomendacje, uzasadnienia) |
 | `services/nauka.py` | operacje na bazie używane przez adaptację |
 | `services/ai_generator.py` | opcjonalny generator szkicu lekcji (Gemini) |
-| `seed.py`, `seed_ankieta.py`, `seed_kurs.py` | dane startowe |
+| `seed.py`, `seed_ankieta.py`, `seed_kurs.py`, `seed_matematyka.py` | dane startowe: konta, ankieta, dwa kursy demonstracyjne |
+| `wykresy.py` | generator wykresów funkcji liniowych (SVG) do kursu matematyki |
 
 **Frontend** (`frontend/src`)
 
@@ -116,7 +117,7 @@ Zapisywane są: otwarcie tematu, czas w temacie, odtworzenie audio / wideo, uko�
 
 ## 7. Testy
 
-`cd backend && pytest` — 229 testów:
+`cd backend && pytest` — 452 testy:
 
 | Plik | Zakres |
 |---|---|
@@ -128,6 +129,7 @@ Zapisywane są: otwarcie tematu, czas w temacie, odtworzenie audio / wideo, uko�
 | `test_nauka.py` | adaptacja przez API: wagi, rekomendacje, poziom, ścieżka, zdarzenia |
 | `test_panele.py` | panel nauczyciela i admina |
 | `test_kursy.py` | CRUD kursów, generator AI (błędy) |
+| `test_seed_matematyka.py` | kurs matematyki: każda liczba z przykładów, zadań i kluczy quizów przeliczona na ułamkach; punkty na wykresach zgodne z treścią |
 
 Testy budują bazę prawdziwymi migracjami Alembic. Frontend: `npm run lint`, `npm run build`.
 
@@ -146,7 +148,12 @@ cd frontend; npm install; npm run dev      # http://localhost:3000
 ## 9. Scenariusz prezentacji (ok. 10 minut)
 
 1. **Wymuszona ankieta.** Zaloguj się jako `uczen@stylnauki.pl` → aplikacja od razu otwiera ankietę; próba wejścia na `/kursy` wraca na ankietę. Wypełnij ją → wynik „Jesteś: …, V x / A y / K z".
-2. **Ten sam temat, trzy style.** W trzech oknach (lub po kolei) zaloguj się jako `wzrokowiec@…`, `sluchowiec@…`, `kinestetyk@…` (hasło `Uczen123!`) i otwórz temat „Zmienne i typy danych": obraz + diagram / omówienie z lektorem / ćwiczenie krok po kroku. Zwróć uwagę na ramkę „Dlaczego to widzisz".
+2. **Ten sam temat, trzy style.** W trzech oknach (lub po kolei) zaloguj się jako `wzrokowiec@…`, `sluchowiec@…`, `kinestetyk@…` (hasło `Uczen123!`) i otwórz w kursie „Matematyka: funkcja liniowa" temat **„Miejsce zerowe i punkty przecięcia z osiami"**:
+   - wzrokowiec widzi dwa wykresy z zaznaczonym miejscem zerowym i przecięciem z osią $OY$,
+   - słuchowiec dostaje omówienie do odsłuchania („dwa iks minus cztery równa się zero…") — bez ani jednego symbolu,
+   - kinestetyk rozwiązuje równanie krok po kroku na kartce i sprawdza wynik podstawieniem.
+
+   Teoria (ściąga ze wzorem), typowy błąd, zadanie i quiz są wspólne. Zwróć uwagę na ramkę „Dlaczego to widzisz". To samo można pokazać na kursie Pythona (temat „Zmienne i typy danych").
 3. **Ręczna zmiana stylu.** Profil → „Mój styl uczenia" → inny styl → „Wynik ankiety: … · wybrany ręcznie: …"; wróć do tematu — bloki się zmieniły. „Wróć do wyniku ankiety".
 4. **Adaptacja.** Jako uczeń z wyrównanym wynikiem ankiety (np. po kroku 1) odpowiedz źle na quiz → „Spróbuj inaczej: … w wersji dla stylu …" z uzasadnieniem → rozwiąż quiz dobrze w drugim stylu → „Temat zaliczony" i pytanie „Lepiej Ci idzie z materiałami … – przełączyć?".
 5. **Poziom trudności.** Dwa słabe quizy z rzędu → w następnym temacie pojawia się przykład „Zacznijmy prościej"; dwa wyniki ≥ 90% → „Dla chętnych".

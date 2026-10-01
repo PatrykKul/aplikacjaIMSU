@@ -26,7 +26,7 @@ python -m venv venv
 pip install -r requirements.txt
 copy env.example .env        # ustaw JWT_SECRET, opcjonalnie GEMINI_API_KEY
 alembic upgrade head         # tworzy bazę stylnauki.db
-python -m app.seed           # konta testowe, 20 pytań ankiety, kurs demonstracyjny V/A/K
+python -m app.seed           # konta testowe, 20 pytań ankiety, 2 kursy demonstracyjne V/A/K
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -91,6 +91,17 @@ Tworzy je `python -m app.seed` (tylko do prezentacji i testów):
 | Uczeń | `kinestetyk@stylnauki.pl` | `Uczen123!` | ankieta V 3 / A 5 / K 12 |
 
 Nowe konta z formularza rejestracji zawsze dostają rolę ucznia; role zmienia administrator.
+
+## Kursy demonstracyjne
+
+Oba kursy tworzy `python -m app.seed` (po nazwie, bez dublowania i bez nadpisywania zmian nauczyciela). W każdym temacie są bloki wspólne, bloki dla stylu V, A i K, przykłady na trzech poziomach trudności i quiz.
+
+| Kurs | Tematy | Co pokazuje |
+|---|---|---|
+| **Podstawy programowania w Pythonie** | zmienne, `if`, pętla `for`, funkcje | V: ilustracja + diagram kroków, A: omówienie z lektorem, K: ćwiczenie w interpreterze |
+| **Matematyka: funkcja liniowa** (liceum, klasa 1) | wzór $y = ax + b$, wykres i monotoniczność, miejsce zerowe, wzór przez dwa punkty | V: wykresy SVG generowane w kodzie, A: matematyka opowiedziana słownie, K: liczenie i rysowanie na kartce; wzory w KaTeX |
+
+Wykresy do kursu matematyki powstają przy seedzie w katalogu `backend/uploads/demo/matematyka/` (z tych samych danych co treść). Poprawność liczb, kluczy quizów i punktów na wykresach sprawdza `backend/tests/test_seed_matematyka.py`.
 
 ## Co gdzie jest w aplikacji
 
