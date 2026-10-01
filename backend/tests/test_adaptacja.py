@@ -55,6 +55,18 @@ def test_waga_liczy_sie_tylko_przy_pierwszym_sukcesie_i_pierwszej_porazce():
     assert not a.liczy_sie_do_wag([False, True], sukces=False)
 
 
+# --- styles accepted with a quiz result ---
+
+
+def test_dozwolone_style_quizu():
+    assert a.dozwolone_style_quizu("V") == {"V"}
+    assert a.dozwolone_style_quizu("VA") == {"V", "A"}
+    assert a.dozwolone_style_quizu("V", proponowany="A") == {"V", "A"}
+    assert a.dozwolone_style_quizu("V", wyprobowane={"K"}) == {"V", "K"}
+    assert a.dozwolone_style_quizu(None) == frozenset()
+    assert a.dozwolone_style_quizu("V", proponowany="X") == {"V"}
+
+
 # --- retry in another style ---
 
 

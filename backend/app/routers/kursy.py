@@ -567,8 +567,29 @@ def sprawdz_quiz(
         poprawne_odpowiedzi=list(wynik.poprawne_odpowiedzi),
     )
     if user.rola == ROLA_UCZEN:
-        _zapisz_wynik_quizu(db, user, blok, wynik.procent, body.styl or user.styl_uczenia, odpowiedz)
+        styl = _styl_quizu(db, user, blok.temat_id, body.styl)
+        _zapisz_wynik_quizu(db, user, blok, wynik.procent, styl, odpowiedz)
     return odpowiedz
+
+
+def _styl_quizu(db: Session, user: models.Uzytkownik, temat_id: int, styl_klienta: str | None) -> str | None:
+    """Styl zapisywany z wynikiem quizu. Styl od klienta przyjmujemy tylko wtedy,
+
+    gdy uczeń faktycznie mógł w nim przerabiać temat — inaczej dałoby się „nabijać" wagi dowolnego stylu.
+    """
+    if styl_klienta is None:
+        return user.styl_uczenia
+    postep = nauka.postep(db, user.id, temat_id)
+    wyprobowane = {s for z in nauka.proby_w_temacie(db, user.id, temat_id) for s in (z.styl or "")}
+    dozwolone = adaptacja.dozwolone_style_quizu(
+        user.styl_uczenia, postep.proponowany_styl if postep else None, wyprobowane
+    )
+    if styl_klienta not in dozwolone:
+        raise HTTPException(
+            status_code=400,
+            detail="Quiz można rozwiązać tylko w swoim stylu albo w stylu zaproponowanym do powtórki",
+        )
+    return styl_klienta
 
 
 def _zapisz_wynik_quizu(
@@ -613,6 +634,9 @@ def _zapisz_wynik_quizu(
         wyprobowane=wyprobowane,
         nastepny_temat=(nastepny.id, nastepny.tytul) if nastepny else None,
     )
+    if rek.typ == "powtorka":
+        # Remember the suggested style: only then the student may submit the quiz in it
+        postep.proponowany_styl = rek.styl
     db.commit()
 
     odpowiedz.zaliczony = sukces

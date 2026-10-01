@@ -169,5 +169,7 @@ class PostepTematu(Base):
     najlepszy_wynik: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     ostatni_wynik: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     ostatni_styl: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)
+    # Style the system suggested for a retry of this topic ("spróbuj inaczej")
+    proponowany_styl: Mapped[Optional[str]] = mapped_column(String(1), nullable=True)
     liczba_prob: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     data: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_teraz, onupdate=_teraz)

@@ -119,6 +119,18 @@ def liczy_sie_do_wag(poprzednie_wyniki_w_stylu: Iterable[bool], sukces: bool) ->
     return sukces not in set(poprzednie_wyniki_w_stylu)
 
 
+def dozwolone_style_quizu(
+    styl_ucznia: str | None, proponowany: str | None = None, wyprobowane: Iterable[str] = ()
+) -> frozenset[str]:
+    """Style, w których uczeń faktycznie mógł przerabiać temat.
+
+    To litery jego stylu, styl zaproponowany przez system do powtórki oraz style,
+    w których już wcześniej (legalnie) podchodził do quizu w tym temacie.
+    """
+    dozwolone = set(styl_ucznia or "") | set(proponowany or "") | set(wyprobowane)
+    return frozenset(s for s in dozwolone if s in STYLE)
+
+
 # ---------------------------------------------------------------------------
 # Recommendations with explanations ("dlaczego to widzisz")
 # ---------------------------------------------------------------------------

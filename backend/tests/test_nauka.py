@@ -197,11 +197,58 @@ def test_ostatni_temat_i_wszystkie_style_wyprobowane(client, kurs, uczen_v):
     _quiz(client, h, kurs["quizy"][1], 100)
     assert _quiz(client, h, kurs["quizy"][2], 100)["rekomendacja"]["typ"] == "koniec"
 
-    _, inny = uczen_v[0], None
+    w = _quiz(client, h, kurs["quizy"][2], 10)
+    assert w["rekomendacja"]["typ"] == "powtorka" and w["rekomendacja"]["styl"] == "A"
     w = _quiz(client, h, kurs["quizy"][2], 10, styl="A")
     assert w["rekomendacja"]["typ"] == "powtorka" and w["rekomendacja"]["styl"] == "K"
     w = _quiz(client, h, kurs["quizy"][2], 10, styl="K")
     assert w["rekomendacja"]["typ"] == "powtorz"
+
+
+# --- style sent with the quiz must be one the student could really use ---
+
+
+def test_styl_quizu_spoza_dozwolonych_jest_odrzucany(client, db, kurs, uczen_v):
+    """Uczeń V nie może przypisać wyniku stylowi, którego system mu nie zaproponował."""
+    user_id, h = uczen_v
+    for styl in ("A", "K"):
+        r = client.post(f"/bloki/{kurs['quizy'][0]}/quiz", json={**_odp(100), "styl": styl}, headers=h)
+        assert r.status_code == 400, styl
+    # Nothing was recorded and the weights did not move
+    assert db.query(models.ZdarzenieNauki).filter_by(user_id=user_id).count() == 0
+    assert db.query(models.PostepTematu).filter_by(user_id=user_id).count() == 0
+    assert client.get("/nauka/sciezka", headers=h).json()["wagi"] == {"V": 8, "A": 7, "K": 5}
+    assert client.post(f"/bloki/{kurs['quizy'][0]}/quiz", json={**_odp(100), "styl": "X"}, headers=h).status_code == 422
+
+
+def test_styl_quizu_wlasny_i_proponowany_sa_przyjmowane(client, kurs, uczen_v):
+    _, h = uczen_v
+    q = kurs["quizy"][0]
+    # Own style, sent explicitly
+    assert client.post(f"/bloki/{q}/quiz", json={**_odp(40), "styl": "V"}, headers=h).status_code == 200
+    # System proposed A for the retry -> A is accepted, K still is not
+    assert client.post(f"/bloki/{q}/quiz", json={**_odp(100), "styl": "K"}, headers=h).status_code == 400
+    r = client.post(f"/bloki/{q}/quiz", json={**_odp(100), "styl": "A"}, headers=h)
+    assert r.status_code == 200
+    assert r.json()["wagi"] == {"V": 7, "A": 8, "K": 5}
+    # A style already used in this topic stays valid for another attempt
+    assert client.post(f"/bloki/{q}/quiz", json={**_odp(100), "styl": "A"}, headers=h).status_code == 200
+
+
+def test_propozycja_powtorki_dotyczy_tylko_swojego_tematu(client, kurs, uczen_v):
+    _, h = uczen_v
+    _quiz(client, h, kurs["quizy"][0], 40)  # A proposed for topic 1 only
+    r = client.post(f"/bloki/{kurs['quizy'][1]}/quiz", json={**_odp(100), "styl": "A"}, headers=h)
+    assert r.status_code == 400
+
+
+def test_styl_mieszany_pozwala_na_kazda_swoja_litere(client, kurs, utworz_uzytkownika):
+    _, h = utworz_uzytkownika(
+        "uczen", ankieta_wypelniona=True, styl_uczenia="VA", styl_zrodlo="ankieta", waga_v=8, waga_a=8, waga_k=4
+    )
+    q = kurs["quizy"][0]
+    assert client.post(f"/bloki/{q}/quiz", json={**_odp(100), "styl": "A"}, headers=h).status_code == 200
+    assert client.post(f"/bloki/{q}/quiz", json={**_odp(100), "styl": "K"}, headers=h).status_code == 400
 
 
 def test_nauczyciel_nie_zostawia_sladow_w_adaptacji(client, db, kurs, nauczyciel):
