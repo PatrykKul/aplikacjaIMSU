@@ -212,3 +212,51 @@ export interface Profil {
   uzytkownik: Uzytkownik;
   wynik_ankiety: WynikAnkiety | null;
 }
+
+export interface Uczen {
+  id: number;
+  imie: string;
+  email: string;
+  aktywny: boolean;
+  ankieta_wypelniona: boolean;
+  styl_uczenia: string | null;
+  styl_zrodlo: string | null;
+  styl_ankiety: string | null;
+  punkty_ankiety: Record<Styl, number> | null;
+  wagi: Record<Styl, number>;
+  zaliczone_tematy: number;
+  liczba_prob: number;
+  ostatnia_aktywnosc: string | null;
+}
+
+export interface ZdarzenieNauki {
+  typ: string;
+  temat: string;
+  styl: string | null;
+  wartosc: number | null;
+  czas_s: number | null;
+  data: string;
+}
+
+export interface UczenSzczegoly {
+  uczen: Uczen;
+  sciezka: Sciezka;
+  historia_ankiet: WynikAnkiety[];
+  zdarzenia: ZdarzenieNauki[];
+}
+
+export interface OdpowiedzAnkietyEdycja {
+  id?: number;
+  tresc: string;
+  styl: Styl;
+}
+
+export interface PytanieAnkietyEdycja {
+  id: number;
+  tresc: string;
+  kolejnosc: number;
+  aktywne: boolean;
+  odpowiedzi: OdpowiedzAnkietyEdycja[];
+}
+
+export type PytanieAnkietyPayload = Pick<PytanieAnkietyEdycja, "tresc" | "aktywne" | "odpowiedzi">;

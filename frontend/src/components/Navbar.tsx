@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft,
   BookOpen,
   FolderOpen,
   GraduationCap,
   Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { GlobalSearchResponse } from "@/lib/types";
+import type { GlobalSearchResponse, Rola } from "@/lib/types";
+import { homeFor } from "@/components/auth/AuthGate";
 import { useQuery } from "@tanstack/react-query";
 import { getSearchIndex } from "@/lib/api";
 import { useAdminStore } from "@/store/useAdminStore";
@@ -23,15 +23,33 @@ const DEBOUNCE_MS = 350;
 
 const EMPTY_INDEX: GlobalSearchResponse = { dzialy: [], tematy: [] };
 
+const LINKI: Record<Rola, { href: string; label: string }[]> = {
+  uczen: [
+    { href: "/panel", label: "Mój panel" },
+    { href: "/kursy", label: "Kursy" },
+  ],
+  nauczyciel: [
+    { href: "/nauczyciel", label: "Panel" },
+    { href: "/kursy", label: "Kursy" },
+  ],
+  admin: [
+    { href: "/admin/uzytkownicy", label: "Użytkownicy" },
+    { href: "/nauczyciel", label: "Uczniowie" },
+    { href: "/kursy", label: "Kursy" },
+  ],
+};
+
 export function Navbar() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const canEdit = user?.rola === "nauczyciel" || user?.rola === "admin";
+  const maDostep = !!user && (user.rola !== "uczen" || user.ankieta_wypelniona);
+  const linki = user && maDostep ? LINKI[user.rola] : [];
   const { data: searchIndex = EMPTY_INDEX } = useQuery({
     queryKey: ["szukaj-indeks"],
     queryFn: getSearchIndex,
     // A student without the survey has no access to materials yet
-    enabled: !!user && (user.rola !== "uczen" || user.ankieta_wypelniona),
+    enabled: maDostep,
     staleTime: 60_000,
   });
   const isAdmin = useAdminStore((s) => s.isAdmin);
@@ -83,30 +101,20 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const onFocus = useCallback(() => {
+  const onFocus = () => {
     if (results && query.trim()) setOpen(true);
-  }, [results, query]);
+  };
 
   const dzialy = results?.dzialy ?? [];
   const tematy = results?.tematy ?? [];
   const hasResults = dzialy.length > 0 || tematy.length > 0;
   const showPanel = open && debounced.length > 0;
-  const isKursyIndex = pathname === "/kursy";
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 shadow-[0_8px_32px_rgba(15,23,42,0.1)] backdrop-blur-xl supports-[backdrop-filter]:bg-white/70 dark:border-white/[0.06] dark:bg-slate-950/80 dark:shadow-[0_8px_32px_rgba(0,0,0,0.35)] dark:supports-[backdrop-filter]:bg-slate-950/70">
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 md:px-8">
-        {isKursyIndex ? (
-          <Link
-            href="/"
-            className="group flex shrink-0 items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4 shrink-0 transition group-hover:-translate-x-0.5" aria-hidden />
-            <span>Powrót</span>
-          </Link>
-        ) : null}
         <Link
-          href="/kursy"
+          href={user ? homeFor(user) : "/"}
           className="group flex shrink-0 items-center gap-3 text-slate-900 transition-opacity hover:opacity-95 dark:text-white"
         >
           <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/25 to-secondary/20 shadow-neon-sm ring-1 ring-white/12 transition-transform group-hover:scale-[1.03]">
@@ -118,6 +126,26 @@ export function Navbar() {
             </span>
           </div>
         </Link>
+
+        <nav aria-label="Główna nawigacja" className="hidden shrink-0 items-center gap-1 lg:flex">
+          {linki.map((l) => {
+            const aktywny = pathname === l.href || pathname.startsWith(`${l.href}/`);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={aktywny ? "page" : undefined}
+                className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                  aktywny
+                    ? "bg-primary/10 text-primary"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+                }`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
+        </nav>
 
         <div ref={wrapRef} className="relative mx-auto w-full max-w-xl flex-1">
           <div className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center">

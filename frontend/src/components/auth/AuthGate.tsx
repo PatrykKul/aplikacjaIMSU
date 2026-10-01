@@ -15,11 +15,13 @@ const AUTH_FORM_PATHS = ["/logowanie", "/rejestracja"];
 const ROLE_PREFIXES: { prefix: string; role: Rola[] }[] = [
   { prefix: "/admin", role: ["admin"] },
   { prefix: "/nauczyciel", role: ["nauczyciel", "admin"] },
+  { prefix: "/panel", role: ["uczen"] },
 ];
 
 export function homeFor(user: Uzytkownik): string {
-  if (user.rola === "uczen" && !user.ankieta_wypelniona) return "/ankieta";
-  return "/kursy";
+  if (user.rola === "admin") return "/admin/uzytkownicy";
+  if (user.rola === "nauczyciel") return "/nauczyciel";
+  return user.ankieta_wypelniona ? "/panel" : "/ankieta";
 }
 
 /** Where the user must be sent instead of `pathname`, or null when the page is allowed. */
@@ -32,7 +34,7 @@ function redirectTarget(pathname: string, user: Uzytkownik | null): string | nul
     return "/ankieta";
   }
   const rule = ROLE_PREFIXES.find((r) => pathname.startsWith(r.prefix));
-  if (rule && !rule.role.includes(user.rola)) return "/kursy";
+  if (rule && !rule.role.includes(user.rola)) return homeFor(user);
   return null;
 }
 

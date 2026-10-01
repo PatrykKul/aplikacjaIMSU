@@ -34,8 +34,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { apiFetch, authFetch, getApiBase, reorderTematy } from "@/lib/api";
-import type { Dzial, Kurs, TematSummary } from "@/lib/types";
+import { apiFetch, authFetch, getApiBase, getSciezka, reorderTematy } from "@/lib/api";
+import type { Dzial, Kurs, SciezkaTemat, TematSummary } from "@/lib/types";
+import { useAuthStore } from "@/store/useAuthStore";
 import { InlineFieldModal } from "@/components/modals/InlineFieldModal";
 import { useAdminStore } from "@/store/useAdminStore";
 
@@ -47,10 +48,12 @@ function TematCardBody({
   temat,
   dragHandle,
   isDragging = false,
+  postep,
 }: {
   temat: TematSummary;
   dragHandle?: ReactNode;
   isDragging?: boolean;
+  postep?: SciezkaTemat;
 }) {
   return (
     <div
@@ -66,7 +69,17 @@ function TematCardBody({
         <h3 className="font-semibold text-slate-900 transition group-hover:text-primary dark:text-white">
           {temat.tytul}
         </h3>
-        <p className="mt-1 text-sm text-slate-500">Lekcja w formie bloków</p>
+        {postep?.zaliczony ? (
+          <p className="mt-1 text-sm font-medium text-emerald-600 dark:text-emerald-300">
+            Zaliczony{postep.najlepszy_wynik != null ? ` · najlepszy wynik: ${postep.najlepszy_wynik}%` : ""}
+          </p>
+        ) : postep && postep.liczba_prob > 0 ? (
+          <p className="mt-1 text-sm text-amber-600 dark:text-amber-300">
+            W trakcie · ostatni wynik: {postep.ostatni_wynik}%
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-slate-500">Lekcja w formie bloków</p>
+        )}
       </div>
       <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-primary" />
     </div>
@@ -78,11 +91,13 @@ function SortableTematItem({
   isAdmin,
   onEdit,
   onDelete,
+  postep,
 }: {
   temat: TematSummary;
   isAdmin: boolean;
   onEdit: (t: TematSummary) => void;
   onDelete: (t: TematSummary) => void;
+  postep?: SciezkaTemat;
 }) {
   const {
     attributes,
@@ -104,6 +119,7 @@ function SortableTematItem({
         <TematCardBody
           temat={temat}
           isDragging={isDragging}
+          postep={postep}
           dragHandle={
             isAdmin ? (
               <button
@@ -162,6 +178,18 @@ export function DzialPageClient({
 }: Props) {
   const queryClient = useQueryClient();
   const isAdmin = useAdminStore((s) => s.isAdmin);
+  const jestUczniem = useAuthStore((s) => s.user?.rola === "uczen");
+
+  // Student progress per topic (passed / in progress)
+  const { data: sciezka } = useQuery({
+    queryKey: ["sciezka"],
+    queryFn: getSciezka,
+    enabled: jestUczniem,
+    staleTime: 0,
+  });
+  const postepy = new Map<number, SciezkaTemat>(
+    (sciezka?.kursy ?? []).flatMap((k) => k.tematy).map((t) => [t.id, t])
+  );
 
   const [tematModal, setTematModal] = useState<"create" | "edit" | null>(null);
   const [editingTemat, setEditingTemat] = useState<TematSummary | null>(null);
@@ -398,6 +426,7 @@ export function DzialPageClient({
                   isAdmin={isAdmin}
                   onEdit={openEditTemat}
                   onDelete={onDeleteTemat}
+                  postep={postepy.get(temat.id)}
                 />
               ))}
 

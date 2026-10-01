@@ -7,6 +7,8 @@ import type {
   Kurs,
   Profil,
   PytanieAnkiety,
+  PytanieAnkietyEdycja,
+  PytanieAnkietyPayload,
   QuizDane,
   QuizWynik,
   Sciezka,
@@ -14,6 +16,9 @@ import type {
   Temat,
   TokenResponse,
   TypZdarzenia,
+  Rola,
+  Uczen,
+  UczenSzczegoly,
   Uzytkownik,
   WynikAnkiety,
 } from "@/lib/types";
@@ -215,6 +220,47 @@ export function zapiszZdarzenie(dane: {
     // Lets the request finish when it is sent while the page is being left
     keepalive: true,
   }).catch(() => undefined);
+}
+
+// --- Panel nauczyciela ---
+
+export async function getUczniowie(): Promise<Uczen[]> {
+  return apiFetch<Uczen[]>("/nauczyciel/uczniowie");
+}
+
+export async function getUczen(id: number): Promise<UczenSzczegoly> {
+  return apiFetch<UczenSzczegoly>(`/nauczyciel/uczniowie/${id}`);
+}
+
+export async function getPytaniaDoEdycji(): Promise<PytanieAnkietyEdycja[]> {
+  return apiFetch<PytanieAnkietyEdycja[]>("/ankieta/edycja/pytania");
+}
+
+export async function zapiszPytanie(
+  id: number | null,
+  dane: PytanieAnkietyPayload
+): Promise<PytanieAnkietyEdycja> {
+  return id === null
+    ? apiFetch<PytanieAnkietyEdycja>("/ankieta/edycja/pytania", jsonInit("POST", dane))
+    : apiFetch<PytanieAnkietyEdycja>(`/ankieta/edycja/pytania/${id}`, jsonInit("PUT", dane));
+}
+
+export async function usunPytanie(id: number): Promise<void> {
+  await apiFetch<{ status: string }>(`/ankieta/edycja/pytania/${id}`, { method: "DELETE" });
+}
+
+// --- Panel admina ---
+
+export async function getUzytkownicy(): Promise<Uzytkownik[]> {
+  return apiFetch<Uzytkownik[]>("/uzytkownicy");
+}
+
+export async function zmienRole(id: number, rola: Rola): Promise<Uzytkownik> {
+  return apiFetch<Uzytkownik>(`/uzytkownicy/${id}/rola`, jsonInit("PUT", { rola }));
+}
+
+export async function zmienAktywnosc(id: number, aktywny: boolean): Promise<Uzytkownik> {
+  return apiFetch<Uzytkownik>(`/uzytkownicy/${id}/aktywny`, jsonInit("PUT", { aktywny }));
 }
 
 // --- Kursy ---

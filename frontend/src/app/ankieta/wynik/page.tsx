@@ -66,10 +66,10 @@ export default function WynikAnkietyPage() {
 
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href="/kursy"
+            href="/panel"
             className="rounded-xl bg-gradient-to-r from-primary to-secondary px-5 py-2.5 text-sm font-semibold text-white shadow-neon-sm transition hover:opacity-95"
           >
-            Przejdź do kursów
+            Przejdź do nauki
           </Link>
           <Link
             href="/profil"

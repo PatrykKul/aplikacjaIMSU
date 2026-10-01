@@ -51,3 +51,25 @@ export function nazwaStylu(styl: string | null | undefined): string {
   if (lista.length === 1) return STYL_NAZWA[lista[0]];
   return `styl mieszany: ${lista.map((s) => STYL_NAZWA[s]).join(" + ")}`;
 }
+
+export const ZRODLO_STYLU_LABEL: Record<string, string> = {
+  ankieta: "z ankiety",
+  reczny: "wybrany ręcznie",
+  adaptacja: "dopasowany po quizach",
+};
+
+export const POZIOM_NAZWA: Record<number, string> = {
+  1: "łatwiejsze przykłady",
+  2: "standardowy",
+  3: "z rozszerzeniami",
+};
+
+export const ZDARZENIE_LABEL: Record<string, string> = {
+  otwarcie_tematu: "Otwarcie tematu",
+  odtworzenie_wideo: "Odtworzenie wideo",
+  odtworzenie_audio: "Odsłuchanie nagrania",
+  ukonczenie_cwiczenia: "Ukończenie ćwiczenia",
+  czas_w_temacie: "Czas w temacie",
+  wynik_quizu: "Wynik quizu",
+  ukonczenie_tematu: "Oznaczenie tematu jako ukończony",
+};
