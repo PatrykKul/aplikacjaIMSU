@@ -1,7 +1,7 @@
 # STATUS
 
-- **Ostatni ukończony etap:** Etap 2 – ankieta VAK + flaga + wymuszenie po logowaniu ([raport](etap-2.md)).
-- **W toku:** Etap 3 – personalizacja bloków (styl, typy multimedialne, filtrowanie) + seed kursu V/A/K.
+- **Ostatni ukończony etap:** Etap 3 – personalizacja bloków + kurs demonstracyjny V/A/K ([raport](etap-3.md)).
+- **W toku:** Etap 4 – adaptacja (zdarzenia nauki, quiz po temacie, wagi, poziom trudności, „dlaczego to widzisz").
 - **Blokery:** brak.
 - **Otwarte pytania:** [PYTANIA.md](PYTANIA.md).
 
@@ -28,3 +28,4 @@ Konta testowe: `admin@stylnauki.pl` / `Admin123!`, `nauczyciel@stylnauki.pl` / `
 - [Etap 0](etap-0.md)
 - [Etap 1](etap-1.md)
 - [Etap 2](etap-2.md)
+- [Etap 3](etap-3.md)

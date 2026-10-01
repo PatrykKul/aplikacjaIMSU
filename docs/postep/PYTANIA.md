@@ -15,3 +15,5 @@ Format: pytanie · wybrany wariant · gdzie w kodzie (`TODO(decyzja)` / `TODO(pr
 - **Etap 1 – sesja.** Token JWT w `localStorage` (bez ciasteczek httpOnly). Wystarczające dla projektu zaliczeniowego.
 - **Etap 2 – remis w ankiecie.** Styl mieszany zapisujemy jako litery (`VA`, `VAK`); uczeń widzi bloki wszystkich remisujących stylów. Ręcznie wybiera się tylko jeden styl.
 - **Etap 2 – każde pytanie ma dokładnie po jednej odpowiedzi na styl V/A/K.**
+- **Etap 3 – audio bez nagrań.** Kurs demo nie ma plików audio; omówienie czyta lektor przeglądarki (Web Speech API). Nauczyciel może wgrać nagranie.
+- **Etap 3 – brak filmów w kursie demo.** Nie wstawiam niezweryfikowanych linków do cudzych filmów; typ `wideo` jest gotowy do użycia.
