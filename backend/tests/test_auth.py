@@ -5,7 +5,7 @@ import pytest
 
 from app import models
 from app.security import JWT_ALGORITHM, JWT_SECRET, dekoduj_token, hash_haslo, sprawdz_haslo
-from app.seed import KONTA_TESTOWE, seed
+from app.seed import HASLO_UCZNIA_DEMO, KONTA_TESTOWE, UCZNIOWIE_DEMO, seed
 
 from .conftest import HASLO
 
@@ -235,10 +235,30 @@ def test_seed_tworzy_konta_testowe_i_jest_idempotentny(client, db):
     db.commit()
     seed(db)
     db.commit()
-    assert db.query(models.Uzytkownik).count() == len(KONTA_TESTOWE)
+    assert db.query(models.Uzytkownik).count() == len(KONTA_TESTOWE) + len(UCZNIOWIE_DEMO)
     assert {u.rola for u in db.query(models.Uzytkownik)} == {"admin", "nauczyciel", "uczen"}
 
     for konto in KONTA_TESTOWE:
         r = client.post("/auth/logowanie", json={"email": konto["email"], "haslo": konto["haslo"]})
         assert r.status_code == 200, konto["email"]
         assert r.json()["uzytkownik"]["rola"] == konto["rola"]
+
+
+def test_seed_uczniowie_demo_po_jednym_na_styl(client, db):
+    seed(db)
+    db.commit()
+    style = []
+    for konto in UCZNIOWIE_DEMO:
+        r = client.post("/auth/logowanie", json={"email": konto["email"], "haslo": HASLO_UCZNIA_DEMO})
+        assert r.status_code == 200, konto["email"]
+        u = r.json()["uzytkownik"]
+        assert u["ankieta_wypelniona"] is True and u["styl_zrodlo"] == "ankieta"
+        style.append(u["styl_uczenia"])
+        h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+        sciezka = client.get("/nauka/sciezka", headers=h).json()
+        assert tuple(sciezka["wagi"][s] for s in "VAK") == konto["punkty"]
+        assert sciezka["styl_ankiety"] == u["styl_uczenia"]
+    assert style == ["V", "A", "K"]
+    # The plain test student still has to fill in the survey
+    r = client.post("/auth/logowanie", json={"email": "uczen@stylnauki.pl", "haslo": "Uczen123!"})
+    assert r.json()["uzytkownik"]["ankieta_wypelniona"] is False
