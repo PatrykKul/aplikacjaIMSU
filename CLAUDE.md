@@ -51,11 +51,14 @@ Logika adaptacji jako czyste funkcje w `services/` + testy pytest na konkretnych
 | **Uczeń** | wypełnia ankietę, widzi swoją ścieżkę i materiały, oznacza postęp |
 
 ## Stos i struktura
+Szczegóły: `docs/dokumentacja.md` (architektura, model danych, reguły adaptacji) i `README.md` (uruchomienie, konta testowe).
 **Backend** `backend/` – FastAPI + SQLAlchemy + SQLite (`stylnauki.db`, `DATABASE_URL` w `.env`), migracje Alembic, testy pytest w `backend/tests`.
-- `models.py`: Kurs → Dział → Temat → Blok; `routers/kursy.py`: CRUD + zmiana kolejności + wyszukiwarka + upload obrazków + `PUT /tematy/{id}/generuj-bloki` (AI).
-- `services/ai_generator.py`: Gemini z łańcuchem modeli zapasowych (`GEMINI_API_KEY`, `GEMINI_MODEL` w `.env`). `app/seed.py`: dane startowe.
+- `routers/`: `auth`, `uzytkownicy`, `ankieta`, `kursy`, `nauka`, `nauczyciel`; `deps.py` (role, bramka ankiety), `security.py` (bcrypt, JWT).
+- `services/`: czyste funkcje `vak.py`, `personalizacja.py`, `quiz.py`, `adaptacja.py`; `nauka.py` (operacje na bazie); `ai_generator.py` (Gemini, opcjonalny).
+- `seed.py` + `seed_ankieta.py` + `seed_kurs.py`: konta testowe, 20 pytań VAK, kurs demonstracyjny.
 
-**Frontend** `frontend/` – Next.js 16 + React 19 + Tailwind 4 + KaTeX/Markdown + dnd-kit + zustand + react-query. Strony: `app/kursy`, `app/dzialy`, `app/tematy`.
+**Frontend** `frontend/` – Next.js 16 + React 19 + Tailwind 4 + KaTeX/Markdown + dnd-kit + zustand + react-query.
+Strony: `app/ankieta`, `app/profil`, `app/panel`, `app/kursy`, `app/dzialy`, `app/tematy`, `app/nauczyciel`, `app/admin/uzytkownicy`; API w `lib/api.ts`; ochrona stron w `components/auth/AuthGate.tsx`.
 ⚠ Przeczytaj `frontend/AGENTS.md` – ta wersja Next.js ma zmiany łamiące zgodność.
 
 ## Do zbudowania
@@ -102,7 +105,7 @@ Ostatni ukończony etap · co w toku · blokery · otwarte pytania (link do PYTA
 - **Etap 3** ✅ – personalizacja bloków (`styl`, nowe typy multimedialne, filtrowanie) + seed przykładowego kursu V/A/K.
 - **Etap 4** ✅ – adaptacja: zdarzenia nauki, quiz po temacie, aktualizacja wag, poziom trudności, „dlaczego to widzisz".
 - **Etap 5** ✅ – panele ucznia, nauczyciela, admina.
-- **Etap 6** – dopracowanie UI, dokumentacja do zaliczenia.
+- **Etap 6** ✅ – dopracowanie UI, dokumentacja do zaliczenia.
 - **Etap 7 (opcjonalny)** – dodatek LLM.
 
 Generator AI (`generuj_materialy_ai`) zostaje jako narzędzie dla nauczyciela.
