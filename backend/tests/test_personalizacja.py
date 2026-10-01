@@ -243,13 +243,10 @@ def test_sprawdzenie_quizu(client, temat, uczen, nauczyciel):
     quiz_id = client.get(f"/tematy/{temat}", headers=uczen).json()["bloki"][-1]["id"]
     r = client.post(f"/bloki/{quiz_id}/quiz", json={"odpowiedzi": [1, 2]}, headers=uczen)
     assert r.status_code == 200
-    assert r.json() == {
-        "poprawne": 1,
-        "liczba_pytan": 2,
-        "procent": 50,
-        "trafienia": [True, False],
-        "poprawne_odpowiedzi": [1, 0],
-    }
+    wynik = r.json()
+    assert (wynik["poprawne"], wynik["liczba_pytan"], wynik["procent"]) == (1, 2, 50)
+    assert wynik["trafienia"] == [True, False]
+    assert wynik["poprawne_odpowiedzi"] == [1, 0]
     assert client.post(f"/bloki/{quiz_id}/quiz", json={"odpowiedzi": [1, None]}, headers=uczen).json()["procent"] == 50
     assert client.post(f"/bloki/{quiz_id}/quiz", json={"odpowiedzi": [1]}, headers=uczen).status_code == 400
     assert client.post(f"/bloki/{quiz_id}/quiz", json={"odpowiedzi": [1, 0]}).status_code == 401
