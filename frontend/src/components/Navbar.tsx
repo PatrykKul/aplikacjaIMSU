@@ -30,7 +30,8 @@ export function Navbar() {
   const { data: searchIndex = EMPTY_INDEX } = useQuery({
     queryKey: ["szukaj-indeks"],
     queryFn: getSearchIndex,
-    enabled: !!user,
+    // A student without the survey has no access to materials yet
+    enabled: !!user && (user.rola !== "uczen" || user.ankieta_wypelniona),
     staleTime: 60_000,
   });
   const isAdmin = useAdminStore((s) => s.isAdmin);

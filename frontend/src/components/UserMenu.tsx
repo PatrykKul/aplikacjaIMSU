@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
@@ -25,14 +26,18 @@ export function UserMenu() {
 
   return (
     <div className="flex shrink-0 items-center gap-2">
-      <div className="hidden text-right leading-tight md:block">
-        <p className="max-w-[10rem] truncate text-sm font-semibold text-slate-900 dark:text-white">
+      <Link
+        href="/profil"
+        title="Mój profil"
+        className="hidden rounded-xl px-2 py-1 text-right leading-tight transition hover:bg-slate-100 md:block dark:hover:bg-white/5"
+      >
+        <span className="block max-w-[10rem] truncate text-sm font-semibold text-slate-900 dark:text-white">
           {user.imie || user.email}
-        </p>
-        <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        </span>
+        <span className="block text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
           {ROLA_LABEL[user.rola]}
-        </p>
-      </div>
+        </span>
+      </Link>
       <button
         type="button"
         onClick={onLogout}

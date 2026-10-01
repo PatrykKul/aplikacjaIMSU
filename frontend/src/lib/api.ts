@@ -4,9 +4,13 @@ import type {
   Dzial,
   GlobalSearchResponse,
   Kurs,
+  Profil,
+  PytanieAnkiety,
+  Styl,
   Temat,
   TokenResponse,
   Uzytkownik,
+  WynikAnkiety,
 } from "@/lib/types";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -140,6 +144,34 @@ export async function getMe(): Promise<Uzytkownik> {
 
 export async function getSearchIndex(): Promise<GlobalSearchResponse> {
   return apiFetch<GlobalSearchResponse>("/szukaj?q=");
+}
+
+// --- Ankieta VAK i profil ---
+
+export async function getPytaniaAnkiety(): Promise<PytanieAnkiety[]> {
+  return apiFetch<PytanieAnkiety[]>("/ankieta/pytania");
+}
+
+export async function wyslijAnkiete(
+  odpowiedzi: { pytanie_id: number; odpowiedz_id: number }[]
+): Promise<Profil> {
+  return apiFetch<Profil>("/ankieta/odpowiedzi", jsonInit("POST", { odpowiedzi }));
+}
+
+export async function getHistoriaAnkiety(): Promise<WynikAnkiety[]> {
+  return apiFetch<WynikAnkiety[]>("/ankieta/historia");
+}
+
+export async function getProfil(): Promise<Profil> {
+  return apiFetch<Profil>("/profil");
+}
+
+export async function ustawStylRecznie(styl: Styl): Promise<Profil> {
+  return apiFetch<Profil>("/profil/styl", jsonInit("PUT", { styl }));
+}
+
+export async function przywrocStylZAnkiety(): Promise<Profil> {
+  return apiFetch<Profil>("/profil/styl", { method: "DELETE" });
 }
 
 // --- Kursy ---

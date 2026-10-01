@@ -73,3 +73,32 @@ export interface TokenResponse {
   token_type: string;
   uzytkownik: Uzytkownik;
 }
+
+export type Styl = "V" | "A" | "K";
+
+export interface OdpowiedzAnkiety {
+  id: number;
+  tresc: string;
+}
+
+export interface PytanieAnkiety {
+  id: number;
+  tresc: string;
+  kolejnosc: number;
+  odpowiedzi: OdpowiedzAnkiety[];
+}
+
+export interface WynikAnkiety {
+  id: number;
+  punkty_v: number;
+  punkty_a: number;
+  punkty_k: number;
+  /** One letter, or several for a tie (e.g. "VA"). */
+  styl_dominujacy: string;
+  data: string;
+}
+
+export interface Profil {
+  uzytkownik: Uzytkownik;
+  wynik_ankiety: WynikAnkiety | null;
+}
