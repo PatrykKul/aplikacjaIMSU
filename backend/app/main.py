@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, kursy, uzytkownicy
+from app.routers import ankieta, auth, kursy, uzytkownicy
 
 app = FastAPI(title="StylNauki API")
 
@@ -18,6 +18,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(uzytkownicy.router)
+app.include_router(ankieta.router)
 app.include_router(kursy.router)
 
 

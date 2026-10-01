@@ -11,7 +11,7 @@ from typing import List
 
 from app import models, schemas
 from app.database import SessionLocal
-from app.deps import ROLA_UCZEN, get_current_user, get_db, wymagaj_edytora
+from app.deps import ROLA_UCZEN, get_db, get_uczestnik, wymagaj_edytora
 from app.materialy_paths import get_materialy_public_root
 from app.services import ai_generator
 from app.slugify import slugify
@@ -127,7 +127,7 @@ def utworz_kurs(kurs: schemas.KursCreate, db: Session = Depends(get_db)):
 @router.get("/kursy", response_model=List[schemas.Kurs])
 def pobierz_kursy(
     db: Session = Depends(get_db),
-    user: models.Uzytkownik = Depends(get_current_user),
+    user: models.Uzytkownik = Depends(get_uczestnik),
 ):
     q = db.query(models.Kurs)
     if _tylko_opublikowane(user):
@@ -155,7 +155,7 @@ def reorder_kursy(body: schemas.ItemReorder, db: Session = Depends(get_db)):
 def pobierz_kurs(
     kurs_id: int,
     db: Session = Depends(get_db),
-    user: models.Uzytkownik = Depends(get_current_user),
+    user: models.Uzytkownik = Depends(get_uczestnik),
 ):
     kurs = (
         db.query(models.Kurs)
@@ -171,7 +171,7 @@ def pobierz_kurs(
 def pobierz_dzial(
     dzial_id: int,
     db: Session = Depends(get_db),
-    user: models.Uzytkownik = Depends(get_current_user),
+    user: models.Uzytkownik = Depends(get_uczestnik),
 ):
     dzial = (
         db.query(models.Dzial)
@@ -189,7 +189,7 @@ def pobierz_dzial(
 def pobierz_temat(
     temat_id: int,
     db: Session = Depends(get_db),
-    user: models.Uzytkownik = Depends(get_current_user),
+    user: models.Uzytkownik = Depends(get_uczestnik),
 ):
     temat = _reload_temat(db, temat_id)
     _sprawdz_widocznosc(temat.dzial.kurs, user, "Temat nie znaleziony")
@@ -513,7 +513,7 @@ def usun_blok(blok_id: int, db: Session = Depends(get_db)):
 def szukaj_wszystkiego(
     q: str = "",
     db: Session = Depends(get_db),
-    user: models.Uzytkownik = Depends(get_current_user),
+    user: models.Uzytkownik = Depends(get_uczestnik),
 ):
     query = q.strip()
 

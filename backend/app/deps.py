@@ -60,5 +60,18 @@ def wymagaj_roli(*role: str) -> Callable[..., models.Uzytkownik]:
     return _sprawdz
 
 
+def get_uczestnik(user: models.Uzytkownik = Depends(get_current_user)) -> models.Uzytkownik:
+    """Dostęp do materiałów: uczeń musi mieć wypełnioną ankietę (403 z kodem ANKIETA_WYMAGANA)."""
+    if user.rola == ROLA_UCZEN and not user.ankieta_wypelniona:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "kod": "ANKIETA_WYMAGANA",
+                "komunikat": "Najpierw wypełnij ankietę stylu uczenia się",
+            },
+        )
+    return user
+
+
 wymagaj_edytora = wymagaj_roli(ROLA_NAUCZYCIEL, ROLA_ADMIN)
 wymagaj_admina = wymagaj_roli(ROLA_ADMIN)

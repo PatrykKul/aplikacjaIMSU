@@ -87,3 +87,37 @@ class Uzytkownik(Base):
     styl_uczenia: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     styl_zrodlo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     utworzono: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_teraz)
+
+
+class PytanieAnkiety(Base):
+    __tablename__ = "pytania_ankiety"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    tresc: Mapped[str] = mapped_column(Text, nullable=False)
+    kolejnosc: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    aktywne: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    odpowiedzi: Mapped[List["OdpowiedzAnkiety"]] = relationship(
+        back_populates="pytanie", cascade="all, delete-orphan", order_by="OdpowiedzAnkiety.kolejnosc"
+    )
+
+
+class OdpowiedzAnkiety(Base):
+    __tablename__ = "odpowiedzi_ankiety"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    pytanie_id: Mapped[int] = mapped_column(ForeignKey("pytania_ankiety.id"), index=True)
+    tresc: Mapped[str] = mapped_column(Text, nullable=False)
+    styl: Mapped[str] = mapped_column(String(1), nullable=False)  # V / A / K
+    kolejnosc: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    pytanie: Mapped["PytanieAnkiety"] = relationship(back_populates="odpowiedzi")
+
+
+class WynikAnkiety(Base):
+    __tablename__ = "wyniki_ankiety"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("uzytkownicy.id"), index=True)
+    punkty_v: Mapped[int] = mapped_column(Integer, nullable=False)
+    punkty_a: Mapped[int] = mapped_column(Integer, nullable=False)
+    punkty_k: Mapped[int] = mapped_column(Integer, nullable=False)
+    styl_dominujacy: Mapped[str] = mapped_column(String(3), nullable=False)
+    data: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_teraz)

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.database import SessionLocal
 from app.security import hash_haslo
+from app.seed_ankieta import PYTANIA_VAK, STYLE_W_KOLEJNOSCI
 
 # Demo accounts (documented in README) — for presentation only
 KONTA_TESTOWE = [
@@ -30,9 +31,23 @@ def seed_uzytkownicy(db: Session) -> int:
     return dodano
 
 
+def seed_ankieta(db: Session) -> int:
+    # Seeded only into an empty survey, so teacher edits are never overwritten
+    if db.query(models.PytanieAnkiety).count() > 0:
+        return 0
+    for i, (tresc, *odpowiedzi) in enumerate(PYTANIA_VAK):
+        pytanie = models.PytanieAnkiety(tresc=tresc, kolejnosc=i)
+        pary = list(zip(STYLE_W_KOLEJNOSCI, odpowiedzi))
+        # Rotate answer order so the same style is not always listed first
+        przesuniecie = i % len(pary)
+        for j, (styl, tresc_odp) in enumerate(pary[przesuniecie:] + pary[:przesuniecie]):
+            pytanie.odpowiedzi.append(models.OdpowiedzAnkiety(tresc=tresc_odp, styl=styl, kolejnosc=j))
+        db.add(pytanie)
+    return len(PYTANIA_VAK)
+
+
 def seed(db: Session) -> dict[str, int]:
-    wynik = {"uzytkownicy": seed_uzytkownicy(db)}
-    # VAK survey questions (Etap 2)
+    wynik = {"uzytkownicy": seed_uzytkownicy(db), "pytania_ankiety": seed_ankieta(db)}
     # Demo course with V/A/K blocks (Etap 3)
     return wynik
 

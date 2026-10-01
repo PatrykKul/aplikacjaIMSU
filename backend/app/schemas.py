@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 BLOK_TYP = Literal["teoria", "przyklad", "uwaga", "zadanie", "wideo"]
 
@@ -234,3 +234,108 @@ class TokenOut(BaseModel):
 
 class ZmianaRoliIn(BaseModel):
     rola: ROLA
+
+
+# ==========================================
+# ANKIETA VAK
+# ==========================================
+
+STYL = Literal["V", "A", "K"]
+
+ANKIETA_WYMAGANA_DETAIL = {
+    "kod": "ANKIETA_WYMAGANA",
+    "komunikat": "Najpierw wypełnij ankietę stylu uczenia się",
+}
+
+
+class OdpowiedzAnkietyOut(BaseModel):
+    """Odpowiedź widziana przez wypełniającego — bez przypisanego stylu."""
+
+    id: int
+    tresc: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PytanieAnkietyOut(BaseModel):
+    id: int
+    tresc: str
+    kolejnosc: int
+    odpowiedzi: List[OdpowiedzAnkietyOut]
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WyborOdpowiedzi(BaseModel):
+    pytanie_id: int
+    odpowiedz_id: int
+
+
+class AnkietaOdpowiedziIn(BaseModel):
+    odpowiedzi: List[WyborOdpowiedzi] = Field(..., min_length=1, max_length=200)
+
+
+class WynikAnkietyOut(BaseModel):
+    id: int
+    punkty_v: int
+    punkty_a: int
+    punkty_k: int
+    styl_dominujacy: str
+    data: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProfilOut(BaseModel):
+    uzytkownik: UzytkownikOut
+    wynik_ankiety: Optional[WynikAnkietyOut] = None
+
+
+class StylRecznyIn(BaseModel):
+    styl: STYL
+
+
+class OdpowiedzAnkietyIn(BaseModel):
+    tresc: str = Field(..., min_length=1, max_length=500)
+    styl: STYL
+
+    @field_validator("tresc")
+    @classmethod
+    def _tresc(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Treść odpowiedzi nie może być pusta")
+        return v
+
+
+class PytanieAnkietyIn(BaseModel):
+    tresc: str = Field(..., min_length=1, max_length=500)
+    aktywne: bool = True
+    odpowiedzi: List[OdpowiedzAnkietyIn]
+
+    @field_validator("tresc")
+    @classmethod
+    def _tresc(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Treść pytania nie może być pusta")
+        return v
+
+    @model_validator(mode="after")
+    def _po_jednej_odpowiedzi_na_styl(self):
+        if sorted(o.styl for o in self.odpowiedzi) != ["A", "K", "V"]:
+            raise ValueError("Pytanie musi mieć dokładnie po jednej odpowiedzi dla stylu V, A i K")
+        return self
+
+
+class OdpowiedzAnkietyEdycjaOut(BaseModel):
+    id: int
+    tresc: str
+    styl: STYL
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PytanieAnkietyEdycjaOut(BaseModel):
+    id: int
+    tresc: str
+    kolejnosc: int
+    aktywne: bool
+    odpowiedzi: List[OdpowiedzAnkietyEdycjaOut]
+    model_config = ConfigDict(from_attributes=True)
