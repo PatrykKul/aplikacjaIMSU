@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
+from app.media import MEDIA_URL_PREFIX, get_media_root
 from app.routers import ankieta, auth, kursy, uzytkownicy
 
 app = FastAPI(title="StylNauki API")
@@ -20,6 +22,11 @@ app.include_router(auth.router)
 app.include_router(uzytkownicy.router)
 app.include_router(ankieta.router)
 app.include_router(kursy.router)
+
+# Uploaded images / recordings
+_media_root = get_media_root()
+_media_root.mkdir(parents=True, exist_ok=True)
+app.mount(MEDIA_URL_PREFIX, StaticFiles(directory=_media_root), name="media")
 
 
 @app.get("/")

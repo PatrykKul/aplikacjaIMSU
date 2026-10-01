@@ -1,15 +1,68 @@
 import re
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-BLOK_TYP = Literal["teoria", "przyklad", "uwaga", "zadanie", "wideo"]
+BLOK_TYP = Literal[
+    "teoria",
+    "przyklad",
+    "uwaga",
+    "zadanie",
+    # Multimedia / interactive types
+    "wideo",
+    "obraz",
+    "diagram",
+    "audio",
+    "cwiczenie",
+    "quiz",
+]
+BLOK_STYL = Literal["V", "A", "K"]
 
 
 # ==========================================
 # BLOK
 # ==========================================
+
+
+class KrokCwiczenia(BaseModel):
+    polecenie: str = Field(..., min_length=1, max_length=2000)
+    podpowiedz: Optional[str] = Field(None, max_length=2000)
+
+
+class CwiczenieDane(BaseModel):
+    kroki: List[KrokCwiczenia] = Field(..., min_length=1, max_length=30)
+
+
+class PytanieQuizu(BaseModel):
+    tresc: str = Field(..., min_length=1, max_length=2000)
+    odpowiedzi: List[str] = Field(..., min_length=2, max_length=6)
+    poprawna: int = Field(..., ge=0)
+
+    @model_validator(mode="after")
+    def _poprawna_w_zakresie(self):
+        if self.poprawna >= len(self.odpowiedzi):
+            raise ValueError("Indeks poprawnej odpowiedzi jest poza listą odpowiedzi")
+        if any(not o.strip() for o in self.odpowiedzi):
+            raise ValueError("Odpowiedź nie może być pusta")
+        return self
+
+
+class QuizDane(BaseModel):
+    pytania: List[PytanieQuizu] = Field(..., min_length=1, max_length=30)
+
+
+_DANE_WG_TYPU = {"quiz": QuizDane, "cwiczenie": CwiczenieDane}
+
+
+def waliduj_dane_bloku(typ: str, dane: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Zwraca oczyszczone `dane` dla typów strukturalnych; dla pozostałych typów None."""
+    model = _DANE_WG_TYPU.get(typ)
+    if model is None:
+        return None
+    if not dane:
+        raise ValueError(f"Blok typu „{typ}” wymaga pola dane")
+    return model.model_validate(dane).model_dump()
 
 
 class BlokBase(BaseModel):
@@ -19,6 +72,9 @@ class BlokBase(BaseModel):
     rozwiazanie: Optional[str] = None
     kolejnosc: int = 0
     image_url: Optional[str] = None
+    styl: Optional[BLOK_STYL] = None
+    media_url: Optional[str] = None
+    dane: Optional[Dict[str, Any]] = None
 
 
 class BlokCreate(BaseModel):
@@ -28,6 +84,9 @@ class BlokCreate(BaseModel):
     rozwiazanie: Optional[str] = None
     kolejnosc: Optional[int] = None
     image_url: Optional[str] = None
+    styl: Optional[BLOK_STYL] = None
+    media_url: Optional[str] = None
+    dane: Optional[Dict[str, Any]] = None
 
 
 class BlokUpdate(BaseModel):
@@ -37,12 +96,28 @@ class BlokUpdate(BaseModel):
     rozwiazanie: Optional[str] = None
     kolejnosc: Optional[int] = None
     image_url: Optional[str] = None
+    styl: Optional[BLOK_STYL] = None
+    media_url: Optional[str] = None
+    dane: Optional[Dict[str, Any]] = None
 
 
 class Blok(BlokBase):
     id: int
     temat_id: int
     model_config = ConfigDict(from_attributes=True)
+
+
+class QuizOdpowiedziIn(BaseModel):
+    # One entry per question: index of the chosen answer or null
+    odpowiedzi: List[Optional[int]] = Field(..., min_length=1, max_length=30)
+
+
+class QuizWynikOut(BaseModel):
+    poprawne: int
+    liczba_pytan: int
+    procent: int
+    trafienia: List[bool]
+    poprawne_odpowiedzi: List[int]
 
 
 class BlokReorder(BaseModel):
@@ -83,6 +158,8 @@ class Temat(TematBase):
     id: int
     dzial_id: int
     bloki: List[Blok] = []
+    # Style used to pick the blocks (None = all blocks, editor view)
+    styl_widoku: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 

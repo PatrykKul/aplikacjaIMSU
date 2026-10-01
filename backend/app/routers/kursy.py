@@ -1,20 +1,24 @@
 import logging
-import os
-import uuid
-from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
-from typing import List
+from typing import List, Optional
 
 from app import models, schemas
 from app.database import SessionLocal
 from app.deps import ROLA_UCZEN, get_db, get_uczestnik, wymagaj_edytora
-from app.materialy_paths import get_materialy_public_root
+from app.media import (
+    MAX_AUDIO_BYTES,
+    MAX_OBRAZ_BYTES,
+    ROZSZERZENIA_AUDIO,
+    ROZSZERZENIA_OBRAZ,
+    zapisz_upload,
+)
 from app.services import ai_generator
-from app.slugify import slugify
+from app.services.personalizacja import filtruj_bloki, ukryj_klucz_quizu
+from app.services.quiz import ocen_quiz
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -27,30 +31,46 @@ async def upload_image(
     dzial_nazwa: str = Form(...),
     temat_nazwa: str = Form(...),
 ):
-    public_root = get_materialy_public_root()
-    if not public_root.exists():
-        logger.error("Katalog public nie istnieje: %s", public_root)
-        raise HTTPException(status_code=500, detail="Nie udało się zapisać pliku na serwerze")
-    if not os.access(public_root, os.W_OK):
-        logger.error("Brak praw zapisu do katalogu public: %s", public_root)
-        raise HTTPException(status_code=500, detail="Nie udało się zapisać pliku na serwerze")
-    rel_parts = (
-        "kursy-materialy",
-        slugify(kurs_nazwa),
-        slugify(dzial_nazwa),
-        slugify(temat_nazwa),
+    url = await zapisz_upload(
+        file, (kurs_nazwa, dzial_nazwa, temat_nazwa), ROZSZERZENIA_OBRAZ, MAX_OBRAZ_BYTES
     )
-    dest_dir = public_root.joinpath(*rel_parts)
-    os.makedirs(dest_dir, exist_ok=True)
-    suffix = Path(file.filename or "").suffix
-    if not suffix or len(suffix) > 12:
-        suffix = ".png"
-    name = f"{uuid.uuid4().hex}{suffix}"
-    dest = dest_dir / name
-    contents = await file.read()
-    dest.write_bytes(contents)
-    relative_url = "/" + "/".join(rel_parts + (name,))
-    return {"image_url": relative_url}
+    return {"image_url": url}
+
+
+@router.post("/upload-audio", dependencies=[Depends(wymagaj_edytora)])
+async def upload_audio(
+    file: UploadFile = File(...),
+    kurs_nazwa: str = Form(...),
+    dzial_nazwa: str = Form(...),
+    temat_nazwa: str = Form(...),
+):
+    url = await zapisz_upload(
+        file, (kurs_nazwa, dzial_nazwa, temat_nazwa), ROZSZERZENIA_AUDIO, MAX_AUDIO_BYTES
+    )
+    return {"media_url": url}
+
+
+def _widok_tematu(
+    temat: models.Temat, user: models.Uzytkownik, styl_parametr: str | None
+) -> schemas.Temat:
+    """Uczeń: bloki wspólne + jego stylu (bez klucza quizu). Edytor: wszystko albo podgląd `?styl=`."""
+    wynik = schemas.Temat.model_validate(temat)
+    if user.rola == ROLA_UCZEN:
+        # `?styl=` lets a student retry the topic in another style ("spróbuj inaczej")
+        styl_widoku = styl_parametr or user.styl_uczenia
+        bloki = filtruj_bloki(wynik.bloki, styl_widoku)
+        for blok in bloki:
+            if blok.typ == "quiz":
+                blok.dane = ukryj_klucz_quizu(blok.dane)
+    elif styl_parametr:
+        styl_widoku = styl_parametr
+        bloki = filtruj_bloki(wynik.bloki, styl_widoku)
+    else:
+        styl_widoku = None
+        bloki = sorted(wynik.bloki, key=lambda b: (b.kolejnosc, b.id))
+    wynik.bloki = bloki
+    wynik.styl_widoku = styl_widoku
+    return wynik
 
 
 def _tylko_opublikowane(user: models.Uzytkownik) -> bool:
@@ -188,12 +208,13 @@ def pobierz_dzial(
 @router.get("/tematy/{temat_id}", response_model=schemas.Temat)
 def pobierz_temat(
     temat_id: int,
+    styl: Optional[str] = Query(None, pattern="^[VAK]$"),
     db: Session = Depends(get_db),
     user: models.Uzytkownik = Depends(get_uczestnik),
 ):
     temat = _reload_temat(db, temat_id)
     _sprawdz_widocznosc(temat.dzial.kurs, user, "Temat nie znaleziony")
-    return temat
+    return _widok_tematu(temat, user, styl)
 
 
 @router.put("/kursy/{kurs_id}", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Kurs)
@@ -455,6 +476,15 @@ def reorder_tematy_w_dziale(
 # =========================================================
 
 
+def _dane_bloku(typ: str, dane: dict | None) -> dict | None:
+    try:
+        return schemas.waliduj_dane_bloku(typ, dane)
+    except ValueError as e:
+        # pydantic ValidationError is a ValueError too; details are safe to show (teacher's own input)
+        logger.info("Nieprawidłowe dane bloku typu %s: %s", typ, e)
+        raise HTTPException(status_code=422, detail=f"Nieprawidłowe dane bloku typu „{typ}”")
+
+
 @router.post("/tematy/{temat_id}/bloki", dependencies=[Depends(wymagaj_edytora)], response_model=schemas.Blok)
 def utworz_blok(
     temat_id: int, body: schemas.BlokCreate, db: Session = Depends(get_db)
@@ -475,7 +505,10 @@ def utworz_blok(
         rozwiazanie=body.rozwiazanie,
         kolejnosc=k,
         image_url=body.image_url,
+        styl=body.styl,
+        media_url=body.media_url,
     )
+    blok.dane = _dane_bloku(body.typ, body.dane)
     db.add(blok)
     db.commit()
     db.refresh(blok)
@@ -487,11 +520,40 @@ def edytuj_blok(blok_id: int, dane: schemas.BlokUpdate, db: Session = Depends(ge
     blok = db.query(models.Blok).filter(models.Blok.id == blok_id).first()
     if not blok:
         raise HTTPException(status_code=404, detail="Blok nie znaleziony")
-    for klucz, wartosc in dane.model_dump(exclude_unset=True).items():
+    zmiany = dane.model_dump(exclude_unset=True)
+    nowe_dane = zmiany.pop("dane", blok.dane)
+    for klucz, wartosc in zmiany.items():
         setattr(blok, klucz, wartosc)
+    # Re-validate structured data against the (possibly changed) type
+    blok.dane = _dane_bloku(blok.typ, nowe_dane)
     db.commit()
     db.refresh(blok)
     return blok
+
+
+@router.post("/bloki/{blok_id}/quiz", response_model=schemas.QuizWynikOut)
+def sprawdz_quiz(
+    blok_id: int,
+    body: schemas.QuizOdpowiedziIn,
+    db: Session = Depends(get_db),
+    user: models.Uzytkownik = Depends(get_uczestnik),
+):
+    blok = db.query(models.Blok).filter(models.Blok.id == blok_id).first()
+    if not blok or blok.typ != "quiz":
+        raise HTTPException(status_code=404, detail="Quiz nie znaleziony")
+    _sprawdz_widocznosc(blok.temat.dzial.kurs, user, "Quiz nie znaleziony")
+    pytania = (blok.dane or {}).get("pytania", [])
+    try:
+        wynik = ocen_quiz(pytania, body.odpowiedzi)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return schemas.QuizWynikOut(
+        poprawne=wynik.poprawne,
+        liczba_pytan=wynik.liczba_pytan,
+        procent=wynik.procent,
+        trafienia=list(wynik.trafienia),
+        poprawne_odpowiedzi=list(wynik.poprawne_odpowiedzi),
+    )
 
 
 @router.delete("/bloki/{blok_id}", dependencies=[Depends(wymagaj_edytora)])

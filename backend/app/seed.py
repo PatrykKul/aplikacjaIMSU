@@ -5,6 +5,7 @@ from app import models
 from app.database import SessionLocal
 from app.security import hash_haslo
 from app.seed_ankieta import PYTANIA_VAK, STYLE_W_KOLEJNOSCI
+from app.seed_kurs import KURS_DEMO
 
 # Demo accounts (documented in README) — for presentation only
 KONTA_TESTOWE = [
@@ -46,10 +47,41 @@ def seed_ankieta(db: Session) -> int:
     return len(PYTANIA_VAK)
 
 
+def seed_kurs_demo(db: Session) -> int:
+    """Kurs, w którym każdy temat ma bloki wspólne oraz dla stylu V, A i K."""
+    if db.query(models.Kurs).filter(models.Kurs.nazwa == KURS_DEMO["nazwa"]).first():
+        return 0
+    ostatni = db.query(models.Kurs).count()
+    kurs = models.Kurs(nazwa=KURS_DEMO["nazwa"], opis=KURS_DEMO["opis"], is_published=True, kolejnosc=ostatni)
+    for i, dzial_dane in enumerate(KURS_DEMO["dzialy"]):
+        dzial = models.Dzial(nazwa=dzial_dane["nazwa"], kolejnosc=i)
+        for j, temat_dane in enumerate(dzial_dane["tematy"]):
+            temat = models.Temat(tytul=temat_dane["tytul"], kolejnosc=j)
+            for k, b in enumerate(temat_dane["bloki"]):
+                blok = models.Blok(
+                    typ=b["typ"],
+                    tresc=b["tresc"],
+                    styl=b.get("styl"),
+                    odpowiedz=b.get("odpowiedz"),
+                    rozwiazanie=b.get("rozwiazanie"),
+                    image_url=b.get("image_url"),
+                    media_url=b.get("media_url"),
+                    kolejnosc=k,
+                )
+                blok.dane = b.get("dane")
+                temat.bloki.append(blok)
+            dzial.tematy.append(temat)
+        kurs.dzialy.append(dzial)
+    db.add(kurs)
+    return 1
+
+
 def seed(db: Session) -> dict[str, int]:
-    wynik = {"uzytkownicy": seed_uzytkownicy(db), "pytania_ankiety": seed_ankieta(db)}
-    # Demo course with V/A/K blocks (Etap 3)
-    return wynik
+    return {
+        "uzytkownicy": seed_uzytkownicy(db),
+        "pytania_ankiety": seed_ankieta(db),
+        "kurs_demo": seed_kurs_demo(db),
+    }
 
 
 def main() -> None:

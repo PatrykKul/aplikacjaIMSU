@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -53,7 +54,6 @@ class Temat(Base):
         back_populates="temat",
         order_by="Blok.kolejnosc",
         cascade="all, delete-orphan",
-        lazy="noload",
     )
 
 
@@ -67,8 +67,21 @@ class Blok(Base):
     rozwiazanie: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     kolejnosc: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Learning style: V / A / K, NULL = shared block shown to everyone
+    styl: Mapped[Optional[str]] = mapped_column(String(1), nullable=True, index=True)
+    media_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Structured content of quiz / cwiczenie blocks (JSON)
+    dane_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     temat: Mapped["Temat"] = relationship(back_populates="bloki")
+
+    @property
+    def dane(self) -> Optional[dict[str, Any]]:
+        return json.loads(self.dane_json) if self.dane_json else None
+
+    @dane.setter
+    def dane(self, value: Optional[dict[str, Any]]) -> None:
+        self.dane_json = json.dumps(value, ensure_ascii=False) if value else None
 
 
 def _teraz() -> datetime:
