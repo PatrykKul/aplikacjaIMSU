@@ -392,7 +392,7 @@ export function DzialPageClient({
                 Dział
               </span>
             </div>
-            <h1 className="bg-gradient-to-r from-primary via-cyan-200 to-secondary bg-clip-text text-3xl font-bold tracking-tight text-transparent md:text-4xl lg:text-5xl">
+            <h1 className="bg-gradient-to-r from-primary via-sky-400 dark:via-cyan-200 to-secondary bg-clip-text text-3xl font-bold tracking-tight text-transparent md:text-4xl lg:text-5xl">
               {dzial.nazwa}
             </h1>
             {kurs && (

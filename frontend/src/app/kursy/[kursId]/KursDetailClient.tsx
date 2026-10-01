@@ -340,7 +340,7 @@ export function KursDetailClient({ kursId }: Props) {
               <GraduationCap className="h-3.5 w-3.5" />
               Kurs
             </div>
-            <h1 className="bg-gradient-to-r from-primary via-cyan-200 to-secondary bg-clip-text text-3xl font-bold tracking-tight text-transparent md:text-4xl lg:text-5xl">
+            <h1 className="bg-gradient-to-r from-primary via-sky-400 dark:via-cyan-200 to-secondary bg-clip-text text-3xl font-bold tracking-tight text-transparent md:text-4xl lg:text-5xl">
               {data.nazwa}
             </h1>
             <p className="mt-4 max-w-2xl text-lg leading-relaxed text-slate-700 dark:text-slate-400">

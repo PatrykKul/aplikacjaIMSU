@@ -118,10 +118,10 @@ export function Navbar() {
           className="group flex shrink-0 items-center gap-3 text-slate-900 transition-opacity hover:opacity-95 dark:text-white"
         >
           <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/25 to-secondary/20 shadow-neon-sm ring-1 ring-white/12 transition-transform group-hover:scale-[1.03]">
-            <GraduationCap className="relative h-6 w-6 text-sky-50" />
+            <GraduationCap className="relative h-6 w-6 text-primary dark:text-sky-50" />
           </div>
           <div className="hidden leading-tight sm:block">
-            <span className="block bg-gradient-to-r from-primary via-cyan-200 to-secondary bg-clip-text text-lg font-bold tracking-tight text-transparent">
+            <span className="block bg-gradient-to-r from-primary via-sky-400 dark:via-cyan-200 to-secondary bg-clip-text text-lg font-bold tracking-tight text-transparent">
               StylNauki
             </span>
           </div>
@@ -261,6 +261,27 @@ export function Navbar() {
 
         <UserMenu />
       </div>
+      {linki.length > 0 && (
+      <nav aria-label="Główna nawigacja (mobilna)" className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto border-t border-slate-200/70 px-4 py-1.5 lg:hidden dark:border-white/[0.06]">
+          {linki.map((l) => {
+            const aktywny = pathname === l.href || pathname.startsWith(`${l.href}/`);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={aktywny ? "page" : undefined}
+                className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                  aktywny
+                    ? "bg-primary/10 text-primary"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
+                }`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
     </header>
   );
 }

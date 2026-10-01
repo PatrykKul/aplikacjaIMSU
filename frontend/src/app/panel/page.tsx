@@ -81,7 +81,7 @@ export default function PanelUczniaPage() {
           <section className={CARD}>
             <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-white">Mój styl uczenia</h2>
             <p className="mb-4 text-sm text-slate-700 dark:text-slate-300" data-testid="panel-styl">
-              <strong className="capitalize">{nazwaStylu(s.styl_uczenia)}</strong>
+              <strong>{nazwaStylu(s.styl_uczenia)}</strong>
               {s.styl_zrodlo ? ` (${ZRODLO_STYLU_LABEL[s.styl_zrodlo] ?? s.styl_zrodlo})` : ""}
               {s.styl_ankiety && s.styl_ankiety !== s.styl_uczenia ? (
                 <> · wynik ankiety: {nazwaStylu(s.styl_ankiety)}</>

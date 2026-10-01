@@ -254,9 +254,9 @@ export function KursyListClient() {
         <motion.h1
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-4 bg-gradient-to-r from-primary via-cyan-200 to-secondary bg-clip-text text-4xl font-extrabold tracking-tight text-transparent md:text-5xl"
+          className="mb-4 bg-gradient-to-r from-primary via-sky-400 dark:via-cyan-200 to-secondary bg-clip-text text-4xl font-extrabold tracking-tight text-transparent md:text-5xl"
         >
-          StylNauki
+          Kursy
         </motion.h1>
         <motion.p
           initial={{ opacity: 0 }}
