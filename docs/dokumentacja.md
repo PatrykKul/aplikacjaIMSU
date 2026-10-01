@@ -96,7 +96,7 @@ Uczeń widzi w temacie **bloki wspólne + bloki swojego stylu**, w kolejności u
 | Start | wagi V/A/K = punkty z ankiety |
 | Zaliczenie | quiz ≥ 70% → temat zaliczony, proponowany następny temat |
 | Powtórka | quiz < 70% → „spróbuj inaczej": ten sam temat w stylu o drugiej najwyższej wadze (jeszcze niewypróbowanym) |
-| Wagi | styl, w którym uczeń przerabiał temat: +1 przy sukcesie, −1 przy porażce (zakres 0–30; liczy się pierwszy sukces i pierwsza porażka w danym temacie i stylu) |
+| Wagi | styl, w którym uczeń przerabiał temat: +1 przy sukcesie, −1 przy porażce (zakres 0–30; liczy się pierwszy sukces i pierwsza porażka w danym temacie i stylu); serwer przyjmuje wynik tylko w stylu, w którym uczeń faktycznie mógł przerabiać temat — własnym albo zaproponowanym do powtórki) |
 | Propozycja stylu | gdy inny styl zostaje samodzielnym liderem wag: „Lepiej Ci idzie z materiałami słuchowymi – przełączyć?" — **decyduje uczeń**; ręczny wybór stylu wyłącza propozycje; odrzuconej propozycji system nie powtarza |
 | Poziom trudności | dwa ostatnie quizy < 70% → dodatkowe łatwiejsze przykłady (poziom 1); dwa ostatnie ≥ 90% → rozszerzenia (poziom 3); inaczej poziom standardowy |
 | Wyjaśnialność | każda rekomendacja ma krótkie „dlaczego to widzisz", np. „bo quiz z tematu »Pętla for«: 45%" |
@@ -116,7 +116,7 @@ Zapisywane są: otwarcie tematu, czas w temacie, odtworzenie audio / wideo, uko�
 
 ## 7. Testy
 
-`cd backend && pytest` — 224 testy:
+`cd backend && pytest` — 229 testów:
 
 | Plik | Zakres |
 |---|---|
@@ -156,7 +156,11 @@ cd frontend; npm install; npm run dev      # http://localhost:3000
 
 ## 10. Ograniczenia i możliwy rozwój
 
-- Model VAK jest uproszczeniem — dlatego styl z ankiety jest tylko punktem startu, a system koryguje go wynikami i zostawia decyzję uczniowi.
+- **Teoria stylów uczenia jest w psychologii kwestionowana.** Podział na wzrokowców, słuchowców i kinestetyków (VAK) jest popularny, ale badania nie potwierdzają tzw. hipotezy dopasowania (*meshing hypothesis*), czyli tego, że uczeń uczy się lepiej, gdy materiał jest podany w „jego" stylu. Projekt mimo to ma sens, bo:
+  - jego celem jest pokazanie **mechanizmu personalizacji i adaptacji** w systemie uczącym, a nie dowodzenie teorii VAK;
+  - wynik ankiety jest tylko punktem startu — uczeń może w każdej chwili **ręcznie zmienić styl**;
+  - adaptacja opiera się na **wynikach quizów**, a nie wyłącznie na deklaracji z ankiety: system proponuje inny sposób podania materiału, gdy obecny nie działa, i zostawia decyzję uczniowi;
+  - model VAK jest **wymienny** — style są etykietą bloków i odpowiedzi ankiety, więc można go zastąpić innym podziałem (np. VARK) bez zmiany mechanizmu.
 - Nauczyciel widzi wszystkich uczniów (brak klas i zapisów na kurs).
 - Omówienia audio w kursie demonstracyjnym czyta lektor przeglądarki; nauczyciel może wgrać własne nagrania.
 - Zdarzenia inne niż wyniki quizów nie wpływają jeszcze na adaptację.
