@@ -85,7 +85,9 @@ export function QuizBlock({ blokId, dane, variant, styl, onResult }: Props) {
                         onChange={() => setWybory((w) => w.map((x, k) => (k === i ? j : x)))}
                         className="h-4 w-4 accent-sky-500"
                       />
-                      <span>{o}</span>
+                      <span className="min-w-0 flex-1">
+                        <MathMarkdown variant={variant}>{o}</MathMarkdown>
+                      </span>
                     </label>
                   );
                 })}

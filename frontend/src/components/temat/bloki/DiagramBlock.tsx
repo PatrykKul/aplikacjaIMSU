@@ -1,12 +1,34 @@
 import { ArrowDown } from "lucide-react";
+import { MathMarkdown } from "@/components/MathMarkdown";
+import { mediaSrc } from "@/lib/api";
 
-type Props = { tresc: string };
+type Props = {
+  tresc: string;
+  /** Gotowy wykres (np. SVG wygenerowany w seedzie); wtedy `tresc` jest podpisem. */
+  imageUrl?: string | null;
+  variant?: "dark" | "light";
+};
 
 /**
  * Prosty diagram przepływu z tekstu: pierwsza linia = tytuł, kolejne = kroki,
  * linia zaczynająca się od "?" = decyzja.
  */
-export function DiagramBlock({ tresc }: Props) {
+export function DiagramBlock({ tresc, imageUrl, variant = "light" }: Props) {
+  if (imageUrl) {
+    return (
+      <figure>
+        <img
+          src={mediaSrc(imageUrl)}
+          alt="Wykres do tematu"
+          className="mx-auto mb-4 w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800"
+        />
+        <figcaption className="text-center text-sm">
+          <MathMarkdown variant={variant}>{tresc}</MathMarkdown>
+        </figcaption>
+      </figure>
+    );
+  }
+
   const linie = tresc
     .split("\n")
     .map((l) => l.trim())

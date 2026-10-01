@@ -99,9 +99,9 @@ export function CwiczenieBlock({ dane, variant, onComplete }: Props) {
                     </div>
                   )}
                   {!gotowy && podpowiedz && krok.podpowiedz && (
-                    <p className="mt-2 rounded-lg bg-amber-100/70 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-                      {krok.podpowiedz}
-                    </p>
+                    <div className="mt-2 rounded-lg bg-amber-100/70 px-3 py-2 text-xs dark:bg-amber-950/30">
+                      <MathMarkdown variant={variant}>{krok.podpowiedz}</MathMarkdown>
+                    </div>
                   )}
                 </div>
               </div>

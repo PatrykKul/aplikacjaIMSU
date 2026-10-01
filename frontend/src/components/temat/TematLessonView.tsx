@@ -1084,7 +1084,7 @@ export function TematLessonView({
         <div className={cn(karta, "border-sky-200 dark:border-sky-500/20")}>
           {blockToolbar}
           {naglowek("◇", "text-sky-700 dark:text-sky-300")}
-          <DiagramBlock tresc={b.tresc} />
+          <DiagramBlock tresc={b.tresc} imageUrl={b.image_url} variant={markdownVariant} />
         </div>
       );
     }
