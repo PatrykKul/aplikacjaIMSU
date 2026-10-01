@@ -20,9 +20,9 @@ cd backend
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-copy env.example .env        # opcjonalnie uzupełnij GEMINI_API_KEY
+copy env.example .env        # ustaw JWT_SECRET, opcjonalnie GEMINI_API_KEY
 alembic upgrade head         # tworzy pustą bazę stylnauki.db
-python -m app.seed           # dane startowe (na razie pusty szkielet)
+python -m app.seed           # dane startowe (konta testowe)
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -62,6 +62,8 @@ Pozostałe komendy: `npm run lint`, `npm run build`, `npm run start`.
 | Plik | Zmienna | Opis |
 |---|---|---|
 | `backend/.env` | `DATABASE_URL` | adres bazy, domyślnie `sqlite:///./stylnauki.db` |
+| `backend/.env` | `JWT_SECRET` | sekret do podpisywania tokenów JWT (bez niego tokeny wygasają po restarcie serwera) |
+| `backend/.env` | `JWT_EXPIRE_MINUTES` | czas życia tokenu, domyślnie 480 |
 | `backend/.env` | `GEMINI_API_KEY` | opcjonalny klucz do generatora materiałów AI |
 | `backend/.env` | `GEMINI_MODEL` | opcjonalna nazwa modelu Gemini |
 | `frontend/.env.local` | `NEXT_PUBLIC_API_URL` | adres API backendu |
@@ -70,4 +72,12 @@ Plików `.env` nie commitujemy — wzorce są w `backend/env.example` i `fronten
 
 ## Konta testowe
 
-Logowanie i role pojawią się w Etapie 1 — wtedy seed utworzy konta admina, nauczyciela i ucznia, a ich dane zostaną dopisane tutaj.
+Tworzy je `python -m app.seed` (tylko do prezentacji i testów):
+
+| Rola | E-mail | Hasło |
+|---|---|---|
+| Admin | `admin@stylnauki.pl` | `Admin123!` |
+| Nauczyciel | `nauczyciel@stylnauki.pl` | `Nauczyciel123!` |
+| Uczeń | `uczen@stylnauki.pl` | `Uczen123!` |
+
+Nowe konta z formularza rejestracji zawsze dostają rolę ucznia; role zmienia administrator.
