@@ -1,3 +1,5 @@
+> **Najpierw sprawdź, czy istnieje katalog `docs/v2/`.** Jeśli tak, zacznij od `docs/v2/00-START.md`, a w razie sprzeczności dokumenty z `docs/v2/` mają pierwszeństwo przed tym plikiem. Jeśli katalogu nie ma, ten plik obowiązuje bez zmian.
+
 # Projekt zaliczeniowy – Inteligentne multimedialne systemy uczące (IMSU)
 
 Studia magisterskie, Informatyka UwB, 1 semestr (2026/27). Autor: Patryk Kulesza.
