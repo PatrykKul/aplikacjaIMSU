@@ -40,5 +40,5 @@ def decode_access_token(token: str) -> int | None:
             options={"require": ["exp", "sub"]},
         )
         return int(payload["sub"])
-    except (jwt.PyJWtError, ValueError):
+    except (jwt.PyJWTError, ValueError):
         return None

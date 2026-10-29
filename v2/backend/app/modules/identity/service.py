@@ -13,13 +13,13 @@ def get_by_email(db: Session, email: str) -> User | None:
 
 
 def create_user(
-    db: Session, *, email: str, pasword: str, display_name: str, role: UserRole
+    db: Session, *, email: str, password: str, display_name: str, role: UserRole
 ) -> User:
     if get_by_email(db, email) is not None:
         raise AppError(409, "EMAIL_TAKEN")
     user = User(
         email=email,
-        password_hash=hash_password(pasword),
+        password_hash=hash_password(password),
         display_name=display_name,
         role=role,
     )
@@ -37,7 +37,7 @@ def register(db: Session, data: RegisterRequest) -> User:
     return create_user(
         db,
         email=data.email,
-        pasword=data.password,
+        password=data.password,
         display_name=data.display_name,
         role=UserRole(data.role),
     )
