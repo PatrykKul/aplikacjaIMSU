@@ -5,9 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.core.db import Base
-
-# Import each module's models here so autogenerate can see them, e.g.:
-# from app.modules.identity import models as _identity_models  # noqa: F401
+from app.modules.identity import models as _identity_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

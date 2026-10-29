@@ -21,3 +21,4 @@ def test_unexpected_error_hides_exception_details() -> None:
 
     assert response.status_code == 500
     assert "secret detail" not in response.text
+    assert response.json() == {"code": "INTERNAL_ERROR"}
