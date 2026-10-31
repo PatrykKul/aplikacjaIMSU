@@ -1,10 +1,10 @@
-import { apiGet } from "@/shared/api/client";
+import { api } from "@/shared/api/client";
 
 export type Health = {
-    status: string;
-    database: "ok" | "error";
+  status: string;
+  database: "ok" | "error";
 };
 
 export function getHealth(): Promise<Health> {
-    return apiGet<Health>("/health");
+  return api.get<Health>("/health");
 }
