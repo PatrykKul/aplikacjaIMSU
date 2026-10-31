@@ -5,9 +5,7 @@ import { useEffect, useState } from "react";
 import { getHealth, type Health } from "../api";
 
 type State =
-  | { kind: "loading" }
-  | { kind: "ok"; health: Health }
-  | { kind: "error" };
+  { kind: "loading" } | { kind: "ok"; health: Health } | { kind: "error" };
 
 export function HealthStatus() {
   const [state, setState] = useState<State>({ kind: "loading" });
