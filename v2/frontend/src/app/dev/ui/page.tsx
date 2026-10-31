@@ -20,6 +20,8 @@ import {
 } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
 import { Spinner } from "@/shared/ui/spinner";
+import { FormField } from "@/shared/ui/form-field";
+import { PasswordInput } from "@/shared/ui/password-input";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -95,6 +97,24 @@ export default function DevUiPage() {
             <FieldLabel htmlFor="field-disabled">Imię</FieldLabel>
             <Input id="field-disabled" defaultValue="Jan" disabled />
           </Field>
+        </FieldGroup>
+      </Section>
+
+      <Section title="Pole formularza i hasło">
+        <FieldGroup className="max-w-sm">
+          <FormField label="Hasło" description="Co najmniej 8 znaków.">
+            {(control) => (
+              <PasswordInput {...control} autoComplete="new-password" />
+            )}
+          </FormField>
+          <FormField
+            label="E-mail"
+            error="Podaj poprawny adres e-mail, np. jan@przyklad.pl."
+          >
+            {(control) => (
+              <Input {...control} type="email" defaultValue="jan@" />
+            )}
+          </FormField>
         </FieldGroup>
       </Section>
 
