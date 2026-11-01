@@ -2,6 +2,7 @@ import { AlertCircleIcon } from "lucide-react";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { HealthStatus } from "@/features/health/components/HealthStatus";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
 import {
@@ -40,6 +41,10 @@ export default function DevUiPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-12 p-8">
       <h1 className="text-2xl font-semibold">Komponenty</h1>
+
+      <Section title="Połączenie z serwerem">
+        <HealthStatus />
+      </Section>
 
       <Section title="Przyciski">
         <div className="flex flex-wrap gap-3">

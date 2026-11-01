@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { GuestGuard } from "@/features/auth/components/GuestGuard";
+
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted px-4 py-10">
@@ -9,7 +11,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           Nauka matematyki na Twoją miarę
         </p>
       </div>
-      <main className="w-full max-w-sm">{children}</main>
+      <main className="w-full max-w-sm">
+        <GuestGuard>{children}</GuestGuard>
+      </main>
     </div>
   );
 }
