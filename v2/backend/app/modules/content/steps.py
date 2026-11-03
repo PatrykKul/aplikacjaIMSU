@@ -5,12 +5,32 @@ The same models validate course package files and the json stored in `lessons.st
 
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 from app.modules.content.numbers import parse_number
 
 StepKey = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$", max_length=64)]
 Markdown = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=5000)]
+
+
+def _number_as_text(value: Any) -> Any:
+    """YAML reads `value: 30` as an int, accept it, but reject floats (`0.1` is not exact)."""
+    if isinstance(value, float):
+        raise ValueError('write decimal numbers in quotes, e.g. "0.25"')
+    if isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
+    return value
+
+
+# Number written in a course file; kept as text and compared exactly
+NumberText = Annotated[str, BeforeValidator(_number_as_text)]
 
 
 class ContentModel(BaseModel):
@@ -21,13 +41,13 @@ class ContentModel(BaseModel):
 class NumberFeedback(ContentModel):
     """Message shown when the student gives the particular wrong value (a typical mistake)."""
 
-    when: str
+    when: NumberText
     message: Markdown
 
 
 class NumberAnswer(ContentModel):
     type: Literal["number"]
-    value: str
+    value: NumberText
     unit: str | None = Field(default=None, min_length=1, max_length=20)
     # Data for an independent recalculation in content tests; not used by the application
     check: dict[str, Any] | None = None
@@ -49,7 +69,7 @@ class NumberAnswer(ContentModel):
 
 class ChoiceOption(ContentModel):
     text: Markdown
-    # Message shown the the student picks this (wrong) option
+    # Message shown when the student picks this (wrong) option
     feedback: Markdown | None = None
 
 
