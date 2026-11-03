@@ -4,9 +4,18 @@ from dataclasses import dataclass, field
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.core.errors import AppError
 from app.core.sync import Changes, assign_changed
 from app.modules.curriculum.definitions import CourseDefinition
 from app.modules.curriculum.models import Course, Skill, SkillPrerequisite, Unit
+from app.modules.curriculum.schemas import (
+    CourseResponse,
+    CourseSummaryResponse,
+    SkillResponse,
+    SkillSummaryResponse,
+    UnitResponse,
+)
+from app.modules.identity.models import User, UserRole
 
 
 @dataclass
@@ -163,3 +172,113 @@ def _archive(rows: Iterable[Unit | Skill], changes: Changes) -> None:
         if not row.is_archived:
             row.is_archived = True
             changes.archived += 1
+
+
+# --- Reading and publishing --------------------------------------------------------------------
+# Students and teachers see only published, non-archived courses; an admin sees everything.
+# Archived units and skills are hidden from everyone. Hidden elements give 404, not 403,
+# so the API does not reveal that they exist.
+
+
+def can_view_course(course: Course, user: User) -> bool:
+    if user.role == UserRole.ADMIN:
+        return True
+    return course.is_published and not course.is_archived
+
+
+def list_courses(db: Session, user: User) -> list[Course]:
+    query = select(Course).order_by(Course.position, Course.id)
+    if user.role != UserRole.ADMIN:
+        query = query.where(Course.is_published, Course.is_archived.is_(False))
+    return list(db.scalars(query))
+
+
+def get_course(db: Session, course_id: int, user: User) -> Course:
+    course = db.get(Course, course_id)
+    if course is None or not can_view_course(course, user):
+        raise AppError(404, "COURSE_NOT_FOUND")
+    return course
+
+
+def get_course_detail(db: Session, course_id: int, user: User) -> CourseResponse:
+    course = get_course(db, course_id, user)
+    units = [unit for unit in course.units if not unit.is_archived]
+    skills = {unit.id: [s for s in unit.skills if not s.is_archived] for unit in units}
+    requires = _requirements(
+        db, [skill.id for unit_skills in skills.values() for skill in unit_skills]
+    )
+    return CourseResponse(
+        **CourseSummaryResponse.model_validate(course).model_dump(),
+        units=[
+            UnitResponse(
+                id=unit.id,
+                key=unit.key,
+                title=unit.title,
+                skills=[_skill_summary(skill, requires) for skill in skills[unit.id]],
+            )
+            for unit in units
+        ],
+    )
+
+
+def get_skill(db: Session, skill_id: int, user: User) -> Skill:
+    skill = _visible_skill(db, skill_id, user)
+    if skill is None:
+        raise AppError(404, "SKILL_NOT_FOUND")
+    return skill
+
+
+def get_skill_detail(db: Session, skill_id: int, user: User) -> SkillResponse:
+    skill = get_skill(db, skill_id, user)
+    requires = _requirements(db, [skill.id])
+    return SkillResponse(
+        **_skill_summary(skill, requires).model_dump(),
+        course_id=skill.course_id,
+        unit_id=skill.unit_id,
+    )
+
+
+def is_skill_visible(db: Session, skill_id: int, user: User) -> bool:
+    """For other modules: may this user see content attached to the skill?"""
+    return _visible_skill(db, skill_id, user) is not None
+
+
+def set_published(db: Session, course_id: int, is_published: bool) -> Course:
+    course = db.get(Course, course_id)
+    if course is None:
+        raise AppError(404, "COURSE_NOT_FOUND")
+    course.is_published = is_published
+    db.commit()
+    return course
+
+
+def _visible_skill(db: Session, skill_id: int, user: User) -> Skill | None:
+    skill = db.get(Skill, skill_id)
+    if skill is None or skill.is_archived:
+        return None
+    course = db.get(Course, skill.course_id)
+    if course is None or not can_view_course(course, user):
+        return None
+    return skill
+
+
+def _requirements(db: Session, skill_ids: list[int]) -> dict[int, list[int]]:
+    requires: dict[int, list[int]] = {skill_id: [] for skill_id in skill_ids}
+    rows = db.execute(
+        select(SkillPrerequisite.skill_id, SkillPrerequisite.prerequisite_id)
+        .where(SkillPrerequisite.skill_id.in_(skill_ids))
+        .order_by(SkillPrerequisite.skill_id, SkillPrerequisite.prerequisite_id)
+    )
+    for row in rows:
+        requires[row.skill_id].append(row.prerequisite_id)
+    return requires
+
+
+def _skill_summary(skill: Skill, requires: dict[int, list[int]]) -> SkillSummaryResponse:
+    return SkillSummaryResponse(
+        id=skill.id,
+        key=skill.key,
+        title=skill.title,
+        goal=skill.goal,
+        requires=requires.get(skill.id, []),
+    )

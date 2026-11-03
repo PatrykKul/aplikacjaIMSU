@@ -8,8 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.modules.identity.models import User, UserRole
-
-from .conftest import PASSWORD
+from tests.conftest import PASSWORD
 
 REGISTER = {
     "email": " Nowy@Test.pl ",
