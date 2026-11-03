@@ -1,0 +1,134 @@
+skill: percent-as-fraction
+method: alpha
+title: Procent jako ułamek według schematu
+steps:
+  - key: goal
+    type: text
+    body: |
+      **Cel lekcji:** zamienisz każdy procent na ułamek i liczbę dziesiętną, a potem z powrotem.
+
+      **Co już wiesz:** ułamek o mianowniku $100$ to setne części. Na przykład
+      $\tfrac{7}{100} = 0{,}07$ — siedem setnych.
+
+  - key: q-hundredths
+    type: question
+    prompt: |
+      Przypomnij sobie: zapisz $\tfrac{9}{100}$ jako liczbę dziesiętną.
+    answer:
+      type: number
+      value: "0.09"
+      check: {op: fraction_of, x: "9/100", n: 1}
+      feedback:
+        - when: "0.9"
+          message: To dziewięć **dziesiątych**. Dziewięć setnych to $0{,}09$.
+        - when: 9
+          message: Ułamek trzeba jeszcze podzielić przez $100$.
+    explanation: |
+      $\tfrac{9}{100} = 0{,}09$.
+
+  - key: rule
+    type: text
+    body: |
+      **Zapamiętaj — trzy zamiany:**
+
+      1. **Procent → ułamek:** $p\% = \tfrac{p}{100}$, potem skróć, na przykład $20\% = \tfrac{20}{100} = \tfrac{1}{5}$.
+      2. **Procent → liczba dziesiętna:** podziel przez $100$, czyli przesuń przecinek o dwa miejsca w lewo: $35\% = 0{,}35$.
+      3. **Liczba dziesiętna lub ułamek → procent:** pomnóż przez $100\%$: $0{,}6 = 60\%$.
+
+  - key: q-step-fraction
+    type: question
+    prompt: |
+      **Zamiana 1:** jak zapisać $35\%$ w postaci ułamka?
+    answer:
+      type: choice
+      options:
+        - text: $\tfrac{35}{10}$
+          feedback: Procent to setne części, a nie dziesiąte.
+        - text: $\tfrac{100}{35}$
+          feedback: Ułamek jest odwrócony. W mianowniku stoi $100$.
+        - text: $\tfrac{35}{100}$
+      correct: 2
+    explanation: |
+      $35\% = \tfrac{35}{100}$, a po skróceniu $\tfrac{7}{20}$.
+
+  - key: q-step-decimal
+    type: question
+    prompt: |
+      **Zamiana 2:** zapisz $6\%$ jako liczbę dziesiętną.
+    answer:
+      type: number
+      value: "0.06"
+      check: {op: to_decimal, p: 6}
+      feedback:
+        - when: "0.6"
+          message: Przesunąłeś przecinek o jedno miejsce. Według schematu przesuwasz o dwa.
+        - when: 6
+          message: Pominąłeś dzielenie przez $100$.
+    explanation: |
+      $6\% = \tfrac{6}{100} = 0{,}06$.
+
+  - key: q-step-percent
+    type: question
+    prompt: |
+      **Zamiana 3:** zapisz $0{,}8$ w procentach.
+    answer:
+      type: number
+      value: 80
+      unit: "%"
+      check: {op: to_percent, x: "0.8"}
+      feedback:
+        - when: 8
+          message: Przesunąłeś przecinek o jedno miejsce. Mnożenie przez $100$ to dwa miejsca w prawo.
+        - when: "0.8"
+          message: To liczba dziesiętna. Pomnóż ją przez $100\%$.
+    explanation: |
+      $0{,}8 \cdot 100\% = 80\%$.
+
+  - key: q-fifth
+    type: question
+    prompt: |
+      Zapisz $\tfrac{1}{5}$ w procentach.
+    answer:
+      type: number
+      value: 20
+      unit: "%"
+      check: {op: to_percent, x: "1/5"}
+      feedback:
+        - when: "0.2"
+          message: To wynik w postaci dziesiętnej. Pomnóż go przez $100\%$.
+        - when: 5
+          message: To mianownik ułamka. Rozszerz ułamek do mianownika $100$.
+    hint: |
+      Rozszerz ułamek tak, żeby w mianowniku było $100$.
+    explanation: |
+      $\tfrac{1}{5} = \tfrac{20}{100} = 20\%$.
+
+  - key: q-sale-sign
+    type: question
+    prompt: |
+      W sklepie wisi napis: „Wszystko tańsze o $\tfrac{1}{4}$ ceny”. Ile to procent?
+    answer:
+      type: number
+      value: 25
+      unit: "%"
+      check: {op: to_percent, x: "1/4"}
+      feedback:
+        - when: 4
+          message: To mianownik ułamka, a nie procent.
+        - when: "0.25"
+          message: To wynik w postaci dziesiętnej. Pomnóż go przez $100\%$.
+    explanation: |
+      $\tfrac{1}{4} = \tfrac{25}{100} = 25\%$.
+
+  - key: summary
+    type: text
+    body: |
+      **Do zeszytu:**
+
+      $$
+      p\% = \frac{p}{100}
+      $$
+
+      1. Procent → ułamek: zapisz nad $100$ i skróć.
+      2. Procent → liczba dziesiętna: przecinek o dwa miejsca w lewo.
+      3. Ułamek lub liczba dziesiętna → procent: pomnóż przez $100\%$.

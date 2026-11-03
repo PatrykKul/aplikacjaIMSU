@@ -1,0 +1,115 @@
+skill: successive-changes
+method: beta
+title: Ceny zmieniają się kilka razy
+steps:
+  - key: goal
+    type: text
+    body: |
+      **Zadanie na dziś:** ceny często zmieniają się kilka razy: promocja, potem dodatkowy rabat
+      albo podwyżki co roku. Nauczysz się liczyć cenę końcową.
+
+      **Przepis:** zmieniaj cenę **krok po kroku**. Każdą kolejną zmianę licz od **nowej** ceny.
+
+  - key: model
+    type: text
+    body: |
+      **Zobacz, jak to działa.** Buty kosztują $300$ zł.
+
+      - Wiosną drożeją o $10\%$: $300 \cdot 1{,}1 = 330$ zł.
+      - Latem tanieją o $20\%$: $330 \cdot 0{,}8 = 264$ zł.
+
+  - key: q-black-friday
+    type: question
+    prompt: |
+      Plecak kosztuje $150$ zł. W Black Friday jest $-20\%$, a z kartą stałego klienta
+      dodatkowo $-10\%$ od ceny promocyjnej. Ile płacisz?
+    answer:
+      type: number
+      value: 108
+      unit: zł
+      check: {op: successive, n: 150, ps: [-20, -10]}
+      feedback:
+        - when: 105
+          message: Policzyłeś $30\%$ od pierwotnej ceny. Drugi rabat liczy się od ceny promocyjnej $120$ zł.
+        - when: 120
+          message: To cena po pierwszym rabacie. Odejmij jeszcze rabat z karty.
+    hint: |
+      Krok 1: cena po $-20\%$. Krok 2: od tej ceny $-10\%$.
+    explanation: |
+      $150 \cdot 0{,}8 = 120$ zł, a $120 \cdot 0{,}9 = 108$ zł.
+
+  - key: q-subscription
+    type: question
+    prompt: |
+      Abonament za muzykę kosztuje $50$ zł i co roku drożeje o $10\%$. Ile będzie kosztował za $2$ lata?
+    answer:
+      type: number
+      value: "60.5"
+      unit: zł
+      check: {op: successive, n: 50, ps: [10, 10]}
+      feedback:
+        - when: 60
+          message: Policzyłeś $20\%$ od pierwotnej ceny. Druga podwyżka liczy się od $55$ zł.
+        - when: 55
+          message: To cena po pierwszym roku. Policz jeszcze drugi rok.
+    explanation: |
+      $50 \cdot 1{,}1 = 55$ zł, a $55 \cdot 1{,}1 = 60{,}50$ zł.
+
+  - key: q-scooter
+    type: question
+    prompt: |
+      Hulajnoga elektryczna kosztuje $1000$ zł. Najpierw tanieje o $30\%$, a po miesiącu drożeje o $10\%$.
+      Ile kosztuje?
+    answer:
+      type: number
+      value: 770
+      unit: zł
+      check: {op: successive, n: 1000, ps: [-30, 10]}
+      feedback:
+        - when: 800
+          message: Odjąłeś procenty ($30\% - 10\% = 20\%$). Licz krok po kroku.
+        - when: 700
+          message: To cena po pierwszej zmianie. Policz jeszcze podwyżkę.
+    explanation: |
+      $1000 \cdot 0{,}7 = 700$ zł, a $700 \cdot 1{,}1 = 770$ zł.
+
+  - key: q-cinema
+    type: question
+    prompt: |
+      Bilet do kina kosztuje $20$ zł. W weekend drożeje o $25\%$, a z legitymacją szkolną
+      płacisz $20\%$ mniej od ceny weekendowej. Ile płacisz w weekend z legitymacją?
+    answer:
+      type: number
+      value: 20
+      unit: zł
+      check: {op: successive, n: 20, ps: [25, -20]}
+      feedback:
+        - when: 21
+          message: Odjąłeś procenty ($25\% - 20\% = 5\%$). Licz krok po kroku od nowej ceny.
+        - when: 25
+          message: To cena weekendowa bez zniżki.
+    explanation: |
+      $20 \cdot 1{,}25 = 25$ zł, a $25 \cdot 0{,}8 = 20$ zł. Akurat wychodzi tyle samo co w tygodniu!
+
+  - key: q-two-shops
+    type: question
+    prompt: |
+      Sklep A daje dwa rabaty po $20\%$ jeden po drugim. Sklep B daje jeden rabat $40\%$.
+      Gdzie zapłacisz mniej?
+    answer:
+      type: choice
+      options:
+        - text: W sklepie A
+          feedback: W A zostaje $0{,}8 \cdot 0{,}8 = 0{,}64$ ceny, a w B tylko $0{,}6$.
+        - text: W sklepie B
+        - text: W obu tyle samo
+          feedback: Dwa rabaty po $20\%$ to mniej niż jeden rabat $40\%$.
+      correct: 1
+    explanation: |
+      W A płacisz $64\%$ ceny, a w B $60\%$. Taniej jest w sklepie B.
+
+  - key: tip
+    type: text
+    body: |
+      **Wskazówka na zakupy:** dwa rabaty po $p\%$ to zawsze **mniej** niż jeden rabat $2p\%$.
+      Sprawdzaj więc dokładnie promocje „rabat na rabat”.

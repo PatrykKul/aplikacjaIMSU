@@ -1,0 +1,126 @@
+skill: percent-change
+method: beta
+title: Ile zapłacisz przy kasie?
+steps:
+  - key: goal
+    type: text
+    body: |
+      **Zadanie na dziś:** przed kasą chcesz wiedzieć, ile naprawdę zapłacisz.
+
+      **Przepis:** zamień procent na „ile ceny zostaje” i pomnóż raz.
+
+      - $-10\%$ → płacisz $0{,}9$ ceny,
+      - $-20\%$ → płacisz $0{,}8$ ceny,
+      - $-25\%$ → płacisz $0{,}75$ ceny,
+      - $+10\%$ → płacisz $1{,}1$ ceny.
+
+  - key: model
+    type: text
+    body: |
+      **Zobacz, jak to działa.** Kurtka kosztuje $300$ zł, promocja $-20\%$.
+
+      $0{,}8 \cdot 300 = 240$ zł. Przy kasie płacisz $240$ zł.
+
+  - key: q-headphones
+    type: question
+    prompt: |
+      Słuchawki kosztują $200$ zł, promocja $-10\%$. Ile płacisz?
+    answer:
+      type: number
+      value: 180
+      unit: zł
+      check: {op: change, n: 200, p: -10}
+      feedback:
+        - when: 20
+          message: Tyle oszczędzasz. Pytamy, ile płacisz.
+        - when: 190
+          message: Odjąłeś $10$ zł, a promocja to $10$ **procent**.
+    hint: |
+      Przy $-10\%$ płacisz $0{,}9$ ceny.
+    explanation: |
+      $0{,}9 \cdot 200 = 180$ zł.
+
+  - key: q-scooter
+    type: question
+    prompt: |
+      Hulajnoga kosztuje $800$ zł, promocja $-25\%$. Ile płacisz?
+    answer:
+      type: number
+      value: 600
+      unit: zł
+      check: {op: change, n: 800, p: -25}
+      feedback:
+        - when: 200
+          message: Tyle oszczędzasz. Pytamy, ile płacisz.
+        - when: 775
+          message: Odjąłeś $25$ zł, a promocja to $25$ **procent**.
+    explanation: |
+      $0{,}75 \cdot 800 = 600$ zł.
+
+  - key: q-bus-pass
+    type: question
+    prompt: |
+      Bilet miesięczny kosztuje $100$ zł i od przyszłego miesiąca drożeje o $8\%$. Ile będzie kosztował?
+    answer:
+      type: number
+      value: 108
+      unit: zł
+      check: {op: change, n: 100, p: 8}
+      feedback:
+        - when: 8
+          message: To sama podwyżka. Dodaj ją do ceny.
+        - when: 92
+          message: Odjąłeś podwyżkę. Bilet drożeje, więc cena rośnie.
+    explanation: |
+      $1{,}08 \cdot 100 = 108$ zł.
+
+  - key: q-pizza
+    type: question
+    prompt: |
+      Pizza kosztuje $45$ zł, w środy $-20\%$. Ile płacisz w środę?
+    answer:
+      type: number
+      value: 36
+      unit: zł
+      check: {op: change, n: 45, p: -20}
+      feedback:
+        - when: 9
+          message: Tyle oszczędzasz. Pytamy, ile płacisz.
+        - when: 25
+          message: Odjąłeś $20$ zł, a promocja to $20$ **procent**.
+    explanation: |
+      $0{,}8 \cdot 45 = 36$ zł.
+
+  - key: q-tshirt
+    type: question
+    prompt: |
+      Koszulka kosztowała $60$ zł, a teraz kosztuje $45$ zł. O ile procent ją przeceniono?
+    answer:
+      type: number
+      value: 25
+      unit: "%"
+      check: {op: change_percent, old: 60, new: 45}
+      feedback:
+        - when: 15
+          message: To obniżka w złotych. Podziel ją przez starą cenę.
+        - when: 75
+          message: Tyle procent starej ceny płacisz teraz. Obniżka to reszta do $100\%$.
+    explanation: |
+      Obniżka to $15$ zł, a $\tfrac{15}{60} = 25\%$.
+
+  - key: q-two-shops
+    type: question
+    prompt: |
+      Ta sama gra kosztuje $200$ zł w dwóch sklepach. Sklep A daje $30$ zł rabatu, a sklep B $-20\%$.
+      Gdzie zapłacisz mniej?
+    answer:
+      type: choice
+      options:
+        - text: W sklepie A
+          feedback: W sklepie B rabat to $20\%$ z $200$ zł, czyli $40$ zł.
+        - text: W sklepie B
+        - text: W obu tyle samo
+          feedback: Policz rabat w sklepie B w złotych i porównaj z $30$ zł.
+      correct: 1
+    explanation: |
+      W B płacisz $0{,}8 \cdot 200 = 160$ zł, a w A $170$ zł. Taniej jest w sklepie B.

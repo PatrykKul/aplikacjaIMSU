@@ -46,6 +46,8 @@ OPERATIONS: dict[str, Callable[..., Fraction]] = {
     "change_percent": lambda old, new: abs(number(new) - number(old)) / number(old) * 100,
     # n after several changes by p% in a row
     "successive": _successive,
+    # percent left after taking away the listed parts of a whole (100% - sum)
+    "rest_percent": lambda parts: 100 - sum(number(part) for part in parts),
     # --- fractions ---
     # fraction x of n, e.g. 1/4 of 36
     "fraction_of": lambda x, n: number(x) * number(n),

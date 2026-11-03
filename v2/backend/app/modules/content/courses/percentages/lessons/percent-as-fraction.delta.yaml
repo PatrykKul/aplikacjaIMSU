@@ -1,0 +1,133 @@
+skill: percent-as-fraction
+method: delta
+title: "Misja: wycieczka klasowa"
+steps:
+  - key: story
+    type: text
+    body: |
+      **Klasa 7b planuje wycieczkę.** Wszyscy chcą jechać, ale budżet jest ograniczony,
+      a każdy ma inne marzenia.
+
+      Jesteś w **zespole organizacyjnym**. Twoja rola: zamieniać wyniki ankiety i koszty
+      na procenty, żeby cała klasa mogła je łatwo porównać.
+
+  - key: q-mountains
+    type: question
+    prompt: |
+      W ankiecie $\tfrac{3}{5}$ klasy wybrało wyjazd w góry. Ile to procent?
+    answer:
+      type: number
+      value: 60
+      unit: "%"
+      check: {op: to_percent, x: "3/5"}
+      feedback:
+        - when: "0.6"
+          message: To wynik dziesiętny. Pomnóż go przez $100\%$, żeby klasa zobaczyła procenty.
+        - when: 40
+          message: Tyle procent klasy wybrało coś innego.
+    explanation: |
+      $\tfrac{3}{5} = \tfrac{60}{100} = 60\%$.
+
+  - key: q-sea
+    type: question
+    prompt: |
+      $15\%$ klasy chce jechać nad morze. Zapisz to jako liczbę dziesiętną do tabeli w arkuszu.
+    answer:
+      type: number
+      value: "0.15"
+      check: {op: to_decimal, p: 15}
+      feedback:
+        - when: "1.5"
+          message: Przesunąłeś przecinek o jedno miejsce. Dziel przez $100$.
+        - when: 15
+          message: To procent. Do tabeli potrzebna jest liczba dziesiętna.
+    explanation: |
+      $15\% = 0{,}15$.
+
+  - key: transport
+    type: text
+    body: |
+      **Wybór transportu.** Rodzice zebrali oferty:
+
+      - autokar pochłonie $\tfrac{2}{5}$ budżetu,
+      - pociąg pochłonie $45\%$ budżetu.
+
+  - key: q-cheaper
+    type: question
+    prompt: |
+      Która opcja jest tańsza dla klasy?
+    answer:
+      type: choice
+      options:
+        - text: Autokar
+        - text: Pociąg
+          feedback: Zamień $\tfrac{2}{5}$ na procenty i porównaj z $45\%$.
+        - text: Obie kosztują tyle samo
+          feedback: Zamień $\tfrac{2}{5}$ na procenty i porównaj z $45\%$.
+      correct: 0
+    explanation: |
+      $\tfrac{2}{5} = 40\%$, a to mniej niż $45\%$. Autokar jest tańszy.
+
+  - key: q-shelter
+    type: question
+    prompt: |
+      Wejście do schroniska górskiego pochłonie $0{,}12$ budżetu. Ile to procent?
+    answer:
+      type: number
+      value: 12
+      unit: "%"
+      check: {op: to_percent, x: "0.12"}
+      feedback:
+        - when: "1.2"
+          message: Przesunąłeś przecinek o jedno miejsce. Mnożenie przez $100$ to dwa miejsca.
+        - when: "0.12"
+          message: To liczba dziesiętna. Pomnóż ją przez $100\%$.
+    explanation: |
+      $0{,}12 \cdot 100\% = 12\%$.
+
+  - key: food
+    type: text
+    body: |
+      **Ważna sprawa:** klasa umówiła się, że na jedzenie zostanie **co najmniej $25\%$** budżetu.
+      Nocleg kosztuje $25\%$ budżetu.
+
+  - key: q-left-for-food
+    type: question
+    prompt: |
+      Autokar ($40\%$), wejście ($12\%$) i nocleg ($25\%$). Ile procent budżetu zostaje na jedzenie?
+    answer:
+      type: number
+      value: 23
+      unit: "%"
+      check: {op: rest_percent, parts: [40, 12, 25]}
+      feedback:
+        - when: 77
+          message: Tyle procent budżetu już wydaliście. Pytamy, ile zostaje.
+    explanation: |
+      $100\% - 40\% - 12\% - 25\% = 23\%$.
+
+  - key: q-enough
+    type: question
+    prompt: |
+      Czy na jedzenie zostaje co najmniej $25\%$ budżetu?
+    answer:
+      type: choice
+      options:
+        - text: Tak, wystarczy
+          feedback: $23\%$ to mniej niż $25\%$.
+        - text: Nie, brakuje $2$ punktów procentowych
+        - text: Nie, brakuje $25\%$
+          feedback: Brakuje tylko różnicy między $25\%$ a $23\%$.
+      correct: 1
+    explanation: |
+      Brakuje $25\% - 23\% = 2$ punkty procentowe. Klasa może poszukać tańszego noclegu
+      albo zebrać trochę więcej pieniędzy.
+
+  - key: finale
+    type: text
+    body: |
+      **Dzięki tobie klasa podejmuje decyzję na podstawie liczb, a nie zgadywania.**
+
+      Procent, ułamek i liczba dziesiętna to trzy zapisy tej samej części całości.
+
+      **Pomyśl:** na co ty przeznaczyłbyś brakujące $2\%$ budżetu?

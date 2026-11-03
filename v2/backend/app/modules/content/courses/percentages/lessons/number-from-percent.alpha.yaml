@@ -1,0 +1,132 @@
+skill: number-from-percent
+method: alpha
+title: Liczba z procentu według schematu
+steps:
+  - key: goal
+    type: text
+    body: |
+      **Cel lekcji:** znajdziesz całą liczbę, gdy znasz tylko jej procent.
+
+      **Co już wiesz:** $p\%$ z liczby $n$ to $\tfrac{p}{100} \cdot n$.
+      Teraz zrobisz to w odwrotną stronę: znasz wynik, szukasz $n$.
+
+  - key: q-recall
+    type: question
+    prompt: |
+      Przypomnij sobie: ile to jest $10\%$ z $70$?
+    answer:
+      type: number
+      value: 7
+      check: {op: percent_of, p: 10, n: 70}
+      feedback:
+        - when: 700
+          message: Pomnożyłeś $10 \cdot 70$. Trzeba jeszcze podzielić przez $100$.
+    explanation: |
+      $\tfrac{10}{100} \cdot 70 = 7$.
+
+  - key: rule
+    type: text
+    body: |
+      **Zapamiętaj — schemat w trzech krokach.** Znasz część i jej procent $p$.
+
+      1. Podziel część przez $p$. Wynik to **$1\%$** szukanej liczby.
+      2. Pomnóż przez $100$. Wynik to **cała liczba**.
+      3. Sprawdź: $p\%$ z wyniku musi dać część.
+
+      **Przykład:** $20\%$ liczby to $12$.
+
+      1. $12 : 20 = 0{,}6$
+      2. $0{,}6 \cdot 100 = 60$
+      3. $20\%$ z $60$ to $12$ — zgadza się.
+
+  - key: q-step-one
+    type: question
+    prompt: |
+      $25\%$ liczby to $8$. **Krok 1:** ile to jest $1\%$ tej liczby?
+    answer:
+      type: number
+      value: "0.32"
+      check: {op: fraction_of, x: "1/25", n: 8}
+      feedback:
+        - when: 200
+          message: Pomnożyłeś $8 \cdot 25$. W kroku 1 dzielisz część przez $p$.
+        - when: "3.125"
+          message: Podzieliłeś $25$ przez $8$, czyli odwrotnie.
+    explanation: |
+      $8 : 25 = 0{,}32$, więc $1\%$ liczby to $0{,}32$.
+
+  - key: q-step-two
+    type: question
+    prompt: |
+      **Krok 2:** ile wynosi cała liczba?
+    answer:
+      type: number
+      value: 32
+      check: {op: whole_from_part, p: 25, part: 8}
+      feedback:
+        - when: "0.32"
+          message: To wynik kroku 1. Pomnóż go przez $100$.
+    explanation: |
+      $0{,}32 \cdot 100 = 32$. Sprawdzenie: $25\%$ z $32$ to $8$.
+
+  - key: q-forty-percent
+    type: question
+    prompt: |
+      $40\%$ liczby to $18$. Jaka to liczba? Zastosuj schemat.
+    answer:
+      type: number
+      value: 45
+      check: {op: whole_from_part, p: 40, part: 18}
+      feedback:
+        - when: "7.2"
+          message: Policzyłeś $40\%$ z $18$. Według schematu dzielisz $18$ przez $40$.
+        - when: 720
+          message: Pomnożyłeś $18 \cdot 40$. W kroku 1 dzielisz.
+    explanation: |
+      $18 : 40 = 0{,}45$, a $0{,}45 \cdot 100 = 45$.
+
+  - key: q-five-percent
+    type: question
+    prompt: |
+      $5\%$ liczby to $3$. Jaka to liczba? Zastosuj schemat.
+    answer:
+      type: number
+      value: 60
+      check: {op: whole_from_part, p: 5, part: 3}
+      feedback:
+        - when: "0.15"
+          message: Policzyłeś $5\%$ z $3$. Według schematu dzielisz $3$ przez $5$.
+        - when: 15
+          message: Pomnożyłeś $3 \cdot 5$. W kroku 1 dzielisz.
+    explanation: |
+      $3 : 5 = 0{,}6$, a $0{,}6 \cdot 100 = 60$.
+
+  - key: q-deposit
+    type: question
+    prompt: |
+      Ania wpłaciła $24$ zł zaliczki, czyli $30\%$ ceny kursu tańca. Ile kosztuje cały kurs?
+    answer:
+      type: number
+      value: 80
+      unit: zł
+      check: {op: whole_from_part, p: 30, part: 24}
+      feedback:
+        - when: "7.2"
+          message: Policzyłeś $30\%$ z $24$ zł. Tu $24$ zł to dopiero $30\%$ ceny.
+        - when: 56
+          message: Tyle Ania musi jeszcze dopłacić. Pytamy o całą cenę.
+    explanation: |
+      $24 : 30 = 0{,}8$, a $0{,}8 \cdot 100 = 80$ zł.
+
+  - key: summary
+    type: text
+    body: |
+      **Do zeszytu:** jeśli $p\%$ liczby to część, to
+
+      $$
+      \text{liczba} = \frac{\text{część}}{p} \cdot 100
+      $$
+
+      1. Część dzielę przez $p$ — mam $1\%$.
+      2. Mnożę przez $100$ — mam całość.
+      3. Sprawdzam: $p\%$ z wyniku daje część.

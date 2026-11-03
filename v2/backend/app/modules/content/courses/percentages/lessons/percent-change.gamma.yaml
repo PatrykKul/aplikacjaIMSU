@@ -1,0 +1,116 @@
+skill: percent-change
+method: gamma
+title: "Zagadka: czy da się wrócić do starej ceny?"
+steps:
+  - key: problem
+    type: text
+    body: |
+      **Zagadka:** sklep podniósł cenę o $25\%$. Teraz chce wrócić do starej ceny.
+      Czy wystarczy obniżyć ją o $25\%$?
+
+      Zgadnij, a potem sprawdź na przykładzie.
+
+  - key: q-raise
+    type: question
+    prompt: |
+      Cena $80$ zł wzrosła o $25\%$. Ile wynosi teraz?
+    answer:
+      type: number
+      value: 100
+      unit: zł
+      check: {op: change, n: 80, p: 25}
+      feedback:
+        - when: 20
+          message: To sama podwyżka. Dodaj ją do ceny.
+    explanation: |
+      $25\%$ z $80$ zł to $20$ zł, więc $80 + 20 = 100$ zł.
+
+  - key: q-lower
+    type: question
+    prompt: |
+      Teraz obniż $100$ zł o $25\%$. Ile wychodzi?
+    answer:
+      type: number
+      value: 75
+      unit: zł
+      check: {op: change, n: 100, p: -25}
+      feedback:
+        - when: 80
+          message: Sprawdź rachunek. $25\%$ ze $100$ zł to nie $20$ zł.
+    explanation: |
+      $25\%$ ze $100$ zł to $25$ zł, więc $100 - 25 = 75$ zł.
+
+  - key: q-back
+    type: question
+    prompt: |
+      Czy obniżka o $25\%$ przywróciła starą cenę $80$ zł?
+    answer:
+      type: choice
+      options:
+        - text: Tak
+          feedback: Wyszło $75$ zł, a nie $80$ zł.
+        - text: Nie, wyszło mniej
+        - text: Nie, wyszło więcej
+          feedback: Porównaj $75$ zł z $80$ zł.
+      correct: 1
+    explanation: |
+      Obniżkę liczysz od $100$ zł, a podwyżkę liczyłeś od $80$ zł. Te same $25\%$ to raz $20$ zł, raz $25$ zł.
+
+  - key: q-right-decrease
+    type: question
+    prompt: |
+      O ile procent trzeba obniżyć $100$ zł, żeby wrócić do $80$ zł?
+    answer:
+      type: number
+      value: 20
+      unit: "%"
+      check: {op: change_percent, old: 100, new: 80}
+      feedback:
+        - when: 25
+          message: To już sprawdziłeś. Obniżka o $25\%$ daje $75$ zł.
+        - when: 80
+          message: Tyle procent ceny zostaje. Pytamy o obniżkę.
+    explanation: |
+      Trzeba obniżyć o $20$ zł, a $\tfrac{20}{100} = 20\%$.
+
+  - key: discovery
+    type: text
+    body: |
+      **Twoje odkrycie:** procent zmiany zależy od tego, **od czego** go liczysz.
+
+      Ta sama różnica $20$ zł to $25\%$ z $80$ zł, ale tylko $20\%$ ze $100$ zł.
+      Dlatego żeby wrócić do starej ceny po podwyżce, obniżka musi być **mniejsza** w procentach.
+
+  - key: q-double
+    type: question
+    prompt: |
+      Sprawdź odkrycie: cena $50$ zł wzrosła o $100\%$ (do $100$ zł).
+      O ile procent trzeba ją obniżyć, żeby wrócić do $50$ zł?
+    answer:
+      type: number
+      value: 50
+      unit: "%"
+      check: {op: change_percent, old: 100, new: 50}
+      feedback:
+        - when: 100
+          message: Obniżka o $100\%$ dałaby $0$ zł.
+    explanation: |
+      Z $100$ zł do $50$ zł to obniżka o połowę, czyli o $50\%$.
+
+  - key: q-star
+    type: question
+    prompt: |
+      ★ Cena spadła ze $150$ zł do $120$ zł, czyli o $20\%$.
+      O ile procent musi teraz wzrosnąć, żeby wrócić do $150$ zł?
+    answer:
+      type: number
+      value: 25
+      unit: "%"
+      check: {op: change_percent, old: 120, new: 150}
+      feedback:
+        - when: 20
+          message: Podwyżkę liczysz od $120$ zł, a nie od $150$ zł.
+        - when: 30
+          message: To zmiana w złotych. Podziel ją przez $120$ zł.
+    explanation: |
+      Cena musi wzrosnąć o $30$ zł, a $\tfrac{30}{120} = \tfrac{1}{4} = 25\%$.

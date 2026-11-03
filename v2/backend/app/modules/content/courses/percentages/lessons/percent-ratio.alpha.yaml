@@ -1,0 +1,138 @@
+skill: percent-ratio
+method: alpha
+title: Jakim procentem — według schematu
+steps:
+  - key: goal
+    type: text
+    body: |
+      **Cel lekcji:** obliczysz, jakim procentem jednej liczby jest druga.
+
+      **Co już wiesz:** ułamek zamieniasz na procenty, mnożąc przez $100\%$:
+      $\tfrac{1}{2} = 50\%$, $\tfrac{3}{4} = 75\%$.
+
+  - key: q-recall
+    type: question
+    prompt: |
+      Przypomnij sobie: zapisz $\tfrac{2}{5}$ w procentach.
+    answer:
+      type: number
+      value: 40
+      unit: "%"
+      check: {op: to_percent, x: "2/5"}
+      feedback:
+        - when: "0.4"
+          message: To wynik dziesiętny. Pomnóż go przez $100\%$.
+    explanation: |
+      $\tfrac{2}{5} = \tfrac{40}{100} = 40\%$.
+
+  - key: rule
+    type: text
+    body: |
+      **Zapamiętaj — schemat w trzech krokach.** Jakim procentem liczby $b$ jest $a$?
+
+      1. Zapisz ułamek: **część na górze, całość na dole**, czyli $\tfrac{a}{b}$.
+      2. Skróć ułamek albo rozszerz go do mianownika $100$.
+      3. Zamień na procenty, mnożąc przez $100\%$.
+
+      **Przykład:** jakim procentem liczby $80$ jest $20$?
+
+      1. $\tfrac{20}{80}$
+      2. $\tfrac{20}{80} = \tfrac{1}{4}$
+      3. $\tfrac{1}{4} = 25\%$
+
+  - key: q-step-one
+    type: question
+    prompt: |
+      Jakim procentem liczby $40$ jest $10$? **Krok 1:** jaki ułamek zapisać?
+    answer:
+      type: choice
+      options:
+        - text: $\tfrac{40}{10}$
+          feedback: Ułamek jest odwrócony. Na górze część, na dole całość.
+        - text: $\tfrac{10}{40}$
+        - text: $\tfrac{10}{100}$
+          feedback: W mianowniku stoi całość, czyli $40$.
+      correct: 1
+    explanation: |
+      Część to $10$, całość to $40$, więc ułamek to $\tfrac{10}{40}$.
+
+  - key: q-steps-two-three
+    type: question
+    prompt: |
+      **Kroki 2 i 3:** zamień $\tfrac{10}{40}$ na procenty.
+    answer:
+      type: number
+      value: 25
+      unit: "%"
+      check: {op: ratio_percent, part: 10, whole: 40}
+      feedback:
+        - when: "0.25"
+          message: To wynik kroku 2 w postaci dziesiętnej. Dokończ krok 3.
+    explanation: |
+      $\tfrac{10}{40} = \tfrac{1}{4} = 25\%$.
+
+  - key: q-thirty-of-two-hundred
+    type: question
+    prompt: |
+      Jakim procentem liczby $200$ jest $30$? Zastosuj schemat.
+    answer:
+      type: number
+      value: 15
+      unit: "%"
+      check: {op: ratio_percent, part: 30, whole: 200}
+      feedback:
+        - when: "0.15"
+          message: Pominąłeś krok 3. Pomnóż przez $100\%$.
+        - when: 170
+          message: To różnica $200 - 30$. W kroku 1 zapisujemy ułamek.
+    explanation: |
+      $\tfrac{30}{200} = \tfrac{15}{100} = 15\%$.
+
+  - key: q-sixty-of-eighty
+    type: question
+    prompt: |
+      Jakim procentem liczby $80$ jest $60$? Zastosuj schemat.
+    answer:
+      type: number
+      value: 75
+      unit: "%"
+      check: {op: ratio_percent, part: 60, whole: 80}
+      feedback:
+        - when: "0.75"
+          message: Pominąłeś krok 3. Pomnóż przez $100\%$.
+        - when: 20
+          message: To różnica $80 - 60$. W kroku 1 zapisujemy ułamek.
+    explanation: |
+      $\tfrac{60}{80} = \tfrac{3}{4} = 75\%$.
+
+  - key: q-exercises
+    type: question
+    prompt: |
+      Zbiór ma $50$ zadań. Rozwiązałeś $35$. Jaki procent zbioru rozwiązałeś?
+    answer:
+      type: number
+      value: 70
+      unit: "%"
+      check: {op: ratio_percent, part: 35, whole: 50}
+      feedback:
+        - when: 30
+          message: Tyle procent zadań zostało do rozwiązania.
+        - when: 15
+          message: To liczba zadań, które zostały. Szukamy procentu rozwiązanych.
+    explanation: |
+      $\tfrac{35}{50} = \tfrac{70}{100} = 70\%$.
+
+  - key: summary
+    type: text
+    body: |
+      **Do zeszytu:** liczba $a$ stanowi
+
+      $$
+      \frac{a}{b} \cdot 100\%
+      $$
+
+      liczby $b$.
+
+      1. Ułamek: część na górze, całość na dole.
+      2. Skracam albo rozszerzam do mianownika $100$.
+      3. Mnożę przez $100\%$.

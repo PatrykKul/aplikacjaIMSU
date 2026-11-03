@@ -1,0 +1,140 @@
+skill: successive-changes
+method: alpha
+title: Kilka zmian — schemat z mnożnikami
+steps:
+  - key: goal
+    type: text
+    body: |
+      **Cel lekcji:** obliczysz cenę po kilku podwyżkach i obniżkach z rzędu.
+
+      **Co już wiesz:** cenę po jednej zmianie liczysz jednym mnożeniem:
+      po obniżce o $10\%$ mnożysz przez $0{,}9$, po podwyżce o $10\%$ przez $1{,}1$.
+
+  - key: q-recall
+    type: question
+    prompt: |
+      Przypomnij sobie: ile kosztuje towar za $50$ zł po obniżce o $10\%$?
+    answer:
+      type: number
+      value: 45
+      unit: zł
+      check: {op: change, n: 50, p: -10}
+      feedback:
+        - when: 40
+          message: Odjąłeś $10$ zł, a obniżka to $10$ **procent**.
+        - when: 5
+          message: To sama obniżka. Odejmij ją od ceny.
+    explanation: |
+      $0{,}9 \cdot 50 = 45$ zł.
+
+  - key: rule
+    type: text
+    body: |
+      **Zapamiętaj — schemat w trzech krokach:**
+
+      1. Każdą zmianę zamień na mnożnik: podwyżka o $p\%$ → $1 + \tfrac{p}{100}$, obniżka o $p\%$ → $1 - \tfrac{p}{100}$.
+      2. Pomnóż cenę przez wszystkie mnożniki po kolei.
+      3. **Nie dodawaj** procentów — każda zmiana liczy się od nowej ceny.
+
+      **Przykład:** $200$ zł, potem $+10\%$, potem $-20\%$.
+
+      $$
+      200 \cdot 1{,}1 \cdot 0{,}8 = 176 \text{ zł}
+      $$
+
+  - key: q-multiplier
+    type: question
+    prompt: |
+      **Krok 1:** jaki mnożnik odpowiada obniżce o $20\%$?
+    answer:
+      type: choice
+      options:
+        - text: $0{,}2$
+          feedback: Ten mnożnik daje samą obniżkę, a nie nową cenę.
+        - text: $1{,}2$
+          feedback: To mnożnik podwyżki o $20\%$.
+        - text: $0{,}8$
+      correct: 2
+    explanation: |
+      Po obniżce o $20\%$ zostaje $80\%$ ceny, czyli mnożnik $0{,}8$.
+
+  - key: q-up-down
+    type: question
+    prompt: |
+      Cena $400$ zł: najpierw $+10\%$, potem $-10\%$. Ile wynosi? Zastosuj schemat.
+    answer:
+      type: number
+      value: 396
+      unit: zł
+      check: {op: successive, n: 400, ps: [10, -10]}
+      feedback:
+        - when: 400
+          message: Krok 3 schematu — zmiany się nie znoszą. Pomnóż $400 \cdot 1{,}1 \cdot 0{,}9$.
+        - when: 440
+          message: To cena po pierwszej zmianie. Pomnóż jeszcze przez drugi mnożnik.
+    explanation: |
+      $400 \cdot 1{,}1 = 440$, a $440 \cdot 0{,}9 = 396$ zł.
+
+  - key: q-two-decreases
+    type: question
+    prompt: |
+      Cena $1000$ zł: $-10\%$, potem $-20\%$. Ile wynosi?
+    answer:
+      type: number
+      value: 720
+      unit: zł
+      check: {op: successive, n: 1000, ps: [-10, -20]}
+      feedback:
+        - when: 700
+          message: Dodałeś procenty ($10\% + 20\%$). Krok 3 schematu mówi, żeby tego nie robić.
+        - when: 900
+          message: To cena po pierwszej zmianie. Pomnóż jeszcze przez $0{,}8$.
+    explanation: |
+      $1000 \cdot 0{,}9 \cdot 0{,}8 = 720$ zł.
+
+  - key: q-two-raises
+    type: question
+    prompt: |
+      Cena $80$ zł: $+25\%$, potem $+20\%$. Ile wynosi?
+    answer:
+      type: number
+      value: 120
+      unit: zł
+      check: {op: successive, n: 80, ps: [25, 20]}
+      feedback:
+        - when: 116
+          message: Dodałeś procenty ($25\% + 20\% = 45\%$). Pomnóż przez oba mnożniki.
+        - when: 100
+          message: To cena po pierwszej zmianie. Pomnóż jeszcze przez $1{,}2$.
+    explanation: |
+      $80 \cdot 1{,}25 = 100$, a $100 \cdot 1{,}2 = 120$ zł.
+
+  - key: q-half-half
+    type: question
+    prompt: |
+      Cena $500$ zł: $-50\%$, potem $+50\%$. Ile wynosi?
+    answer:
+      type: number
+      value: 375
+      unit: zł
+      check: {op: successive, n: 500, ps: [-50, 50]}
+      feedback:
+        - when: 500
+          message: Zmiany się nie znoszą. Pomnóż $500 \cdot 0{,}5 \cdot 1{,}5$.
+        - when: 250
+          message: To cena po pierwszej zmianie. Pomnóż jeszcze przez $1{,}5$.
+    explanation: |
+      $500 \cdot 0{,}5 = 250$, a $250 \cdot 1{,}5 = 375$ zł.
+
+  - key: summary
+    type: text
+    body: |
+      **Do zeszytu:**
+
+      $$
+      \text{nowa cena} = \text{cena} \cdot m_1 \cdot m_2 \cdot \ldots
+      $$
+
+      1. Podwyżka o $p\%$: mnożnik $1 + \tfrac{p}{100}$; obniżka: $1 - \tfrac{p}{100}$.
+      2. Mnożę przez wszystkie mnożniki.
+      3. Procentów nie dodaję.

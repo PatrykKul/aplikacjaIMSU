@@ -1,0 +1,129 @@
+skill: percent-change
+method: alpha
+title: Podwyżki i obniżki według schematu
+steps:
+  - key: goal
+    type: text
+    body: |
+      **Cel lekcji:** obliczysz cenę po podwyżce lub obniżce o $p\%$ oraz procent zmiany.
+
+      **Co już wiesz:** $p\%$ z liczby $n$ to $\tfrac{p}{100} \cdot n$,
+      a jakim procentem $b$ jest $a$, liczysz jako $\tfrac{a}{b} \cdot 100\%$.
+
+  - key: q-recall
+    type: question
+    prompt: |
+      Przypomnij sobie: ile to jest $15\%$ z $200$?
+    answer:
+      type: number
+      value: 30
+      check: {op: percent_of, p: 15, n: 200}
+      feedback:
+        - when: 3000
+          message: Pomnożyłeś $15 \cdot 200$. Trzeba jeszcze podzielić przez $100$.
+    explanation: |
+      $\tfrac{15}{100} \cdot 200 = 30$.
+
+  - key: rule
+    type: text
+    body: |
+      **Zapamiętaj — schematy.**
+
+      **Obniżka o $p\%$:** 1. policz $p\%$ ceny, 2. **odejmij** od ceny.
+
+      **Podwyżka o $p\%$:** 1. policz $p\%$ ceny, 2. **dodaj** do ceny.
+
+      **Procent zmiany:** zmianę w złotych podziel przez **starą** cenę i pomnóż przez $100\%$.
+
+      **Przykład:** obniżka o $20\%$ ceny $90$ zł. $20\%$ z $90$ zł to $18$ zł, więc $90 - 18 = 72$ zł.
+
+  - key: q-step-one
+    type: question
+    prompt: |
+      Obniżka o $20\%$ ceny $150$ zł. **Krok 1:** ile złotych wynosi obniżka?
+    answer:
+      type: number
+      value: 30
+      unit: zł
+      check: {op: percent_of, p: 20, n: 150}
+      feedback:
+        - when: 120
+          message: To już nowa cena, czyli wynik kroku 2. W kroku 1 liczysz samą obniżkę.
+    explanation: |
+      $20\%$ ze $150$ zł to $30$ zł.
+
+  - key: q-step-two
+    type: question
+    prompt: |
+      **Krok 2:** ile wynosi nowa cena?
+    answer:
+      type: number
+      value: 120
+      unit: zł
+      check: {op: change, n: 150, p: -20}
+      feedback:
+        - when: 180
+          message: Dodałeś obniżkę zamiast ją odjąć. Tak liczy się podwyżkę.
+        - when: 30
+          message: To wynik kroku 1. Odejmij go od ceny.
+    explanation: |
+      $150 - 30 = 120$ zł.
+
+  - key: q-raise
+    type: question
+    prompt: |
+      Podwyżka o $5\%$ ceny $300$ zł. Ile wynosi nowa cena? Zastosuj schemat.
+    answer:
+      type: number
+      value: 315
+      unit: zł
+      check: {op: change, n: 300, p: 5}
+      feedback:
+        - when: 305
+          message: Dodałeś $5$ zł. W kroku 1 policz $5\%$ ceny.
+        - when: 285
+          message: Odjąłeś podwyżkę. Przy podwyżce w kroku 2 dodajesz.
+    explanation: |
+      $5\%$ z $300$ zł to $15$ zł, więc $300 + 15 = 315$ zł.
+
+  - key: q-change-percent
+    type: question
+    prompt: |
+      Cena wzrosła z $40$ zł do $50$ zł. O ile procent? Zastosuj schemat.
+    answer:
+      type: number
+      value: 25
+      unit: "%"
+      check: {op: change_percent, old: 40, new: 50}
+      feedback:
+        - when: 10
+          message: To zmiana w złotych. Podziel ją przez starą cenę.
+        - when: 20
+          message: Podzieliłeś przez nową cenę. Według schematu dzielisz przez **starą**.
+    explanation: |
+      Zmiana to $10$ zł, a $\tfrac{10}{40} = 25\%$.
+
+  - key: q-multiplier
+    type: question
+    prompt: |
+      Który mnożnik od razu daje cenę po obniżce o $15\%$?
+    answer:
+      type: choice
+      options:
+        - text: $0{,}15$
+          feedback: Ten mnożnik daje samą kwotę obniżki.
+        - text: $1{,}15$
+          feedback: To mnożnik podwyżki o $15\%$.
+        - text: $0{,}85$
+      correct: 2
+    explanation: |
+      Po obniżce o $15\%$ zostaje $85\%$ ceny, czyli mnożysz przez $0{,}85$.
+
+  - key: summary
+    type: text
+    body: |
+      **Do zeszytu:**
+
+      - obniżka o $p\%$: cena $- \tfrac{p}{100} \cdot$ cena, czyli $(100 - p)\%$ ceny,
+      - podwyżka o $p\%$: cena $+ \tfrac{p}{100} \cdot$ cena, czyli $(100 + p)\%$ ceny,
+      - procent zmiany: $\tfrac{\text{zmiana}}{\text{stara cena}} \cdot 100\%$.

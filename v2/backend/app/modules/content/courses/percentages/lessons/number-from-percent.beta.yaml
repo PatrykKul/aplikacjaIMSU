@@ -1,0 +1,127 @@
+skill: number-from-percent
+method: beta
+title: Ile ma całość?
+steps:
+  - key: goal
+    type: text
+    body: |
+      **Zadanie na dziś:** często znasz tylko część i procent — „pobrano $40\%$”,
+      „to połowa baku”. Nauczysz się szybko policzyć, ile ma całość.
+
+      **Przepis:**
+
+      1. Skróty: $50\%$ → całość to **dwa razy** więcej, $25\%$ → **cztery razy**, $10\%$ → **dziesięć razy**.
+      2. Inny procent: policz najpierw $10\%$ albo $1\%$, potem całość.
+
+  - key: model
+    type: text
+    body: |
+      **Zobacz, jak to działa.** Pobrano $40\%$ filmu, czyli $600$ MB.
+
+      - $40\%$ to cztery razy $10\%$, więc $10\%$ to $600 : 4 = 150$ MB,
+      - całość to dziesięć razy więcej: $1500$ MB.
+
+  - key: q-battery
+    type: question
+    prompt: |
+      Połowa baterii ($50\%$) to $2500$ mAh. Ile mieści cała bateria?
+    answer:
+      type: number
+      value: 5000
+      unit: mAh
+      check: {op: whole_from_part, p: 50, part: 2500}
+      feedback:
+        - when: 1250
+          message: Policzyłeś połowę z $2500$. Tu $2500$ to dopiero połowa baterii.
+        - when: 2500
+          message: To dopiero połowa baterii.
+    hint: |
+      Skrót z przepisu: $50\%$ → całość dwa razy większa.
+    explanation: |
+      $2 \cdot 2500 = 5000$ mAh.
+
+  - key: q-savings
+    type: question
+    prompt: |
+      Masz już $25\%$ kwoty na słuchawki, czyli $60$ zł. Ile kosztują słuchawki?
+    answer:
+      type: number
+      value: 240
+      unit: zł
+      check: {op: whole_from_part, p: 25, part: 60}
+      feedback:
+        - when: 15
+          message: Policzyłeś ćwierć z $60$ zł. Tu $60$ zł to dopiero ćwierć ceny.
+        - when: 85
+          message: Dodałeś $25$ do $60$. Procent nie jest kwotą do dodania.
+    explanation: |
+      $25\%$ to ćwierć, więc cała cena to $4 \cdot 60 = 240$ zł.
+
+  - key: q-route
+    type: question
+    prompt: |
+      Przejechałeś $12$ km, czyli $10\%$ trasy rajdu rowerowego. Ile kilometrów ma cała trasa?
+    answer:
+      type: number
+      value: 120
+      unit: km
+      check: {op: whole_from_part, p: 10, part: 12}
+      feedback:
+        - when: "1.2"
+          message: Policzyłeś $10\%$ z $12$ km. Tu $12$ km to dopiero $10\%$ trasy.
+        - when: 108
+          message: Tyle kilometrów zostało ci do końca.
+    explanation: |
+      $10\%$ to $12$ km, więc całość to $10 \cdot 12 = 120$ km.
+
+  - key: q-syrup
+    type: question
+    prompt: |
+      W szklance napoju jest $30$ ml syropu, który stanowi $20\%$ napoju. Ile ml ma cały napój?
+    answer:
+      type: number
+      value: 150
+      unit: ml
+      check: {op: whole_from_part, p: 20, part: 30}
+      feedback:
+        - when: 6
+          message: Policzyłeś $20\%$ z $30$ ml. Tu $30$ ml to dopiero $20\%$ napoju.
+        - when: 120
+          message: Tyle jest w napoju wody. Pytamy o cały napój.
+    hint: |
+      $20\%$ to dwa razy $10\%$. Ile ml to $10\%$?
+    explanation: |
+      $10\%$ to $15$ ml, więc cały napój to $150$ ml.
+
+  - key: q-game-size
+    type: question
+    prompt: |
+      Gra pobrała się w $75\%$, czyli $3$ GB. Ile ma cała gra?
+    answer:
+      type: choice
+      options:
+        - text: $4$ GB
+        - text: $2{,}25$ GB
+          feedback: To $75\%$ z $3$ GB. Tu $3$ GB to dopiero $75\%$ gry.
+        - text: $1$ GB
+          feedback: Tyle zostało do pobrania.
+      correct: 0
+    explanation: |
+      $75\%$ to trzy razy $25\%$, więc $25\%$ to $1$ GB, a cała gra to $4$ GB.
+
+  - key: q-tank
+    type: question
+    prompt: |
+      Na stacji wlano $30$ litrów paliwa i bak jest pełny w $60\%$ (bak był pusty). Ile litrów mieści bak?
+    answer:
+      type: number
+      value: 50
+      unit: l
+      check: {op: whole_from_part, p: 60, part: 30}
+      feedback:
+        - when: 18
+          message: Policzyłeś $60\%$ z $30$ litrów. Tu $30$ litrów to dopiero $60\%$ baku.
+        - when: 20
+          message: Tyle litrów jeszcze zmieści się w baku.
+    explanation: |
+      $60\%$ to sześć razy $10\%$, więc $10\%$ to $5$ litrów, a cały bak to $50$ litrów.
