@@ -1,0 +1,33 @@
+key: percentages
+title: Procenty
+description: Procenty w codziennym życiu — od ułamków do podwyżek, obniżek i promocji.
+units:
+  - key: basics
+    title: Podstawy
+    skills:
+      - key: percent-as-fraction
+        title: Procent jako ułamek
+        goal: Zamieniasz procent na ułamek lub liczbę dziesiętną i odwrotnie.
+      - key: percent-of-number
+        title: Procent danej liczby
+        goal: Obliczasz, ile to jest p% z danej liczby.
+        requires: [percent-as-fraction]
+      - key: percent-ratio
+        title: Jakim procentem jest liczba
+        goal: Obliczasz, jakim procentem jednej liczby jest druga.
+        requires: [percent-as-fraction]
+  - key: applications
+    title: Zastosowania
+    skills:
+      - key: number-from-percent
+        title: Liczba z jej procentu
+        goal: Znajdujesz całą liczbę, gdy znasz tylko jej procent.
+        requires: [percent-of-number]
+      - key: percent-change
+        title: Podwyżki i obniżki
+        goal: Obliczasz cenę po podwyżce lub obniżce o p%.
+        requires: [percent-of-number, percent-ratio]
+      - key: successive-changes
+        title: Kolejne zmiany procentowe
+        goal: Obliczasz cenę po kilku podwyżkach i obniżkach z rzędu.
+        requires: [percent-change]

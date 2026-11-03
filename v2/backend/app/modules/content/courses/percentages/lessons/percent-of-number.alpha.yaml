@@ -1,0 +1,136 @@
+skill: percent-of-number
+method: alpha
+title: Procent liczby krok po kroku
+steps:
+  - key: goal
+    type: text
+    body: |
+      **Cel lekcji:** po tej lekcji obliczysz $p\%$ z każdej liczby według stałego schematu.
+
+      **Co już wiesz:** procent to ułamek o mianowniku $100$, na przykład $25\% = \tfrac{25}{100}$.
+      Ułamek z liczby obliczasz, mnożąc: $\tfrac{1}{4}$ z $20$ to $\tfrac{1}{4} \cdot 20 = 5$.
+
+  - key: q-fraction-of-number
+    type: question
+    prompt: |
+      Przypomnij sobie: ile to jest $\tfrac{1}{4}$ z $36$?
+    answer:
+      type: number
+      value: 9
+      check: {op: fraction_of, x: "1/4", n: 36}
+      feedback:
+        - when: 144
+          message: Pomnożyłeś przez $4$. Jedna czwarta liczby to jej czwarta część, czyli dzielenie przez $4$.
+        - when: 32
+          message: Odjąłeś $4$ od $36$. Ułamek z liczby to mnożenie, a nie odejmowanie.
+    explanation: |
+      $\tfrac{1}{4} \cdot 36 = 36 : 4 = 9$.
+
+  - key: rule
+    type: text
+    body: |
+      **Zapamiętaj — schemat w trzech krokach:**
+
+      1. Zamień procent na ułamek: $p\% = \tfrac{p}{100}$.
+      2. Pomnóż ułamek przez liczbę.
+      3. Oblicz i skróć wynik.
+
+      **Przykład:** $15\%$ z $80$.
+
+      1. $15\% = \tfrac{15}{100}$
+      2. $\tfrac{15}{100} \cdot 80 = \tfrac{1200}{100}$
+      3. $\tfrac{1200}{100} = 12$
+
+  - key: q-step-one
+    type: question
+    prompt: |
+      Liczymy $35\%$ z $60$. **Krok 1:** jak zapisać $35\%$ w postaci ułamka?
+    answer:
+      type: choice
+      options:
+        - text: $\tfrac{35}{100}$
+        - text: $\tfrac{100}{35}$
+          feedback: Ułamek jest odwrócony. Procent to setne części, więc $100$ stoi w mianowniku.
+        - text: $\tfrac{35}{10}$
+          feedback: Procent to setne części, a nie dziesiąte.
+      correct: 0
+    explanation: |
+      $35\% = \tfrac{35}{100}$.
+
+  - key: q-steps-two-three
+    type: question
+    prompt: |
+      **Kroki 2 i 3:** oblicz $\tfrac{35}{100} \cdot 60$.
+    answer:
+      type: number
+      value: 21
+      check: {op: percent_of, p: 35, n: 60}
+      feedback:
+        - when: 2100
+          message: To wynik kroku 2 bez dzielenia przez $100$. Dokończ krok 3.
+    hint: |
+      Najpierw $35 \cdot 60 = 2100$, potem podziel przez $100$.
+    explanation: |
+      $\tfrac{35}{100} \cdot 60 = \tfrac{2100}{100} = 21$.
+
+  - key: q-twenty-of-forty-five
+    type: question
+    prompt: |
+      Oblicz $20\%$ z $45$ według schematu.
+    answer:
+      type: number
+      value: 9
+      check: {op: percent_of, p: 20, n: 45}
+      feedback:
+        - when: 900
+          message: Pominąłeś dzielenie przez $100$ w kroku 3.
+        - when: 25
+          message: Odjąłeś $20$ od $45$. W kroku 2 trzeba mnożyć.
+    explanation: |
+      $\tfrac{20}{100} \cdot 45 = \tfrac{900}{100} = 9$.
+
+  - key: q-eight-of-two-fifty
+    type: question
+    prompt: |
+      Oblicz $8\%$ z $250$ według schematu.
+    answer:
+      type: number
+      value: 20
+      check: {op: percent_of, p: 8, n: 250}
+      feedback:
+        - when: 2000
+          message: Pominąłeś dzielenie przez $100$ w kroku 3.
+        - when: 242
+          message: Odjąłeś $8$ od $250$. W kroku 2 trzeba mnożyć.
+    explanation: |
+      $\tfrac{8}{100} \cdot 250 = \tfrac{2000}{100} = 20$.
+
+  - key: q-dairy
+    type: question
+    prompt: |
+      W sklepie jest $400$ produktów, a $15\%$ z nich to nabiał.
+      Ile produktów to nabiał? Zastosuj schemat.
+    answer:
+      type: number
+      value: 60
+      check: {op: percent_of, p: 15, n: 400}
+      feedback:
+        - when: 340
+          message: To produkty, które **nie** są nabiałem ($85\%$).
+        - when: 6000
+          message: Pominąłeś dzielenie przez $100$ w kroku 3.
+    explanation: |
+      $\tfrac{15}{100} \cdot 400 = \tfrac{6000}{100} = 60$.
+
+  - key: summary
+    type: text
+    body: |
+      **Do zeszytu:**
+
+      $$
+      p\% \text{ z } n = \frac{p}{100} \cdot n
+      $$
+
+      1. Procent zamieniam na ułamek o mianowniku $100$.
+      2. Mnożę przez liczbę.
+      3. Obliczam i skracam.

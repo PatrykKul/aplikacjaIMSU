@@ -1,0 +1,152 @@
+skill: percent-of-number
+method: common
+title: Ile to jest p% z liczby?
+steps:
+  - key: intro
+    type: text
+    body: |
+      **Procent to setna część.** Słowo pochodzi od łacińskiego *per centum* — „na sto”.
+
+      Żeby policzyć **1%** jakiejś liczby, dzielisz ją przez $100$:
+
+      $$
+      1\% \text{ z } 300 = 300 : 100 = 3
+      $$
+
+      Skoro $1\%$ to $3$, to $7\%$ jest siedem razy więcej: $7 \cdot 3 = 21$.
+
+  - key: q-one-percent
+    type: question
+    prompt: |
+      Ile to jest $1\%$ z $500$?
+    answer:
+      type: number
+      value: 5
+      check: {op: percent_of, p: 1, n: 500}
+      feedback:
+        - when: 50
+          message: To jest $10\%$. Żeby dostać $1\%$, dziel przez $100$, a nie przez $10$.
+        - when: 499
+          message: Odjąłeś $1$ od $500$. Procent to część liczby, a nie liczba do odjęcia.
+    explanation: |
+      $500 : 100 = 5$, więc $1\%$ z $500$ to $5$.
+
+  - key: rule
+    type: text
+    body: |
+      **Reguła:** żeby policzyć $p\%$ z liczby $n$, mnożysz:
+
+      $$
+      p\% \text{ z } n = \frac{p}{100} \cdot n
+      $$
+
+      **Przykład:** $15\%$ z $80$.
+
+      $$
+      \frac{15}{100} \cdot 80 = \frac{1200}{100} = 12
+      $$
+
+      Można też w pamięci: $10\%$ z $80$ to $8$, a $5\%$ to połowa tego, czyli $4$. Razem $8 + 4 = 12$.
+
+  - key: q-twenty-percent
+    type: question
+    prompt: |
+      Oblicz $20\%$ z $45$.
+    answer:
+      type: number
+      value: 9
+      check: {op: percent_of, p: 20, n: 45}
+      feedback:
+        - when: 25
+          message: Odjąłeś $20$ od $45$. Procent to część liczby — trzeba mnożyć przez $\tfrac{20}{100}$.
+        - when: 900
+          message: Pomnożyłeś $20 \cdot 45$, ale nie podzieliłeś przez $100$.
+    hint: |
+      $10\%$ z $45$ to $4{,}5$. Ile to będzie $20\%$?
+    explanation: |
+      $\tfrac{20}{100} \cdot 45 = 9$. W pamięci: $10\%$ to $4{,}5$, więc $20\%$ to $2 \cdot 4{,}5 = 9$.
+
+  - key: q-which-calculation
+    type: question
+    prompt: |
+      Które obliczenie daje $30\%$ z $70$?
+    answer:
+      type: choice
+      options:
+        - text: '$70 : 30$'
+          feedback: Tak sprawdzisz, ile razy $30$ mieści się w $70$ — to nie jest procent.
+        - text: $0{,}3 \cdot 70$
+        - text: $30 \cdot 70$
+          feedback: Wynik byłby $100$ razy za duży — brakuje dzielenia przez $100$.
+      correct: 1
+    explanation: |
+      $30\% = \tfrac{30}{100} = 0{,}3$, więc $30\%$ z $70$ to $0{,}3 \cdot 70 = 21$.
+
+  - key: shortcuts
+    type: text
+    body: |
+      **Warto zapamiętać:**
+
+      - $50\%$ to **połowa**,
+      - $25\%$ to **jedna czwarta**,
+      - $10\%$ to **jedna dziesiąta**,
+      - $100\%$ to **cała liczba**.
+
+  - key: q-bus
+    type: question
+    prompt: |
+      W klasie jest $28$ uczniów. $25\%$ z nich dojeżdża do szkoły autobusem.
+      Ilu uczniów dojeżdża autobusem?
+    answer:
+      type: number
+      value: 7
+      check: {op: percent_of, p: 25, n: 28}
+      feedback:
+        - when: 21
+          message: To uczniowie, którzy **nie** dojeżdżają autobusem ($75\%$ klasy).
+        - when: 3
+          message: Odjąłeś $25$ od $28$. Szukasz części klasy, a nie różnicy.
+    hint: |
+      $25\%$ to jedna czwarta.
+    explanation: |
+      $25\%$ to $\tfrac{1}{4}$, a $\tfrac{1}{4}$ z $28$ to $28 : 4 = 7$.
+
+  - key: q-bike
+    type: question
+    prompt: |
+      Rower kosztuje $1200$ zł. Przy zakupie na raty trzeba dopłacić $15\%$ ceny.
+      Ile wynosi dopłata?
+    answer:
+      type: number
+      value: 180
+      unit: zł
+      check: {op: percent_of, p: 15, n: 1200}
+      feedback:
+        - when: 1380
+          message: To cena roweru razem z dopłatą. Pytamy tylko o dopłatę.
+        - when: 1185
+          message: Odjąłeś $15$ zł od ceny. Dopłata to $15$ **procent** ceny, nie $15$ złotych.
+    hint: |
+      Policz najpierw $10\%$ i $5\%$ ceny.
+    explanation: |
+      $10\%$ z $1200$ zł to $120$ zł, a $5\%$ to połowa tego, czyli $60$ zł.
+      Razem $120 + 60 = 180$ zł.
+
+  - key: q-decimal-percent
+    type: question
+    prompt: |
+      Oblicz $12{,}5\%$ z $64$.
+    answer:
+      type: number
+      value: 8
+      check: {op: percent_of, p: "12.5", n: 64}
+      feedback:
+        - when: 800
+          message: Pomnożyłeś przez $12{,}5$, ale nie podzieliłeś przez $100$.
+        - when: "51.5"
+          message: Odjąłeś $12{,}5$ od $64$. Procent to część liczby.
+    hint: |
+      $12{,}5\%$ to połowa z $25\%$.
+    explanation: |
+      $25\%$ z $64$ to $16$, a $12{,}5\%$ to połowa tego, czyli $8$.
+      Rachunkiem: $\tfrac{12{,}5}{100} \cdot 64 = 8$.

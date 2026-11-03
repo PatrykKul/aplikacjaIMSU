@@ -1,0 +1,123 @@
+skill: successive-changes
+method: common
+title: Kilka zmian z rzędu
+steps:
+  - key: intro
+    type: text
+    body: |
+      **Każdą kolejną zmianę liczysz od nowej ceny.**
+
+      Cena $100$ zł rośnie o $10\%$, czyli o $10$ zł, do $110$ zł.
+      Potem spada o $10\%$, ale teraz $10\%$ to $11$ zł, więc cena wynosi $99$ zł.
+
+      Podwyżka i obniżka o ten sam procent **nie wracają** do ceny początkowej.
+
+  - key: q-jacket
+    type: question
+    prompt: |
+      Kurtka kosztowała $200$ zł. Najpierw podrożała o $10\%$, potem potaniała o $10\%$.
+      Ile kosztuje teraz?
+    answer:
+      type: number
+      value: 198
+      unit: zł
+      check: {op: successive, n: 200, ps: [10, -10]}
+      feedback:
+        - when: 200
+          message: Zmiany się nie znoszą. Obniżkę liczysz od nowej ceny $220$ zł.
+        - when: 220
+          message: To cena po samej podwyżce. Policz jeszcze obniżkę.
+    hint: |
+      Ile kosztuje kurtka po podwyżce? Od tej ceny policz obniżkę.
+    explanation: |
+      $200 + 20 = 220$ zł, a potem $220 - 22 = 198$ zł.
+
+  - key: multipliers
+    type: text
+    body: |
+      **Skrót:** każdą zmianę zapisz jako mnożnik.
+
+      - podwyżka o $10\%$ to mnożenie przez $1{,}1$,
+      - obniżka o $10\%$ to mnożenie przez $0{,}9$.
+
+      Kilka zmian to kilka mnożeń:
+
+      $$
+      200 \cdot 1{,}1 \cdot 0{,}9 = 198
+      $$
+
+  - key: q-two-raises
+    type: question
+    prompt: |
+      Cenę podniesiono o $20\%$, a potem o kolejne $20\%$. O ile procent wzrosła w sumie?
+    answer:
+      type: choice
+      options:
+        - text: $40\%$
+          feedback: Druga podwyżka liczy się od wyższej ceny, więc w sumie wychodzi więcej.
+        - text: $20\%$
+          feedback: To tylko jedna podwyżka.
+        - text: $44\%$
+      correct: 2
+    explanation: |
+      $1{,}2 \cdot 1{,}2 = 1{,}44$, czyli cena wzrosła o $44\%$.
+
+  - key: q-bike
+    type: question
+    prompt: |
+      Rower za $1000$ zł przeceniono o $20\%$, a po miesiącu o kolejne $10\%$.
+      Ile kosztuje teraz?
+    answer:
+      type: number
+      value: 720
+      unit: zł
+      check: {op: successive, n: 1000, ps: [-20, -10]}
+      feedback:
+        - when: 700
+          message: Obniżek nie dodajemy. Drugą liczysz od ceny po pierwszej, czyli od $800$ zł.
+        - when: 800
+          message: To cena po pierwszej obniżce. Policz jeszcze drugą.
+    explanation: |
+      $1000 \cdot 0{,}8 = 800$ zł, a potem $800 \cdot 0{,}9 = 720$ zł.
+
+  - key: q-shares
+    type: question
+    prompt: |
+      Akcje kosztowały $50$ zł. Pierwszego dnia zdrożały o $50\%$, a drugiego potaniały o $50\%$.
+      Ile kosztują teraz?
+    answer:
+      type: number
+      value: "37.5"
+      unit: zł
+      check: {op: successive, n: 50, ps: [50, -50]}
+      feedback:
+        - when: 50
+          message: Zmiany o ten sam procent w górę i w dół się nie znoszą.
+        - when: 75
+          message: To cena po pierwszym dniu. Policz jeszcze spadek.
+    explanation: |
+      $50 \cdot 1{,}5 = 75$ zł, a potem połowa z $75$ zł to $37{,}50$ zł.
+
+  - key: rule
+    type: text
+    body: |
+      **Zapamiętaj:** podwyżka i obniżka o ten sam procent zawsze dają **mniej** niż na początku,
+      bo obniżka liczy się od wyższej ceny.
+
+  - key: q-rent
+    type: question
+    prompt: |
+      Czynsz wynosił $2000$ zł. Wzrósł o $5\%$, a rok później o kolejne $5\%$.
+      Ile wynosi teraz?
+    answer:
+      type: number
+      value: 2205
+      unit: zł
+      check: {op: successive, n: 2000, ps: [5, 5]}
+      feedback:
+        - when: 2200
+          message: Policzyłeś $10\%$ od starego czynszu. Druga podwyżka liczy się od $2100$ zł.
+        - when: 2100
+          message: To czynsz po pierwszej podwyżce. Policz jeszcze drugą.
+    explanation: |
+      $2000 \cdot 1{,}05 = 2100$ zł, a potem $2100 \cdot 1{,}05 = 2205$ zł.

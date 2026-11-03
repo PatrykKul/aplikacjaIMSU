@@ -1,0 +1,135 @@
+skill: percent-of-number
+method: beta
+title: Ile oszczędzasz na promocji?
+steps:
+  - key: goal
+    type: text
+    body: |
+      **Zadanie na dziś:** w sklepie chcesz szybko policzyć, ile zaoszczędzisz.
+      Kartka „$-25\%$” znaczy, że oszczędzasz $25\%$ ceny.
+
+      **Przepis:**
+
+      1. Policz $10\%$ ceny: przesuń przecinek o jedno miejsce w lewo ($160$ zł → $16$ zł).
+      2. Złóż potrzebny procent z kawałków: $5\%$ to połowa z $10\%$, $20\%$ to dwa razy $10\%$.
+      3. Zapamiętaj skróty: $50\%$ to połowa, $25\%$ to ćwierć.
+
+  - key: model
+    type: text
+    body: |
+      **Zobacz, jak to działa.** Plecak kosztuje $80$ zł, promocja $-15\%$.
+
+      - $10\%$ z $80$ zł to $8$ zł,
+      - $5\%$ to połowa z tego, czyli $4$ zł,
+      - razem $15\%$ to $8 + 4 = 12$ zł.
+
+      Oszczędzasz $12$ zł, a płacisz $80 - 12 = 68$ zł.
+
+  - key: q-shoes
+    type: question
+    prompt: |
+      Buty kosztują $160$ zł, promocja $-10\%$. Ile oszczędzasz?
+    answer:
+      type: number
+      value: 16
+      unit: zł
+      check: {op: percent_of, p: 10, n: 160}
+      feedback:
+        - when: 144
+          message: To cena po rabacie. Pytamy, ile oszczędzasz.
+        - when: 150
+          message: Odjąłeś $10$ zł, a rabat to $10$ **procent** ceny.
+    hint: |
+      Krok 1 przepisu: przesuń przecinek o jedno miejsce w lewo.
+    explanation: |
+      $10\%$ ze $160$ zł to $16$ zł.
+
+  - key: q-hoodie
+    type: question
+    prompt: |
+      Bluza kosztuje $120$ zł, promocja $-25\%$. Ile oszczędzasz?
+    answer:
+      type: number
+      value: 30
+      unit: zł
+      check: {op: percent_of, p: 25, n: 120}
+      feedback:
+        - when: 90
+          message: To cena po rabacie. Pytamy, ile oszczędzasz.
+        - when: 95
+          message: Odjąłeś $25$ zł, a rabat to $25$ **procent** ceny.
+    hint: |
+      $25\%$ to ćwierć ceny.
+    explanation: |
+      Ćwierć ze $120$ zł to $120 : 4 = 30$ zł.
+
+  - key: q-cake
+    type: question
+    prompt: |
+      Przepis na ciasto: $400$ g mąki. Cukru ma być $25\%$ tego, co mąki.
+      Ile gramów cukru odmierzyć?
+    answer:
+      type: number
+      value: 100
+      unit: g
+      check: {op: percent_of, p: 25, n: 400}
+      feedback:
+        - when: 375
+          message: Odjąłeś $25$ g od $400$ g. Cukier to $25$ **procent** masy mąki.
+        - when: 300
+          message: To $75\%$ masy mąki. $25\%$ to ćwierć.
+    explanation: |
+      Ćwierć z $400$ g to $100$ g.
+
+  - key: q-battery
+    type: question
+    prompt: |
+      Bateria telefonu mieści $5000$ mAh i jest naładowana w $40\%$.
+      Ile mAh jest teraz w baterii?
+    answer:
+      type: number
+      value: 2000
+      unit: mAh
+      check: {op: percent_of, p: 40, n: 5000}
+      feedback:
+        - when: 3000
+          message: Tyle brakuje do pełnego naładowania ($60\%$).
+        - when: 4960
+          message: Odjąłeś $40$ od $5000$. Policz $40\%$ pojemności.
+    hint: |
+      $10\%$ to $500$ mAh. Ile to $40\%$?
+    explanation: |
+      $10\%$ to $500$ mAh, więc $40\%$ to $4 \cdot 500 = 2000$ mAh.
+
+  - key: q-bike-trip
+    type: question
+    prompt: |
+      Wycieczka rowerowa ma $50$ km. Przejechałeś już $30\%$ trasy. Ile kilometrów?
+    answer:
+      type: number
+      value: 15
+      unit: km
+      check: {op: percent_of, p: 30, n: 50}
+      feedback:
+        - when: 35
+          message: Tyle kilometrów zostało ci do końca ($70\%$ trasy).
+        - when: 20
+          message: Odjąłeś $30$ od $50$. Policz $30\%$ trasy.
+    explanation: |
+      $10\%$ z $50$ km to $5$ km, więc $30\%$ to $15$ km.
+
+  - key: q-price-tag
+    type: question
+    prompt: |
+      Kurtka kosztuje $250$ zł, promocja $-20\%$. Która informacja jest prawdziwa?
+    answer:
+      type: choice
+      options:
+        - text: Płacisz $230$ zł
+          feedback: Tak byłoby przy obniżce o $20$ zł, a nie o $20\%$.
+        - text: Oszczędzasz $50$ zł
+        - text: Oszczędzasz $20$ zł
+          feedback: $20$ to procent, a nie złotówki. Policz $20\%$ z $250$ zł.
+      correct: 1
+    explanation: |
+      $10\%$ z $250$ zł to $25$ zł, więc $20\%$ to $50$ zł. Płacisz $200$ zł.
