@@ -17,10 +17,12 @@ export function AuthenticatedShell({ children }: { children: ReactNode }) {
     return null; // AuthGuard above guarantees a user
   }
 
-  const nav: NavItem[] =
-    user.role === "admin"
+  const nav: NavItem[] = [
+    { href: "/courses", label: "Kursy" },
+    ...(user.role === "admin"
       ? [{ href: "/admin/users", label: "Użytkownicy" }]
-      : [];
+      : []),
+  ];
 
   return (
     <AppShell

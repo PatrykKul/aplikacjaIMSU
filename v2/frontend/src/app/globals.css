@@ -133,3 +133,45 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  /* Text rendered by MathMarkdown; the parent sets the font size */
+  .math-markdown {
+    & :where(p, ul, ol, table) {
+      margin-block: 0 0.75em;
+    }
+    & > :last-child {
+      margin-bottom: 0;
+    }
+    & strong {
+      @apply font-semibold;
+    }
+    & ul {
+      @apply list-disc pl-6;
+    }
+    & ol {
+      @apply list-decimal pl-6;
+    }
+    & li + li {
+      margin-top: 0.25em;
+    }
+    & table {
+      @apply block max-w-full border-collapse overflow-x-auto;
+    }
+    & :where(th, td) {
+      @apply border px-3 py-2 text-left;
+    }
+    & th {
+      @apply bg-muted font-medium;
+    }
+    /* KaTeX enlarges formulas to 1.21em by default, too big next to Geist */
+    & .katex {
+      font-size: 1.1em;
+    }
+    & .katex-display {
+      @apply overflow-x-auto overflow-y-hidden;
+      margin-block: 0.8em;
+      padding-block: 0.25em;
+    }
+  }
+}

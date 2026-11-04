@@ -9,6 +9,7 @@ const messages: Record<string, string> = {
   USER_NOT_FOUND: "Nie znaleziono użytkownika.",
   CANNOT_MODIFY_SELF:
     "Nie możesz zmienić własnej roli ani zablokować własnego konta.",
+  COURSE_NOT_FOUND: "Nie znaleziono kursu. Mógł zostać wycofany z publikacji.",
   VALIDATION_ERROR: "Sprawdź dane w formularzu.",
   NETWORK_ERROR:
     "Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.",
