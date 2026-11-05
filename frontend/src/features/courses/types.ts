@@ -12,8 +12,6 @@ export type SkillSummary = {
   key: string;
   title: string;
   goal: string;
-  // Ids of the skills this skill requires
-  requires: number[];
 };
 
 export type Unit = {

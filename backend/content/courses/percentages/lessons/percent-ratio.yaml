@@ -1,5 +1,4 @@
 skill: percent-ratio
-method: common
 title: Jakim procentem jest liczba?
 steps:
   - key: intro

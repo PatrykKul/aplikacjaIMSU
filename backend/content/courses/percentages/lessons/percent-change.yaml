@@ -1,5 +1,4 @@
 skill: percent-change
-method: common
 title: Podwyżki i obniżki
 steps:
   - key: decrease

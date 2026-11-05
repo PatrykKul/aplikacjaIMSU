@@ -1,11 +1,10 @@
 import { api } from "@/shared/api/client";
 
-import type { AnswerValue, CheckResult, Lesson, LessonSummary } from "./types";
+import type { AnswerValue, CheckResult, Lesson } from "./types";
 
 export const lessonsApi = {
-  listForSkill: (skillId: number) =>
-    api.get<LessonSummary[]>(`/skills/${skillId}/lessons`),
-  get: (id: number) => api.get<Lesson>(`/lessons/${id}`),
+  getForSkill: (skillId: number) =>
+    api.get<Lesson>(`/skills/${skillId}/lesson`),
   check: (
     lessonId: number,
     stepKey: string,

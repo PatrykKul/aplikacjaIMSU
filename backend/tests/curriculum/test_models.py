@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.modules.curriculum.models import Course, Skill, SkillPrerequisite, Unit
+from app.modules.curriculum.models import Course, Skill, Unit
 
 
 def make_course(db: Session, key: str = "test-course") -> Course:
@@ -40,19 +40,3 @@ def test_same_skill_key_allowed_in_different_courses(db: Session):
     first, second = make_course(db, "first"), make_course(db, "second")
     make_skill(db, first, "basics-skill")
     make_skill(db, second, "basics-skill")
-
-
-def test_prerequisite_edge_is_saved(db: Session):
-    course = make_course(db)
-    base, advanced = make_skill(db, course, "base"), make_skill(db, course, "advanced")
-    db.add(SkillPrerequisite(skill_id=advanced.id, prerequisite_id=base.id))
-    db.flush()
-    assert db.get(SkillPrerequisite, (advanced.id, base.id)) is not None
-
-
-def test_skill_cannot_require_itself(db: Session):
-    course = make_course(db)
-    skill = make_skill(db, course, "loop")
-    db.add(SkillPrerequisite(skill_id=skill.id, prerequisite_id=skill.id))
-    with pytest.raises(IntegrityError):
-        db.flush()

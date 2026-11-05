@@ -8,11 +8,10 @@ from app.modules.content.answers import (
     InvalidChoiceError,
     check_answer,
 )
-from app.modules.content.models import Lesson, LessonMethod
+from app.modules.content.models import Lesson
 from app.modules.content.schemas import (
     ChoiceAnswerResponse,
     LessonResponse,
-    LessonSummaryResponse,
     NumberAnswerResponse,
     QuestionStepResponse,
     TextStepResponse,
@@ -21,17 +20,16 @@ from app.modules.content.steps import ChoiceAnswer, LessonSteps, QuestionStep, T
 from app.modules.curriculum import service as curriculum_service
 from app.modules.identity.models import User
 
-# Lessons are listed in the order of the enum: common first, then alpha..delta
-_METHOD_ORDER = list(LessonMethod)
 
-
-def list_lessons(db: Session, skill_id: int, user: User) -> list[Lesson]:
+def get_skill_lesson(db: Session, skill_id: int, user: User) -> Lesson:
     if not curriculum_service.is_skill_visible(db, skill_id, user):
         raise AppError(404, "SKILL_NOT_FOUND")
-    lessons = db.scalars(
+    lesson = db.scalar(
         select(Lesson).where(Lesson.skill_id == skill_id, Lesson.is_archived.is_(False))
     )
-    return sorted(lessons, key=lambda lesson: _METHOD_ORDER.index(lesson.method))
+    if lesson is None:
+        raise AppError(404, "LESSON_NOT_FOUND")
+    return lesson
 
 
 def get_lesson(db: Session, lesson_id: int, user: User) -> Lesson:
@@ -61,20 +59,10 @@ def check_step(
         raise AppError(400, "INVALID_CHOICE") from None
 
 
-def lesson_summary(lesson: Lesson) -> LessonSummaryResponse:
-    return LessonSummaryResponse(
-        id=lesson.id,
-        method=lesson.method,
-        title=lesson.title,
-        step_count=len(lesson.steps),
-    )
-
-
 def lesson_response(lesson: Lesson) -> LessonResponse:
     return LessonResponse(
         id=lesson.id,
         skill_id=lesson.skill_id,
-        method=lesson.method,
         title=lesson.title,
         steps=[_step_response(step) for step in _steps(lesson).steps],
     )

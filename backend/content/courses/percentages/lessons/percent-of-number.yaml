@@ -1,5 +1,4 @@
 skill: percent-of-number
-method: common
 title: Ile to jest p% z liczby?
 steps:
   - key: intro

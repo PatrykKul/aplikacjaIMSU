@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/shared/ui/button";
 
@@ -17,7 +17,6 @@ type LessonPlayerProps = {
   context: string;
   goal: string;
   nextHref: string | null;
-  methodSelect?: ReactNode;
 };
 
 // Steps appear one by one and stay on the page, so the finished lesson reads
@@ -28,7 +27,6 @@ export function LessonPlayer({
   context,
   goal,
   nextHref,
-  methodSelect,
 }: LessonPlayerProps) {
   const steps = lesson.steps;
   const questionKeys = steps.flatMap((step) =>
@@ -84,7 +82,6 @@ export function LessonPlayer({
         step={finished ? steps.length : shown}
         total={steps.length}
         progress={completed / steps.length}
-        methodSelect={methodSelect}
       />
       {/* Bottom padding lets newest step scroll up to the top */}
       <main className="mx-auto w-full max-w-3xl space-y-5 px-3 pt-6 pb-[50svh] sm:px-4 sm:pt-8">

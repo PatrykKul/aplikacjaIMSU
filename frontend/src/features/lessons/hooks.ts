@@ -3,18 +3,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { lessonsApi } from "./api";
 import type { AnswerValue } from "./types";
 
-export function useSkillLessons(skillId: number) {
+export function useSkillLesson(skillId: number) {
   return useQuery({
-    queryKey: ["skills", skillId, "lessons"],
-    queryFn: () => lessonsApi.listForSkill(skillId),
-  });
-}
-
-export function useLesson(id: number | undefined) {
-  return useQuery({
-    queryKey: ["lessons", id],
-    queryFn: () => lessonsApi.get(id as number),
-    enabled: id !== undefined,
+    queryKey: ["skills", skillId, "lesson"],
+    queryFn: () => lessonsApi.getForSkill(skillId),
   });
 }
 

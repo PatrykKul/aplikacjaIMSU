@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.content.importer import import_package
-from app.modules.content.models import Lesson, LessonMethod
+from app.modules.content.models import Lesson
 from app.modules.content.package import load_package
 from app.modules.curriculum.models import Course, Skill
 from app.modules.identity.models import User, UserRole
@@ -32,17 +32,14 @@ class Imported:
             s.key: s for s in db.scalars(select(Skill).where(Skill.course_id == course_id))
         }
 
-    def lesson(self, skill: str, method: LessonMethod = LessonMethod.COMMON) -> Lesson:
-        return self.db.scalars(
-            select(Lesson).where(Lesson.skill_id == self.skills[skill].id, Lesson.method == method)
-        ).one()
+    def lesson(self, skill: str) -> Lesson:
+        return self.db.scalars(select(Lesson).where(Lesson.skill_id == self.skills[skill].id)).one()
 
 
 @pytest.fixture
 def course(db: Session, tmp_path: Path) -> Imported:
     lessons = [
-        lesson("base"),
-        lesson("base", "beta", steps=[TEXT_STEP, number_question(), choice_question()]),
+        lesson("base", steps=[TEXT_STEP, number_question(), choice_question()]),
         lesson("advanced"),
     ]
     report = import_package(db, load_package(write_package(tmp_path, lessons=lessons)))
@@ -71,33 +68,39 @@ def check(client: TestClient, item: Lesson, step: str, **body: Any):
     return client.post(f"/lessons/{item.id}/steps/{step}/check", json=body)
 
 
+def skill_lesson(client: TestClient, course: Imported, skill: str = "base"):
+    return client.get(f"/skills/{course.skills[skill].id}/lesson")
+
+
 def test_anonymous_gets_401(client: TestClient, course: Imported):
-    assert client.get(f"/lessons/{course.lesson('base').id}").status_code == 401
+    assert skill_lesson(client, course).status_code == 401
 
 
-def test_list_lessons_of_skill(client: TestClient, course: Imported, student: User):
-    response = client.get(f"/skills/{course.skills['base'].id}/lessons")
+def test_lesson_of_skill_has_no_answer_keys(client: TestClient, course: Imported, student: User):
+    response = skill_lesson(client, course)
 
     assert response.status_code == 200
-    assert [(item["method"], item["step_count"]) for item in response.json()] == [
-        ("common", 2),
-        ("beta", 3),
-    ]
+    data = response.json()
+    assert (data["id"], data["skill_id"]) == (course.lesson("base").id, course.skills["base"].id)
+    assert [step["type"] for step in data["steps"]] == ["text", "question", "question"]
+    number, choice = data["steps"][1]["answer"], data["steps"][2]["answer"]
+    assert number == {"type": "number", "unit": "zł"}
+    assert choice["type"] == "choice"
+    assert len(choice["options"]) == 3
+    assert data["steps"][1]["hint"] == "25% to jedna czwarta."
+    assert keys_in(data) & SECRET_KEYS == set()
 
 
 def test_archived_lesson_is_hidden(
     client: TestClient, course: Imported, student: User, db: Session
 ):
-    beta = course.lesson("base", LessonMethod.BETA)
-    beta.is_archived = True
+    base = course.lesson("base")
+    base.is_archived = True
     db.flush()
 
-    methods = [
-        item["method"] for item in client.get(f"/skills/{course.skills['base'].id}/lessons").json()
-    ]
-
-    assert methods == ["common"]
-    response = client.get(f"/lessons/{beta.id}")
+    response = skill_lesson(client, course)
+    assert (response.status_code, response.json()) == (404, {"code": "LESSON_NOT_FOUND"})
+    response = check(client, base, "q-saving", answer="30")
     assert (response.status_code, response.json()) == (404, {"code": "LESSON_NOT_FOUND"})
 
 
@@ -107,24 +110,9 @@ def test_lessons_of_draft_course_are_hidden(
     course.course.is_published = False
     db.flush()
 
-    response = client.get(f"/skills/{course.skills['base'].id}/lessons")
+    response = skill_lesson(client, course)
     assert (response.status_code, response.json()) == (404, {"code": "SKILL_NOT_FOUND"})
-    assert client.get(f"/lessons/{course.lesson('base').id}").status_code == 404
-
-
-def test_lesson_has_no_answer_keys(client: TestClient, course: Imported, student: User):
-    response = client.get(f"/lessons/{course.lesson('base', LessonMethod.BETA).id}")
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["method"] == "beta"
-    assert [step["type"] for step in data["steps"]] == ["text", "question", "question"]
-    number, choice = data["steps"][1]["answer"], data["steps"][2]["answer"]
-    assert number == {"type": "number", "unit": "zł"}
-    assert choice["type"] == "choice"
-    assert len(choice["options"]) == 3
-    assert data["steps"][1]["hint"] == "25% to jedna czwarta."
-    assert keys_in(data) & SECRET_KEYS == set()
+    assert check(client, course.lesson("base"), "q-saving", answer="30").status_code == 404
 
 
 def test_check_correct_answer(client: TestClient, course: Imported, student: User):
@@ -155,9 +143,9 @@ def test_reveal_after_wrong_answer(client: TestClient, course: Imported, student
 
 
 def test_check_choice(client: TestClient, course: Imported, student: User):
-    beta = course.lesson("base", LessonMethod.BETA)
-    assert check(client, beta, "q-rule", answer=0).json()["correct"] is True
-    assert check(client, beta, "q-rule", answer=1).json()["feedback"] == "Sprawdź na bluzie."
+    base = course.lesson("base")
+    assert check(client, base, "q-rule", answer=0).json()["correct"] is True
+    assert check(client, base, "q-rule", answer=1).json()["feedback"] == "Sprawdź na bluzie."
 
 
 @pytest.mark.parametrize(
@@ -179,12 +167,12 @@ def test_check_errors(
     status: int,
     code: str,
 ):
-    response = check(client, course.lesson("base", LessonMethod.BETA), step, answer=answer)
+    response = check(client, course.lesson("base"), step, answer=answer)
     assert (response.status_code, response.json()) == (status, {"code": code})
 
 
 def test_check_rejects_boolean_answer(client: TestClient, course: Imported, student: User):
-    response = check(client, course.lesson("base", LessonMethod.BETA), "q-rule", answer=True)
+    response = check(client, course.lesson("base"), "q-rule", answer=True)
     assert response.status_code == 422
 
 

@@ -5,15 +5,6 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StringConstraints
 
-from app.modules.content.models import LessonMethod
-
-
-class LessonSummaryResponse(BaseModel):
-    id: int
-    method: LessonMethod
-    title: str
-    step_count: int
-
 
 class TextStepResponse(BaseModel):
     type: Literal["text"] = "text"
@@ -45,7 +36,6 @@ StepResponse = Annotated[TextStepResponse | QuestionStepResponse, Field(discrimi
 class LessonResponse(BaseModel):
     id: int
     skill_id: int
-    method: LessonMethod
     title: str
     steps: list[StepResponse]
 

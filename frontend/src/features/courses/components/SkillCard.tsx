@@ -14,16 +14,9 @@ type SkillCardProps = {
   courseId: number;
   skill: SkillSummary;
   number: number;
-  // Required skills as shown to the student, e.g. "1. Skill A, 2. Skill B"
-  requires: string[];
 };
 
-export function SkillCard({
-  courseId,
-  skill,
-  number,
-  requires,
-}: SkillCardProps) {
+export function SkillCard({ courseId, skill, number }: SkillCardProps) {
   return (
     <Card className="relative transition-colors hover:bg-muted/50 has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50">
       <CardContent className="flex gap-4">
@@ -46,11 +39,6 @@ export function SkillCard({
             <CardDescription className="text-base">
               <MathMarkdown>{skill.goal}</MathMarkdown>
             </CardDescription>
-          )}
-          {requires.length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              Wymaga: {requires.join(", ")}
-            </p>
           )}
         </div>
       </CardContent>

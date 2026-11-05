@@ -17,8 +17,6 @@ class SkillSummaryResponse(BaseModel):
     key: str
     title: str
     goal: str
-    # Ids of the skills this skill requires (prerequisite graph)
-    requires: list[int]
 
 
 class UnitResponse(BaseModel):

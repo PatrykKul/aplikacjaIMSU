@@ -4,12 +4,6 @@ import { SkillCard } from "./SkillCard";
 export function SkillList({ course }: { course: Course }) {
   const skills = course.units.flatMap((unit) => unit.skills);
   const numberOf = new Map(skills.map((skill, index) => [skill.id, index + 1]));
-  const labelOf = new Map(
-    skills.map((skill) => [
-      skill.id,
-      `${numberOf.get(skill.id)}. ${skill.title}`,
-    ]),
-  );
 
   return (
     <div className="space-y-10">
@@ -25,9 +19,6 @@ export function SkillList({ course }: { course: Course }) {
                   courseId={course.id}
                   skill={skill}
                   number={numberOf.get(skill.id) ?? 0}
-                  requires={skill.requires.flatMap(
-                    (id) => labelOf.get(id) ?? [],
-                  )}
                 />
               </li>
             ))}

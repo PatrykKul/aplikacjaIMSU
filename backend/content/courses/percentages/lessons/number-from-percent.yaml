@@ -1,5 +1,4 @@
 skill: number-from-percent
-method: common
 title: Cała liczba z jej procentu
 steps:
   - key: intro

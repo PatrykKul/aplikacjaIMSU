@@ -1,6 +1,5 @@
 import { ArrowLeftIcon } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 
 import { cn } from "@/shared/lib/utils";
 import { buttonVariants } from "@/shared/ui/button";
@@ -12,7 +11,6 @@ type LessonHeaderProps = {
   step: number;
   total: number;
   progress: number;
-  methodSelect?: ReactNode;
 };
 
 // Focus mode: the lesson replaces the app header with its own
@@ -23,7 +21,6 @@ export function LessonHeader({
   step,
   total,
   progress,
-  methodSelect,
 }: LessonHeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
@@ -45,7 +42,6 @@ export function LessonHeader({
           </p>
           <h1 className="truncate font-semibold">{title}</h1>
         </div>
-        {methodSelect}
         <p className="shrink-0 px-1 text-sm text-muted-foreground">
           <span className="hidden sm:inline">Krok </span>
           {step}

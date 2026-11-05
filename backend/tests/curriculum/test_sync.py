@@ -2,10 +2,10 @@ import copy
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 
 from app.modules.curriculum.definitions import CourseDefinition
-from app.modules.curriculum.models import Course, Skill, SkillPrerequisite
+from app.modules.curriculum.models import Course, Skill
 from app.modules.curriculum.service import sync_course
 
 BASE: dict[str, Any] = {
@@ -17,13 +17,13 @@ BASE: dict[str, Any] = {
             "title": "Podstawy",
             "skills": [
                 {"key": "a", "title": "A"},
-                {"key": "b", "title": "B", "requires": ["a"]},
+                {"key": "b", "title": "B"},
             ],
         },
         {
             "key": "applications",
             "title": "Zastosowania",
-            "skills": [{"key": "c", "title": "C", "requires": ["a", "b"]}],
+            "skills": [{"key": "c", "title": "C"}],
         },
     ],
 }
@@ -40,17 +40,6 @@ def without_applications(data: dict[str, Any]) -> None:
     del data["units"][1]
 
 
-def edges(db: Session, course_id: int) -> set[tuple[str, str]]:
-    prerequisite = aliased(Skill)
-    rows = db.execute(
-        select(Skill.key, prerequisite.key)
-        .join(SkillPrerequisite, SkillPrerequisite.skill_id == Skill.id)
-        .join(prerequisite, prerequisite.id == SkillPrerequisite.prerequisite_id)
-        .where(Skill.course_id == course_id)
-    )
-    return {(row[0], row[1]) for row in rows}
-
-
 def skill(db: Session, course_id: int, key: str) -> Skill:
     return db.scalars(select(Skill).where(Skill.course_id == course_id, Skill.key == key)).one()
 
@@ -64,11 +53,9 @@ def test_creates_course_structure(db: Session):
     assert [unit.key for unit in course.units] == ["basics", "applications"]
     assert [s.key for s in course.units[0].skills] == ["a", "b"]
     assert set(result.skill_ids) == {"a", "b", "c"}
-    assert edges(db, course.id) == {("b", "a"), ("c", "a"), ("c", "b")}
     assert result.changes["course"].created == 1
     assert result.changes["units"].created == 2
     assert result.changes["skills"].created == 3
-    assert result.changes["prerequisites"].created == 3
 
 
 def test_second_sync_changes_nothing(db: Session):
@@ -95,10 +82,8 @@ def test_missing_skill_is_archived_and_restored(db: Session):
     assert skill(db, second.course_id, "c").is_archived is True
     assert "c" not in second.skill_ids
     assert first.skill_ids["c"] in second.all_skill_ids
-    assert edges(db, second.course_id) == {("b", "a")}
     assert second.changes["units"].archived == 1
     assert second.changes["skills"].archived == 1
-    assert second.changes["prerequisites"].removed == 2
 
     third = sync_course(db, definition())
     assert skill(db, third.course_id, "c").is_archived is False

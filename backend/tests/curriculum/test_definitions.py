@@ -6,8 +6,8 @@ from pydantic import ValidationError
 from app.modules.curriculum.definitions import CourseDefinition
 
 
-def skill(key: str, *requires: str) -> dict[str, Any]:
-    return {"key": key, "title": key.upper(), "requires": list(requires)}
+def skill(key: str) -> dict[str, Any]:
+    return {"key": key, "title": key.upper()}
 
 
 def course(*skills: dict[str, Any], **fields: Any) -> dict[str, Any]:
@@ -16,10 +16,8 @@ def course(*skills: dict[str, Any], **fields: Any) -> dict[str, Any]:
 
 
 def test_valid_course_lists_skills_of_all_units():
-    data = course(skill("a"), skill("b", "a"))
-    data["units"].append(
-        {"key": "applications", "title": "Zastosowania", "skills": [skill("c", "a", "b")]}
-    )
+    data = course(skill("a"), skill("b"))
+    data["units"].append({"key": "applications", "title": "Zastosowania", "skills": [skill("c")]})
     definition = CourseDefinition.model_validate(data)
     assert [s.key for s in definition.skills] == ["a", "b", "c"]
     assert definition.description == ""
@@ -45,20 +43,6 @@ def test_two_units_with_the_same_skill_key():
             },
             "duplicate unit keys: basics",
             id="duplicate unit",
-        ),
-        pytest.param(course(skill("a", "a")), "skill a requires itself", id="self requirement"),
-        pytest.param(
-            course(skill("a", "x")), "requires unknown skills: x", id="unknown requirement"
-        ),
-        pytest.param(
-            course(skill("a"), skill("b", "a", "a")),
-            "duplicate requirements of b: a",
-            id="duplicate requirement",
-        ),
-        pytest.param(
-            course(skill("a", "b"), skill("b", "a")),
-            "prerequisite cycle: a -> b -> a",
-            id="cycle",
         ),
         pytest.param(course(skill("Bad Key")), "should match pattern", id="key format"),
         pytest.param({**course(skill("a")), "titel": "x"}, "Extra inputs", id="unknown field"),

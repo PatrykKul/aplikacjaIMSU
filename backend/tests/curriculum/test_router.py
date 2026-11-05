@@ -20,13 +20,13 @@ DEFINITION = CourseDefinition.model_validate(
                 "title": "Podstawy",
                 "skills": [
                     {"key": "a", "title": "A", "goal": "Cel A"},
-                    {"key": "b", "title": "B", "requires": ["a"]},
+                    {"key": "b", "title": "B"},
                 ],
             },
             {
                 "key": "applications",
                 "title": "Zastosowania",
-                "skills": [{"key": "c", "title": "C", "requires": ["a", "b"]}],
+                "skills": [{"key": "c", "title": "C"}],
             },
         ],
     }
@@ -102,10 +102,10 @@ def test_course_detail(client: TestClient, as_role: Login, published: CourseSync
     assert [unit["key"] for unit in course["units"]] == ["basics", "applications"]
     basics, applications = course["units"]
     assert basics["skills"] == [
-        {"id": ids["a"], "key": "a", "title": "A", "goal": "Cel A", "requires": []},
-        {"id": ids["b"], "key": "b", "title": "B", "goal": "", "requires": [ids["a"]]},
+        {"id": ids["a"], "key": "a", "title": "A", "goal": "Cel A"},
+        {"id": ids["b"], "key": "b", "title": "B", "goal": ""},
     ]
-    assert applications["skills"][0]["requires"] == sorted([ids["a"], ids["b"]])
+    assert [skill["key"] for skill in applications["skills"]] == ["c"]
 
 
 def test_archived_skill_is_hidden(
@@ -130,7 +130,7 @@ def test_skill_detail(client: TestClient, as_role: Login, published: CourseSync)
 
     assert skill["key"] == "b"
     assert skill["course_id"] == published.course_id
-    assert skill["requires"] == [ids["a"]]
+    assert "requires" not in skill
 
 
 def test_skill_of_draft_course_is_hidden(client: TestClient, as_role: Login, draft: CourseSync):

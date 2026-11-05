@@ -55,18 +55,17 @@ COURSE: dict[str, Any] = {
             "title": "Podstawy",
             "skills": [
                 {"key": "base", "title": "Podstawa"},
-                {"key": "advanced", "title": "Rozszerzenie", "requires": ["base"]},
+                {"key": "advanced", "title": "Rozszerzenie"},
             ],
         }
     ],
 }
 
 
-def lesson(skill: str = "base", method: str = "common", **fields: Any) -> dict[str, Any]:
+def lesson(skill: str = "base", **fields: Any) -> dict[str, Any]:
     return {
         "skill": skill,
-        "method": method,
-        "title": f"Lekcja {skill} ({method})",
+        "title": f"Lekcja {skill}",
         "steps": [TEXT_STEP, number_question()],
         **fields,
     }
@@ -85,7 +84,7 @@ def write_package(
     if course is not None:
         _write_yaml(root / "course.yaml", course)
     for data in lessons if lessons is not None else [lesson("base"), lesson("advanced")]:
-        _write_yaml(root / "lessons" / f"{data['skill']}.{data['method']}.yaml", data)
+        _write_yaml(root / "lessons" / f"{data['skill']}.yaml", data)
     for name, text in (files or {}).items():
         (root / name).write_text(text, encoding="utf-8")
     return root

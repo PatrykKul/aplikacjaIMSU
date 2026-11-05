@@ -15,7 +15,7 @@ from app.modules.curriculum.service import CourseSync
 @dataclass(frozen=True)
 class ImportReport:
     course_id: int
-    # Keys in report order: course, units, skills, prerequisites, lessons
+    # Keys in report order: course, units, skills, lessons
     changes: dict[str, Changes]
     dry_run: bool
 
@@ -47,15 +47,15 @@ def import_package(db: Session, package: CoursePackage, *, dry_run: bool = False
 def _sync_lessons(db: Session, lessons: list[LessonDefinition], sync: CourseSync) -> Changes:
     changes = Changes()
     existing = {
-        (lesson.skill_id, lesson.method): lesson
+        lesson.skill_id: lesson
         for lesson in db.scalars(select(Lesson).where(Lesson.skill_id.in_(sync.all_skill_ids)))
     }
     for definition in lessons:
         skill_id = sync.skill_ids[definition.skill]
         values = {"title": definition.title, "steps": definition.to_json()}
-        lesson = existing.pop((skill_id, definition.method), None)
+        lesson = existing.pop(skill_id, None)
         if lesson is None:
-            db.add(Lesson(skill_id=skill_id, method=definition.method, **values))
+            db.add(Lesson(skill_id=skill_id, **values))
             changes.created += 1
         elif assign_changed(lesson, **values, is_archived=False):
             changes.updated += 1

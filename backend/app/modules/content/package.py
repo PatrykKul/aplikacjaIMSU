@@ -1,4 +1,4 @@
-"""Course package: a directory with `course.yaml` and `lessons/<skill>.<method>.yaml`.
+"""Course package: a directory with `course.yaml` and `lessons/<skill>.yaml`.
 
 `load_package` reads and validates the whole package and reports every problem it
 finds, with file names, before anything is written to the database.
@@ -11,7 +11,6 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ValidationError
 
-from app.modules.content.models import LessonMethod
 from app.modules.content.steps import LessonSteps
 from app.modules.curriculum.definitions import CourseDefinition, Key, Title
 
@@ -20,15 +19,14 @@ LESSONS_DIR = "lessons"
 
 
 class LessonDefinition(LessonSteps):
-    """One lesson file: the skill it teaches, its teaching method and its steps."""
+    """One lesson file: the skill it teaches and its steps."""
 
     skill: Key
-    method: LessonMethod
     title: Title
 
     @property
     def file_name(self) -> str:
-        return f"{self.skill}.{self.method}.yaml"
+        return f"{self.skill}.yaml"
 
 
 @dataclass(frozen=True)
@@ -94,15 +92,12 @@ def _check_lessons_against_course(
 ) -> list[str]:
     errors = []
     skill_keys = [skill.key for skill in course.skills]
-    methods: dict[str, set[LessonMethod]] = {}
+    with_lesson = {lesson.skill for lesson in lessons}
     for lesson in lessons:
         if lesson.skill not in skill_keys:
             errors.append(f"{LESSONS_DIR}/{lesson.file_name}: unknown skill {lesson.skill}")
-        methods.setdefault(lesson.skill, set()).add(lesson.method)
-    # Every skill needs the common variant: the fallback when no other variant fits
+    # One lesson per skill is guaranteed by the file names
     for key in skill_keys:
-        if LessonMethod.COMMON not in methods.get(key, set()):
-            errors.append(
-                f"{COURSE_FILE}: skill {key} has no lesson {LESSONS_DIR}/{key}.common.yaml"
-            )
+        if key not in with_lesson:
+            errors.append(f"{COURSE_FILE}: skill {key} has no lesson {LESSONS_DIR}/{key}.yaml")
     return errors

@@ -1,13 +1,13 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.core.sync import Changes, assign_changed
 from app.modules.curriculum.definitions import CourseDefinition
-from app.modules.curriculum.models import Course, Skill, SkillPrerequisite, Unit
+from app.modules.curriculum.models import Course, Skill, Unit
 from app.modules.curriculum.schemas import (
     CourseResponse,
     CourseSummaryResponse,
@@ -34,14 +34,13 @@ def sync_course(db: Session, definition: CourseDefinition) -> CourseSync:
     """Create or update a course from its definition, matching rows by key.
 
     Elements missing from the definition are archived (never deleted), archived ones that
-    come back are restored, and the prerequisite graph is replaced. `is_published` is not
-    touched. Flushes but does not commit: the caller owns the transaction.
+    come back are restored. `is_published` is not touched. Flushes but does not commit:
+    the caller owns the transaction.
     """
-    changes = {kind: Changes() for kind in ("course", "units", "skills", "prerequisites")}
+    changes = {kind: Changes() for kind in ("course", "units", "skills")}
     course = _sync_course_row(db, definition, changes["course"])
     units = _sync_units(db, course, definition, changes["units"])
     skills = _sync_skills(db, course, definition, units, changes["skills"])
-    _sync_prerequisites(db, course, definition, skills, changes["prerequisites"])
     return CourseSync(
         course_id=course.id,
         skill_ids={key: skill.id for key, skill in skills.items() if not skill.is_archived},
@@ -132,41 +131,6 @@ def _sync_skills(
     return synced | existing
 
 
-def _sync_prerequisites(
-    db: Session,
-    course: Course,
-    definition: CourseDefinition,
-    skills: dict[str, Skill],
-    changes: Changes,
-) -> None:
-    wanted = {
-        (skills[skill.key].id, skills[required].id)
-        for skill in definition.skills
-        for required in skill.requires
-    }
-    current = {
-        (row.skill_id, row.prerequisite_id)
-        for row in db.execute(
-            select(SkillPrerequisite.skill_id, SkillPrerequisite.prerequisite_id)
-            .join(Skill, Skill.id == SkillPrerequisite.skill_id)
-            .where(Skill.course_id == course.id)
-        )
-    }
-    # Edges carry no history, so they are replaced instead of archived
-    for skill_id, prerequisite_id in current - wanted:
-        db.execute(
-            delete(SkillPrerequisite).where(
-                SkillPrerequisite.skill_id == skill_id,
-                SkillPrerequisite.prerequisite_id == prerequisite_id,
-            )
-        )
-        changes.removed += 1
-    for skill_id, prerequisite_id in wanted - current:
-        db.add(SkillPrerequisite(skill_id=skill_id, prerequisite_id=prerequisite_id))
-        changes.created += 1
-    db.flush()
-
-
 def _archive(rows: Iterable[Unit | Skill], changes: Changes) -> None:
     for row in rows:
         if not row.is_archived:
@@ -204,9 +168,6 @@ def get_course_detail(db: Session, course_id: int, user: User) -> CourseResponse
     course = get_course(db, course_id, user)
     units = [unit for unit in course.units if not unit.is_archived]
     skills = {unit.id: [s for s in unit.skills if not s.is_archived] for unit in units}
-    requires = _requirements(
-        db, [skill.id for unit_skills in skills.values() for skill in unit_skills]
-    )
     return CourseResponse(
         **CourseSummaryResponse.model_validate(course).model_dump(),
         units=[
@@ -214,7 +175,7 @@ def get_course_detail(db: Session, course_id: int, user: User) -> CourseResponse
                 id=unit.id,
                 key=unit.key,
                 title=unit.title,
-                skills=[_skill_summary(skill, requires) for skill in skills[unit.id]],
+                skills=[_skill_summary(skill) for skill in skills[unit.id]],
             )
             for unit in units
         ],
@@ -230,9 +191,8 @@ def get_skill(db: Session, skill_id: int, user: User) -> Skill:
 
 def get_skill_detail(db: Session, skill_id: int, user: User) -> SkillResponse:
     skill = get_skill(db, skill_id, user)
-    requires = _requirements(db, [skill.id])
     return SkillResponse(
-        **_skill_summary(skill, requires).model_dump(),
+        **_skill_summary(skill).model_dump(),
         course_id=skill.course_id,
         unit_id=skill.unit_id,
     )
@@ -262,23 +222,5 @@ def _visible_skill(db: Session, skill_id: int, user: User) -> Skill | None:
     return skill
 
 
-def _requirements(db: Session, skill_ids: list[int]) -> dict[int, list[int]]:
-    requires: dict[int, list[int]] = {skill_id: [] for skill_id in skill_ids}
-    rows = db.execute(
-        select(SkillPrerequisite.skill_id, SkillPrerequisite.prerequisite_id)
-        .where(SkillPrerequisite.skill_id.in_(skill_ids))
-        .order_by(SkillPrerequisite.skill_id, SkillPrerequisite.prerequisite_id)
-    )
-    for row in rows:
-        requires[row.skill_id].append(row.prerequisite_id)
-    return requires
-
-
-def _skill_summary(skill: Skill, requires: dict[int, list[int]]) -> SkillSummaryResponse:
-    return SkillSummaryResponse(
-        id=skill.id,
-        key=skill.key,
-        title=skill.title,
-        goal=skill.goal,
-        requires=requires.get(skill.id, []),
-    )
+def _skill_summary(skill: Skill) -> SkillSummaryResponse:
+    return SkillSummaryResponse(id=skill.id, key=skill.key, title=skill.title, goal=skill.goal)

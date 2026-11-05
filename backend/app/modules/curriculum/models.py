@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    CheckConstraint,
     DateTime,
     ForeignKey,
     String,
@@ -69,18 +68,3 @@ class Skill(Base):
     is_archived: Mapped[bool] = mapped_column(server_default=false())
 
     unit: Mapped[Unit] = relationship(back_populates="skills")
-
-
-class SkillPrerequisite(Base):
-    """Edge of the prerequisite graph: `skill_id` requires `prerequisite_id`.
-
-    Both skills belong to the same course; this is enforced by course package validation.
-    """
-
-    __tablename__ = "skill_prerequisites"
-    __table_args__ = (CheckConstraint("skill_id <> prerequisite_id", name="not_self"),)
-
-    skill_id: Mapped[int] = mapped_column(ForeignKey("skills.id"), primary_key=True)
-    prerequisite_id: Mapped[int] = mapped_column(
-        ForeignKey("skills.id"), primary_key=True, index=True
-    )

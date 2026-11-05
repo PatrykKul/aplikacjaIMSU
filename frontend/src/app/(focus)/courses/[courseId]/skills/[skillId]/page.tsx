@@ -14,12 +14,5 @@ export default async function SkillLessonPage(
   props: PageProps<"/courses/[courseId]/skills/[skillId]">,
 ) {
   const { courseId, skillId } = await props.params;
-  const { method } = await props.searchParams;
-  return (
-    <LessonPage
-      courseId={parseId(courseId)}
-      skillId={parseId(skillId)}
-      method={typeof method === "string" ? method : undefined}
-    />
-  );
+  return <LessonPage courseId={parseId(courseId)} skillId={parseId(skillId)} />;
 }
