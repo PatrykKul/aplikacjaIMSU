@@ -1,7 +1,9 @@
+name: imsu
+
 services:
   db:
     image: postgres:17
-    container_name: imsu-v2-db
+    container_name: imsu-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-imsu}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-imsu}
