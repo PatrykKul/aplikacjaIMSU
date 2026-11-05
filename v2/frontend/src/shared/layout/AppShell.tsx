@@ -43,15 +43,15 @@ export function AppShell({ nav, user, onLogout, children }: AppShellProps) {
   return (
     <div className="flex min-h-svh flex-col">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full max-w-5xl items-center gap-6 px-4 sm:px-6">
+        <div className="grid h-16 grid-cols-[minmax(max-content,1fr)_minmax(0,64rem)_minmax(max-content,1fr)] items-center px-4 sm:px-6">
           <Link
             href="/dashboard"
-            className="text-lg font-semibold tracking-tight"
+            className="justify-self-start text-lg font-semibold tracking-tight"
           >
             IMSU
           </Link>
 
-          <nav className="flex flex-1 items-center gap-1">
+          <nav className="flex min-w-0 items-center gap-1 px-4 sm:px-6">
             {nav.map((item) => {
               const active =
                 pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -73,7 +73,7 @@ export function AppShell({ nav, user, onLogout, children }: AppShellProps) {
 
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="ghost" className="gap-2 px-2" />}
+              render={<Button variant="ghost" className="justify-self-end gap-2 px-2" />}
               aria-label={`Menu użytkownika: ${user.displayName}`}
             >
               <Avatar>
