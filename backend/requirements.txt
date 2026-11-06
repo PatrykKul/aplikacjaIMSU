@@ -7,7 +7,6 @@ pydantic-settings
 PyJWT
 bcrypt
 email-validator
-PyYAML
 
 # dev
 pytest
