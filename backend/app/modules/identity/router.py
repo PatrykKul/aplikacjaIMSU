@@ -4,10 +4,12 @@ from app.core.config import get_settings
 from app.core.db import DbSession
 from app.modules.identity import service
 from app.modules.identity.dependencies import AdminUser, CurrentUser
-from app.modules.identity.models import User
+from app.modules.identity.models import User, UserRole
 from app.modules.identity.schemas import (
     LoginRequest,
+    ManagedRole,
     RegisterRequest,
+    UserCreateRequest,
     UserResponse,
     UserUpdateRequest,
 )
@@ -32,7 +34,7 @@ def _set_auth_cookie(response: Response, user: User) -> None:
 
 @auth_router.post("/register", status_code=status.HTTP_201_CREATED)
 def register(data: RegisterRequest, response: Response, db: DbSession) -> UserResponse:
-    user = service.register(db, data)
+    user = service.create_account(db, data)
     _set_auth_cookie(response, user)
     return UserResponse.model_validate(user)
 
@@ -62,13 +64,17 @@ def me(user: CurrentUser) -> UserResponse:
 
 
 @users_router.get("")
-def list_users(db: DbSession, _admin: AdminUser) -> list[UserResponse]:
-    return [UserResponse.model_validate(user) for user in service.list_users(db)]
+def list_users(role: ManagedRole, db: DbSession, _admin: AdminUser) -> list[UserResponse]:
+    return [UserResponse.model_validate(user) for user in service.list_users(db, UserRole(role))]
+
+
+@users_router.post("", status_code=status.HTTP_201_CREATED)
+def create_user(data: UserCreateRequest, db: DbSession, _admin: AdminUser) -> UserResponse:
+    return UserResponse.model_validate(service.create_account(db, data))
 
 
 @users_router.patch("/{user_id}")
 def update_user(
-    user_id: int, data: UserUpdateRequest, db: DbSession, admin: AdminUser
+    user_id: int, data: UserUpdateRequest, db: DbSession, _admin: AdminUser
 ) -> UserResponse:
-    user = service.update_user(db, user_id=user_id, data=data, acting_user=admin)
-    return UserResponse.model_validate(user)
+    return UserResponse.model_validate(service.update_user(db, user_id=user_id, data=data))

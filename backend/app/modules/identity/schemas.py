@@ -29,11 +29,19 @@ Password = Annotated[str, Field(min_length=8), AfterValidator(_check_bcrypt_limi
 DisplayName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
 
 
+ManagedRole = Literal["student", "teacher"]
+"""Roles an account can be created with."""
+
+
 class RegisterRequest(BaseModel):
     email: Email
     password: Password
     display_name: DisplayName
-    role: Literal["student", "teacher"]
+    role: ManagedRole
+
+
+class UserCreateRequest(RegisterRequest):
+    """Account created by an admin; same fields as self-registration."""
 
 
 class LoginRequest(BaseModel):
@@ -42,7 +50,13 @@ class LoginRequest(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
-    role: UserRole | None = None
+    """Fields an admin may change; the role is fixed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: DisplayName | None = None
+    email: Email | None = None
+    password: Password | None = None
     is_active: bool | None = None
 
 

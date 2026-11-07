@@ -7,9 +7,20 @@ from app.modules.identity.models import User, UserRole
 from app.modules.identity.schemas import RegisterRequest, UserUpdateRequest
 from app.modules.identity.security import hash_password, verify_password
 
+MANAGED_ROLES = frozenset({UserRole.STUDENT, UserRole.TEACHER})
+"""Roles whose accounts the admin manages through the API."""
+
 
 def get_by_email(db: Session, email: str) -> User | None:
     return db.scalar(select(User).where(User.email == email))
+
+
+def _commit_with_unique_email(db: Session) -> None:
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise AppError(409, "EMAIL_TAKEN") from None
 
 
 def create_user(
@@ -24,16 +35,13 @@ def create_user(
         role=role,
     )
     db.add(user)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise AppError(409, "EMAIL_TAKEN") from None
+    _commit_with_unique_email(db)
     db.refresh(user)
     return user
 
 
-def register(db: Session, data: RegisterRequest) -> User:
+def create_account(db: Session, data: RegisterRequest) -> User:
+    """Create a student or teacher account (self-registration or by an admin)."""
     return create_user(
         db,
         email=data.email,
@@ -50,20 +58,29 @@ def authenticate(db: Session, email: str, password: str) -> User:
     return user
 
 
-def list_users(db: Session) -> list[User]:
-    return list(db.scalars(select(User).order_by(User.id)))
+def list_users(db: Session, role: UserRole) -> list[User]:
+    return list(db.scalars(select(User).where(User.role == role).order_by(User.email)))
 
 
-def update_user(db: Session, *, user_id: int, data: UserUpdateRequest, acting_user: User) -> User:
+def _get_managed_user(db: Session, user_id: int) -> User:
     user = db.get(User, user_id)
-    if user is None:
+    if user is None or user.role not in MANAGED_ROLES:
         raise AppError(404, "USER_NOT_FOUND")
-    if user.id == acting_user.id:
-        raise AppError(400, "CANNOT_MODIFY_SELF")
-    if data.role is not None:
-        user.role = data.role
+    return user
+
+
+def update_user(db: Session, *, user_id: int, data: UserUpdateRequest) -> User:
+    user = _get_managed_user(db, user_id)
+    if data.email is not None and data.email != user.email:
+        if get_by_email(db, data.email) is not None:
+            raise AppError(409, "EMAIL_TAKEN")
+        user.email = data.email
+    if data.display_name is not None:
+        user.display_name = data.display_name
+    if data.password is not None:
+        user.password_hash = hash_password(data.password)
     if data.is_active is not None:
         user.is_active = data.is_active
-    db.commit()
+    _commit_with_unique_email(db)
     db.refresh(user)
     return user

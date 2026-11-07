@@ -160,16 +160,16 @@ def test_blocking_takes_effect_immediately(
     assert client.get("/auth/me").status_code == 401
 
 
-def test_role_change_takes_effect_immediately(
+def test_role_is_read_from_database_on_each_request(
     client: TestClient, db: Session, make_user: Callable[..., User], login: Callable[[User], None]
 ) -> None:
     user = make_user(UserRole.STUDENT)
     login(user)
-    assert client.get("/users").status_code == 403
+    assert client.get("/users?role=student").status_code == 403
 
     user.role = UserRole.ADMIN
     db.commit()
-    assert client.get("/users").status_code == 200
+    assert client.get("/users?role=student").status_code == 200
 
 
 def test_logout_clears_session(
