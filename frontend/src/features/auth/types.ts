@@ -1,5 +1,8 @@
 export type UserRole = "student" | "teacher" | "admin";
 
+/** Roles of accounts created by registration or by the admin. */
+export type ManagedRole = Exclude<UserRole, "admin">;
+
 export type User = {
   id: number;
   email: string;
@@ -16,5 +19,5 @@ export type LoginInput = {
 
 export type RegisterInput = LoginInput & {
   display_name: string;
-  role: Exclude<UserRole, "admin">;
+  role: ManagedRole;
 };

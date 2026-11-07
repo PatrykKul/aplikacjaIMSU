@@ -1,11 +1,10 @@
 "use client";
 
+import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { useCurrentUser } from "@/features/auth/hooks";
-import { roleLabels } from "@/features/auth/roles";
-import type { User, UserRole } from "@/features/auth/types";
+import type { ManagedRole, User } from "@/features/auth/types";
 import { errorMessage } from "@/shared/api/error-messages";
 import { PageMessage } from "@/shared/layout/page-states";
 import {
@@ -20,13 +19,6 @@ import {
 } from "@/shared/ui/alert-dialog";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/ui/select";
 import { Spinner } from "@/shared/ui/spinner";
 import {
   Table,
@@ -38,16 +30,30 @@ import {
 } from "@/shared/ui/table";
 
 import { useUpdateUser, useUsers } from "../hooks";
+import { type FormTarget, UserFormDialog } from "./UserFormDialog";
 
-const roleItems = (Object.keys(roleLabels) as UserRole[]).map((role) => ({
-  value: role,
-  label: roleLabels[role],
-}));
+const texts: Record<ManagedRole, { add: string; empty: string }> = {
+  teacher: {
+    add: "Dodaj nauczyciela",
+    empty: "Nie ma jeszcze nauczycieli.",
+  },
+  student: { add: "Dodaj ucznia", empty: "Nie ma jeszcze uczniów." },
+};
 
-export function UsersTable() {
-  const { data: currentUser } = useCurrentUser();
-  const { data: users, isPending, isError, refetch } = useUsers();
+const dateFormat = new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium" });
+
+function StatusBadge({ isActive }: { isActive: boolean }) {
+  return (
+    <Badge variant={isActive ? "secondary" : "destructive"}>
+      {isActive ? "Aktywny" : "Zablokowany"}
+    </Badge>
+  );
+}
+
+export function UsersTable({ role }: { role: ManagedRole }) {
+  const { data: users, isPending, isError, refetch } = useUsers(role);
   const updateUser = useUpdateUser();
+  const [formTarget, setFormTarget] = useState<FormTarget | null>(null);
   const [blockTarget, setBlockTarget] = useState<User | null>(null);
 
   if (isPending) {
@@ -64,19 +70,6 @@ export function UsersTable() {
         description="Sprawdź połączenie i spróbuj ponownie."
         action={<Button onClick={() => refetch()}>Spróbuj ponownie</Button>}
       />
-    );
-  }
-
-  function changeRole(user: User, role: UserRole) {
-    updateUser.mutate(
-      { id: user.id, data: { role } },
-      {
-        onSuccess: () =>
-          toast.success(
-            `Zmieniono rolę: ${user.display_name} - ${roleLabels[role]}.`,
-          ),
-        onError: (error) => toast.error(errorMessage(error)),
-      },
     );
   }
 
@@ -98,74 +91,55 @@ export function UsersTable() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Użytkownicy{" "}
-        <span className="font-normal text-muted-foreground">
-          ({users.length})
-        </span>
-      </h1>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          Liczba kont: {users.length}
+        </p>
+        <Button onClick={() => setFormTarget({ role })}>
+          <PlusIcon data-icon="inline-start" />
+          {texts[role].add}
+        </Button>
+      </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Imię</TableHead>
-            <TableHead>E-mail</TableHead>
-            <TableHead>Rola</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Akcja</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.map((user) => {
-            const isSelf = user.id === currentUser?.id;
-            return (
+      {users.length === 0 ? (
+        <p className="py-12 text-center text-muted-foreground">
+          {texts[role].empty}
+        </p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Imię</TableHead>
+              <TableHead>E-mail</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Założone</TableHead>
+              <TableHead className="text-right">Akcje</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">
                   {user.display_name}
-                  {isSelf && (
-                    <span className="text-muted-foreground"> (Ty)</span>
-                  )}
                 </TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
-                  {isSelf ? (
-                    roleLabels[user.role]
-                  ) : (
-                    <Select
-                      items={roleItems}
-                      value={user.role}
-                      onValueChange={(value) => {
-                        if (value && value !== user.role) {
-                          changeRole(user, value as UserRole);
-                        }
-                      }}
-                    >
-                      <SelectTrigger
-                        className="w-40"
-                        aria-label={`Rola: ${user.display_name}`}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roleItems.map((item) => (
-                          <SelectItem key={item.value} value={item.value}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                  <StatusBadge isActive={user.is_active} />
                 </TableCell>
                 <TableCell>
-                  <Badge variant={user.is_active ? "secondary" : "destructive"}>
-                    {user.is_active ? "Aktywny" : "Zablokowany"}
-                  </Badge>
+                  {dateFormat.format(new Date(user.created_at))}
                 </TableCell>
-                <TableCell className="text-right">
-                  {isSelf ? (
-                    <span className="text-muted-foreground">—</span>
-                  ) : (
+                <TableCell>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormTarget({ role, user })}
+                      aria-label={`Edytuj: ${user.display_name}`}
+                    >
+                      Edytuj
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -173,13 +147,20 @@ export function UsersTable() {
                     >
                       {user.is_active ? "Zablokuj" : "Odblokuj"}
                     </Button>
-                  )}
+                  </div>
                 </TableCell>
               </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      <UserFormDialog
+        // New key = fresh form with the values of the chosen account
+        key={formTarget ? (formTarget.user?.id ?? "new") : "closed"}
+        target={formTarget}
+        onClose={() => setFormTarget(null)}
+      />
 
       <AlertDialog
         open={blockTarget !== null}

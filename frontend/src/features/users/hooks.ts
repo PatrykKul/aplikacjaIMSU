@@ -1,23 +1,35 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { User } from "@/features/auth/types";
+import type { ManagedRole, User } from "@/features/auth/types";
 
 import { type UserUpdateInput, usersApi } from "./api";
 
-export const usersKey = ["users"] as const;
+export const usersKey = (role: ManagedRole) => ["users", role] as const;
 
-export function useUsers() {
-  return useQuery({ queryKey: usersKey, queryFn: usersApi.list });
+export function useUsers(role: ManagedRole) {
+  return useQuery({
+    queryKey: usersKey(role),
+    queryFn: () => usersApi.list(role),
+  });
+}
+
+function useRefreshUsers() {
+  const queryClient = useQueryClient();
+  // The list is sorted by e-mail on the server, so refetch instead of patching the cache
+  return (user: User) =>
+    queryClient.invalidateQueries({ queryKey: ["users", user.role] });
+}
+
+export function useCreateUser() {
+  const refresh = useRefreshUsers();
+  return useMutation({ mutationFn: usersApi.create, onSuccess: refresh });
 }
 
 export function useUpdateUser() {
-  const queryClient = useQueryClient();
+  const refresh = useRefreshUsers();
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: UserUpdateInput }) =>
       usersApi.update(id, data),
-    onSuccess: (updated) =>
-      queryClient.setQueryData<User[]>(usersKey, (users) =>
-        users?.map((user) => (user.id === updated.id ? updated : user)),
-      ),
+    onSuccess: refresh,
   });
 }

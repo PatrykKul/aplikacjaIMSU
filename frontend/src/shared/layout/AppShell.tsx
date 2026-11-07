@@ -73,7 +73,12 @@ export function AppShell({ nav, user, onLogout, children }: AppShellProps) {
 
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="ghost" className="justify-self-end gap-2 px-2" />}
+              render={
+                <Button
+                  variant="ghost"
+                  className="gap-2 justify-self-end px-2"
+                />
+              }
               aria-label={`Menu użytkownika: ${user.displayName}`}
             >
               <Avatar>

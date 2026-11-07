@@ -1,10 +1,10 @@
 import { RoleGate } from "@/features/auth/components/RoleGate";
-import { UsersTable } from "@/features/users/components/UsersTable";
+import { UsersPage } from "@/features/users/components/UsersPage";
 
 export default function AdminUsersPage() {
   return (
     <RoleGate roles={["admin"]}>
-      <UsersTable />
+      <UsersPage />
     </RoleGate>
   );
 }
