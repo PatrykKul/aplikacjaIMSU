@@ -32,3 +32,4 @@ def require_role(*roles: UserRole) -> Callable[[User], User]:
 
 
 AdminUser = Annotated[User, Depends(require_role(UserRole.ADMIN))]
+TeacherUser = Annotated[User, Depends(require_role(UserRole.TEACHER))]
