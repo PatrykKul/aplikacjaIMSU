@@ -1,6 +1,7 @@
 "use client";
 
 import type { JSONContent } from "@tiptap/react";
+import { EyeIcon } from "lucide-react";
 import Link from "next/link";
 import { type MouseEvent, useState } from "react";
 import { toast } from "sonner";
@@ -20,7 +21,8 @@ import {
   useUnsavedChangesWarning,
 } from "@/shared/hooks/use-unsaved-changes-warning";
 import { PageMessage } from "@/shared/layout/page-states";
-import { Button } from "@/shared/ui/button";
+import { cn } from "@/shared/lib/utils";
+import { Button, buttonVariants } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { type AttachmentTarget, AttachmentDialog } from "./AttachmentDialog";
@@ -199,9 +201,18 @@ function BlockEditor({ lesson, initialBlocks }: BlockEditorProps) {
           {save.isPending && <Spinner data-icon="inline-start" />}
           Zapisz lekcję
         </Button>
-        <p className="text-sm text-muted-foreground" aria-live="polite">
+        <p className="flex-1 text-sm text-muted-foreground" aria-live="polite">
           {dirty ? "Masz niezapisane zmiany." : "Wszystkie zmiany zapisane."}
         </p>
+        {/* The preview shows the saved lesson, so unsaved changes need a confirmation */}
+        <Link
+          href={`/courses/${lesson.course.id}/lessons/${lesson.id}`}
+          className={cn(buttonVariants({ variant: "outline" }))}
+          onClick={leaveUnlessDirty}
+        >
+          <EyeIcon data-icon="inline-start" />
+          Podgląd
+        </Link>
       </div>
 
       {blocks.length === 0 ? (

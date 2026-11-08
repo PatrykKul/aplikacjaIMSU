@@ -1,5 +1,6 @@
 "use client";
 
+import { EyeIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -10,7 +11,8 @@ import {
   useUnsavedChangesWarning,
 } from "@/shared/hooks/use-unsaved-changes-warning";
 import { PageMessage } from "@/shared/layout/page-states";
-import { Button } from "@/shared/ui/button";
+import { cn } from "@/shared/lib/utils";
+import { Button, buttonVariants } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { ArchiveCourseSection } from "./ArchiveCourseSection";
@@ -77,7 +79,21 @@ export function CourseEditor({ courseId }: { courseId: number }) {
           <h1 className="text-2xl font-semibold tracking-tight">
             {course.title}
           </h1>
-          <PublishSwitch course={course} />
+          <div className="flex flex-wrap items-center gap-4">
+            <PublishSwitch course={course} />
+            <Link
+              href={`/courses/${course.id}`}
+              className={cn(buttonVariants({ variant: "outline" }))}
+              onClick={(event) => {
+                if (!confirmLeave(dirty)) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              <EyeIcon data-icon="inline-start" />
+              Podgląd kursu
+            </Link>
+          </div>
         </div>
       </div>
 

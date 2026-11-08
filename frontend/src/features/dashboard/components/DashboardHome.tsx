@@ -12,8 +12,9 @@ type RoleCard = { title: string; description: string; href?: string };
 const roleCards: Record<UserRole, RoleCard[]> = {
   student: [
     {
-      title: "Twoje kursy",
-      description: "Zapisz się na kurs.",
+      href: "/courses",
+      title: "Kursy",
+      description: "Wybierz kurs i ucz się lekcja po lekcji.",
     },
   ],
   teacher: [
@@ -30,8 +31,9 @@ const roleCards: Record<UserRole, RoleCard[]> = {
       description: "Dodawaj nauczycieli i uczniów, edytuj i blokuj konta.",
     },
     {
+      href: "/courses",
       title: "Kursy nauczycieli",
-      description: "Przeglądaj kursy, wycofuj publikację i archiwizuj.",
+      description: "Przeglądaj kursy wszystkich nauczycieli.",
     },
   ],
 };

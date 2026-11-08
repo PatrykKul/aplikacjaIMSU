@@ -10,9 +10,12 @@ import { roleLabels } from "../roles";
 import type { UserRole } from "../types";
 
 const navByRole: Record<UserRole, NavItem[]> = {
-  student: [],
+  student: [{ href: "/courses", label: "Kursy" }],
   teacher: [{ href: "/teach", label: "Moje kursy" }],
-  admin: [{ href: "/admin/users", label: "Użytkownicy" }],
+  admin: [
+    { href: "/courses", label: "Kursy" },
+    { href: "/admin/users", label: "Użytkownicy" },
+  ],
 };
 
 export function AuthenticatedShell({ children }: { children: ReactNode }) {
