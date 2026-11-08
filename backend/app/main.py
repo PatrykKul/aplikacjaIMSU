@@ -7,6 +7,11 @@ from app.core.health import router as health_router
 from app.modules.content.router import files_router, lesson_blocks_router
 from app.modules.curriculum.router import courses_router, lessons_router
 from app.modules.identity.router import auth_router, users_router
+from app.modules.learning_style.router import (
+    personalized_router,
+    profile_router,
+    survey_router,
+)
 
 
 def create_app() -> FastAPI:
@@ -27,6 +32,9 @@ def create_app() -> FastAPI:
     app.include_router(lessons_router)
     app.include_router(lesson_blocks_router)
     app.include_router(files_router)
+    app.include_router(survey_router)
+    app.include_router(profile_router)
+    app.include_router(personalized_router)
     return app
 
 
