@@ -5,7 +5,8 @@ import Link from "next/link";
 
 import { useCurrentUser } from "@/features/auth/hooks";
 import { BlockView } from "@/features/content/components/BlockView";
-import { useLessonBlocks } from "@/features/content/hooks";
+import { PersonalizationNote } from "@/features/learning-style/components/PersonalizationNote";
+import { usePersonalizedBlocks } from "@/features/learning-style/hooks";
 import { ApiError } from "@/shared/api/client";
 import { PageMessage } from "@/shared/layout/page-states";
 import { cn } from "@/shared/lib/utils";
@@ -21,7 +22,7 @@ type LessonViewProps = { courseId: number; lessonId: number };
 export function LessonView({ courseId, lessonId }: LessonViewProps) {
   const { data: user } = useCurrentUser();
   const lesson = useLesson(lessonId);
-  const blocks = useLessonBlocks(lessonId);
+  const blocks = usePersonalizedBlocks(lessonId);
   const courseHref = `/courses/${courseId}`;
 
   if (lesson.isPending || blocks.isPending) {
@@ -90,6 +91,7 @@ export function LessonView({ courseId, lessonId }: LessonViewProps) {
             what="lekcję"
           />
         )}
+        <PersonalizationNote data={blocks.data} />
 
         {blocks.data.blocks.length === 0 ? (
           <p className="text-muted-foreground">Ta lekcja jest jeszcze pusta.</p>
