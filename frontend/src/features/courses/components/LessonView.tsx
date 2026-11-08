@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { useCurrentUser } from "@/features/auth/hooks";
 import { BlockView } from "@/features/content/components/BlockView";
+import { LessonQuiz } from "@/features/assessment/components/LessonQuiz";
 import { PersonalizationNote } from "@/features/learning-style/components/PersonalizationNote";
 import { usePersonalizedBlocks } from "@/features/learning-style/hooks";
 import { ApiError } from "@/shared/api/client";
@@ -104,6 +105,14 @@ export function LessonView({ courseId, lessonId }: LessonViewProps) {
             ))}
           </ol>
         )}
+        <LessonQuiz
+          lessonId={lessonId}
+          editHref={
+            isAuthor
+              ? `/teach/courses/${course.id}/lessons/${lessonId}/quiz`
+              : undefined
+          }
+        />
 
         <nav
           aria-label="Lekcje kursu"
