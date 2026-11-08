@@ -44,10 +44,10 @@ from app.modules.learning_style.schemas import SurveyChoice
 ASSETS = Path(__file__).resolve().parent / "assets"
 PASSWORD = "Demo123!"
 
-TEACHER = ("nauczyciel.demo@imsu.pl", "Anna Nowak (nauczycielka)", UserRole.TEACHER)
-ADMIN = ("admin.demo@imsu.pl", "Administrator", UserRole.ADMIN)
-NEW_STUDENT = ("uczen.nowy@imsu.pl", "Ola (nowa uczennica)", UserRole.STUDENT)
-VISUAL_STUDENT = ("uczen.demo@imsu.pl", "Kuba (uczeń)", UserRole.STUDENT)
+TEACHER = ("nauczyciel.demo@imsu.pl", "Anna Nowak", UserRole.TEACHER)
+ADMIN = ("admin.demo@imsu.pl", "Adam Admin", UserRole.ADMIN)
+NEW_STUDENT = ("uczen.nowy@imsu.pl", "Ola Kowalska", UserRole.STUDENT)
+VISUAL_STUDENT = ("uczen.demo@imsu.pl", "Kuba Wiśniewski", UserRole.STUDENT)
 
 # Survey of the demo student: answers per style (20 questions) -> V 9 / A 8 / K 3, style V
 VISUAL_SURVEY = "V" * 9 + "A" * 8 + "K" * 3
@@ -73,6 +73,9 @@ def ensure_user(db: Session, account: tuple[str, str, UserRole]) -> User:
     user = identity.get_by_email(db, email)
     if user is not None:
         log(f"konto istnieje: {email}")
+        if user.display_name != name:  # demo accounts only; the password is left alone
+            user.display_name = name
+            db.commit()
         return user
     user = identity.create_user(db, email=email, password=PASSWORD, display_name=name, role=role)
     log(f"utworzono konto: {email} ({role.value})")
