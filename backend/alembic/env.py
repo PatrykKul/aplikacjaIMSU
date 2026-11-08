@@ -8,6 +8,7 @@ from app.core.db import Base
 from app.modules.content import models as _content_models  # noqa: F401
 from app.modules.curriculum import models as _curriculum_models  # noqa: F401
 from app.modules.identity import models as _identity_models  # noqa: F401
+from app.modules.learning_style import models as _learning_style_models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
