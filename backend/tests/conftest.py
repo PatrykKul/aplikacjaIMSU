@@ -1,6 +1,7 @@
 from collections.abc import Callable, Iterator
 from itertools import count
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic import command
@@ -87,3 +88,48 @@ def login(client: TestClient) -> Callable[[User], None]:
         assert response.status_code == 200
 
     return _login
+
+
+# --- Users of each role and courses (curriculum, content) ---------------------------------------
+
+
+@pytest.fixture
+def teacher(make_user: Callable[..., User]) -> User:
+    return make_user(UserRole.TEACHER)
+
+
+@pytest.fixture
+def other_teacher(make_user: Callable[..., User]) -> User:
+    return make_user(UserRole.TEACHER)
+
+
+@pytest.fixture
+def student(make_user: Callable[..., User]) -> User:
+    return make_user(UserRole.STUDENT)
+
+
+@pytest.fixture
+def admin(make_user: Callable[..., User]) -> User:
+    return make_user(UserRole.ADMIN)
+
+
+@pytest.fixture
+def make_course(client: TestClient, login: Callable[[User], None]) -> Callable[..., dict[str, Any]]:
+    """Create a course as `owner` (who stays logged in), optionally with lessons."""
+
+    def _make(
+        owner: User,
+        *,
+        title: str = "Procenty",
+        lessons: tuple[str, ...] = (),
+        published: bool = False,
+    ) -> dict[str, Any]:
+        login(owner)
+        course = client.post("/courses", json={"title": title, "description": "Opis"}).json()
+        for lesson_title in lessons:
+            client.post(f"/courses/{course['id']}/lessons", json={"title": lesson_title})
+        if published:
+            client.patch(f"/courses/{course['id']}", json={"is_published": True})
+        return client.get(f"/courses/{course['id']}").json()
+
+    return _make

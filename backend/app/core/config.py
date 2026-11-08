@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
@@ -18,6 +19,9 @@ class Settings(BaseSettings):
     auth_cookie_name: str = "imsu_access_token"
     auth_cookie_secure: bool = False
     auth_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+
+    upload_dir: Path = Path("uploads")
+    max_upload_bytes: int = 50 * 1024 * 1024  # 50 MB
 
 
 @lru_cache
