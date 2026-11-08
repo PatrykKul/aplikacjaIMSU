@@ -297,7 +297,9 @@ export function QuizEditor({ courseId, lessonId }: QuizEditorProps) {
         </p>
       </div>
       <Editor
-        key={quiz.dataUpdatedAt}
+        // Keyed by lesson only: saving updates the cache and must not remount the editor
+        // (that would drop the "Zapisano" status and the local edit state)
+        key={lessonId}
         lessonId={lessonId}
         initial={quiz.data.questions}
         previewHref={previewHref}

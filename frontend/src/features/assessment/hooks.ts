@@ -1,18 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { learningProfileKey } from "@/features/learning-style/hooks";
+import { useCurrentUser } from "@/features/auth/hooks";
+import {
+  learningProfileKey,
+  useLearningProfile,
+} from "@/features/learning-style/hooks";
 import { ApiError } from "@/shared/api/client";
 
 import { assessmentApi } from "./api";
 import type { QuizContent, QuizQuestion } from "./types";
 
+/** All student views of a lesson's quiz (one per learning style). */
 const quizKey = (lessonId: number) => ["quiz", lessonId] as const;
-const quizEditKey = (lessonId: number) => ["quiz", lessonId, "edit"] as const;
+const quizEditKey = (lessonId: number) => ["quiz-edit", lessonId] as const;
 
-/** null when the lesson has no quiz (or none for this student's style). */
+/**
+ * null when the lesson has no quiz (or none for this student's style).
+ * The questions depend on the student's style, so the style is part of the key:
+ * after a style change the quiz is fetched again.
+ */
 export function useLessonQuiz(lessonId: number) {
+  const { data: user } = useCurrentUser();
+  const isStudent = user?.role === "student";
+  const profile = useLearningProfile(isStudent);
+  const style = isStudent ? (profile.data?.style ?? null) : "all";
   return useQuery({
-    queryKey: quizKey(lessonId),
+    queryKey: [...quizKey(lessonId), style],
+    enabled: !!user && (!isStudent || profile.isSuccess),
     queryFn: async () => {
       try {
         return await assessmentApi.quiz(lessonId);
@@ -51,7 +65,7 @@ export function useSaveQuiz(lessonId: number) {
       assessmentApi.save(lessonId, questions),
     onSuccess: (saved: QuizContent) => {
       queryClient.setQueryData(quizEditKey(lessonId), saved);
-      void queryClient.invalidateQueries({ queryKey: quizKey(lessonId), exact: true });
+      void queryClient.invalidateQueries({ queryKey: quizKey(lessonId) });
     },
   });
 }
@@ -62,7 +76,7 @@ export function useDeleteQuiz(lessonId: number) {
     mutationFn: () => assessmentApi.remove(lessonId),
     onSuccess: () => {
       queryClient.setQueryData(quizEditKey(lessonId), { questions: [] });
-      void queryClient.invalidateQueries({ queryKey: quizKey(lessonId), exact: true });
+      void queryClient.invalidateQueries({ queryKey: quizKey(lessonId) });
     },
   });
 }
