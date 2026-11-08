@@ -104,3 +104,72 @@
 
 **Co nie działa / do uwagi**
 - Jeśli seed zostanie przerwany w połowie tworzenia kursu, kolejne uruchomienie uzna kurs za istniejący. Wtedy trzeba go zarchiwizować w UI nauczyciela i uruchomić seed ponownie.
+
+## Etap 5: quiz w module `assessment` (2026-11-08/09)
+
+**Zrobione** (commity `5a426ff`, `ddef85f`)
+- Backend `backend/app/modules/assessment/`: tabela `lesson_quizzes` (1 quiz na lekcję, pytania w JSONB, migracja `2e7cf4c0d9fc`), czyste funkcje `grading.py` (dobór pytań pod styl, ocenianie), `service.py`, `router.py`:
+  - `GET /lessons/{id}/quiz`: pytania **bez klucza**, dla ucznia tylko wspólne + o materiałach jego stylu (`hidden_count`),
+  - `POST /lessons/{id}/quiz/attempts`: ocena **tylko na serwerze** → `record_quiz_result` → odpowiedź z `adaptation` (`QuizFeedback`),
+  - `GET /lessons/{id}/quiz/edit`, `PUT`, `DELETE`: edytor autora lekcji.
+- Pytania jednokrotnego wyboru, 3–4 odpowiedzi, opcjonalne `form` (V/A/K) = pytanie o konkretny materiał.
+- Frontend `features/assessment/`: `LessonQuiz` (pod lekcją; wynik, zaznaczenie poprawnych/błędnych, `<AdaptationFeedback />`), `QuizEditor` na nowej stronie `/teach/courses/[id]/lessons/[id]/quiz`.
+- Zmiany w plikach Bartka tylko w zaakceptowanych miejscach: B1 `main.py` (+1 router), B2 `alembic/env.py` (+1 import), F4 `LessonView.tsx` (`<LessonQuiz />` pod blokami; dla autora z `editHref`).
+
+**Decyzje podjęte samodzielnie**
+- **Uczeń dostaje tylko pytania wspólne i o materiałach swojego stylu.** Pytanie o materiał, którego nie widział, byłoby nieuczciwe. Serwer odrzuca odpowiedź na pytanie spoza zestawu (`QUIZ_INCOMPLETE`).
+- **Link „Edytuj quiz” jest przy lekcji w podglądzie autora** (LessonView = F4). Ścieżka nauczyciela: edytor lekcji → „Podgląd” → „Edytuj quiz”. Link bezpośrednio w edytorze lekcji (`LessonEditor`/`LessonList` Bartka) wymagałby zmiany jego plików, więc go nie dodałem. Jeśli chcesz, to 1 link w `LessonEditor.tsx` obok „Podgląd”, do akceptacji.
+- `block_id` w `quiz_attempts` = `quiz-{id}`.
+- Nauczyciel/admin może rozwiązać quiz w podglądzie (wynik bez adaptacji: `adaptation: null`).
+
+**Jak sprawdzone**
+- `tests/assessment/`: 22 testy, w tym ocenianie (czyste funkcje), uprawnienia edytora, walidacja, ukrycie klucza, filtrowanie pod styl, `SURVEY_REQUIRED`, integracja z adaptacją (wagi po quizie, brak „nabijania” przy powtórkach, podgląd nauczyciela bez adaptacji).
+
+## Etap 6: dane demo – quizy i filmy (2026-11-09)
+
+**Zrobione** (commit `bf0a027`)
+- Seed dokłada do **każdej z 7 lekcji** quiz: 3 pytania wspólne + po 1 o materiale V, A i K (uczeń jednego stylu odpowiada na 4).
+- 2 lokalne filmy MP4 oznaczone **V+A**: `m_film.mp4` (40 s, funkcja liniowa) i `p_film.mp4` (32 s, pętle). To slajdy z grafik lekcji z polskim lektorem (głos Windows „Paulina”), 1280×720 H.264/AAC, ok. 0,5–0,7 MB. Generator: `app/demo/generate_videos.py` (wymaga `imageio-ffmpeg`, poza `requirements.txt`; pliki są w repo).
+- Seed jest teraz **uzupełniający**: dla istniejącego kursu demo dokłada brakujące lekcje, bloki (po `id`) i quizy, a niczego nie nadpisuje. Bloki dodane przez nauczyciela ręcznie zostają.
+
+**Jak sprawdzone**
+- `tests/demo/test_seed.py` (6 testów): quiz w każdej lekcji, 2 filmy V+A, dokładanie brakującego quizu do istniejącego kursu, idempotencja.
+- Seed na bazie deweloperskiej dołożył filmy i quizy do kursów utworzonych wcześniej.
+
+## Etap 7: pełne sprawdzenie i przejście w przeglądarce (2026-11-09)
+
+**Wyniki**
+- `pytest`: **272 passed** (178 Bartka + 94 nowe). `ruff check .` / `ruff format --check .`: czyste.
+- `npm run lint`: czysto. `npm run build`: OK (trasy `/survey`, `/survey/result`, `/profile`, `/teach/.../quiz`).
+
+**Jak przechodziłem:** rozszerzenie Claude in Chrome nie było połączone, więc przejście zrobiłem **Playwrightem na zainstalowanym Chrome** (`channel="chrome"`, bez pobierania przeglądarki; pakiet tylko w narzędziowym venv poza projektem). Każde konto miało osobną sesję, a z każdego kroku zrobiłem zrzut ekranu.
+
+**Co widać na ekranach**
+
+| Konto | Ekran | Co widać |
+|---|---|---|
+| uczen.nowy | po zalogowaniu | od razu `/survey`: „Ankieta: jak najlepiej się uczysz?”, licznik „Odpowiedziano na 0 z 20 pytań”, pytania z 3 odpowiedziami w mieszanej kolejności. Wejście na `/courses` też wraca na ankietę |
+| uczen.nowy | wynik | „Twój styl: słuchowiec”, opis stylu, paski punktów V 3 / A 9 / K 8, przyciski „Przejdź do kursów” i „Mój styl uczenia się” |
+| uczen.nowy | lekcja „Wzór i wykres…” | ramka „Lekcja dopasowana do stylu: słuchowiec. Dlaczego to widzisz: … (V 3 / A 9 / K 8). Ukryto 3 materiały…”; tekst, film V+A, dwa nagrania z „Posłuchaj”; obrazy i karta PDF ukryte |
+| uczen.nowy | quiz | 4 pytania (3 wspólne + „Słuchowa (A)”), po wysłaniu „Wynik: 3 / 4 (75%)”, „Zaliczone: 75%”, uzasadnienie z progiem 70% i „System zaktualizował wagi…: V 3 / A 10 / K 8” |
+| uczen.demo | Mój styl | baner „Lepiej Ci idzie z materiałami słuchowymi – przełączyć?” + „Dlaczego to widzisz: Wagi stylów po quizach: V 7 / A 8 / K 3…”, styl „wzrokowiec · z ankiety”, paski wag, zmiana stylu, historia ankiet |
+| uczen.demo | lekcja „Pętla for” → „Przełącz” | przed: schemat, kod, film; po akceptacji: „Lekcja dopasowana do stylu: słuchowiec … bo styl zmieniono po propozycji opartej na wynikach quizów”, nagranie i film, quiz z pytaniem „Słuchowa (A)” |
+| nauczyciel.demo | Moje kursy → kurs → edytor lekcji → Podgląd | 3 kursy; w podglądzie wszystkie materiały i quiz (6 pytań) z linkiem „Edytuj quiz” |
+| nauczyciel.demo | edytor quizu | pytania z treścią, „Dotyczy materiału” (wspólny/V/A/K), odpowiedzi z wyborem poprawnej; zapis → „Zapisano” |
+
+**Znalezione i naprawione błędy (prawdziwa przyczyna)**
+1. **Po przełączeniu stylu quiz pokazywał pytanie dla starego stylu** (lekcja już A, quiz dalej „Wzrokowa (V)”). Przyczyna: zapytanie o quiz było w cache pod kluczem niezależnym od stylu, a treść quizu zależy od stylu. Naprawa: styl ucznia jest częścią klucza zapytania (`["quiz", lessonId, style]`), więc zmiana stylu sama powoduje pobranie quizu od nowa (`acb8d01`). Skrypt przejścia sprawdza to teraz wprost.
+2. **Edytor quizu po zapisie nie pokazywał „Zapisano”** (i tracił stan). Przyczyna: `key={dataUpdatedAt}`, więc zapis aktualizował cache i komponent montował się od nowa. Naprawa: klucz zależny tylko od lekcji (`acb8d01`).
+3. Awatar pokazywał „K(” zamiast inicjałów, bo nazwy kont demo miały nawiasy („Kuba (uczeń)”). Naprawa: zwykłe imiona i nazwiska; seed wyrównuje nazwę istniejących kont demo (`0cbfc6d`).
+
+**Co nie działa / do uwagi**
+- Błędy `401` w konsoli przeglądarki przed zalogowaniem to zapytanie `/auth/me` z kodu Bartka (tak sprawdza „czy ktoś jest zalogowany”), więc to nie jest błąd.
+- Pytania ankiety (z v1) mają formy męskie („Kupiłeś nowe urządzenie…”). Poprawa wymagałaby nowej migracji danych; zostawiam do decyzji.
+- `backend/.env.example` (Bartka) ma `JWT_SECRET` krótszy niż wymagane 32 znaki, więc uruchomienie od zera po samym skopiowaniu pliku się nie powiedzie. Opisane w `SCENARIUSZ-POKAZU.md` (jak wygenerować klucz); pliku Bartka nie zmieniałem.
+- Film w podglądzie nie ma miniatury (czarny kadr do czasu odtworzenia); przy kliknięciu działa normalnie.
+- Po przejściu testowym konta demo uczniów zostały przywrócone komendą `python -m app.demo.seed --reset-students`.
+- `frontend/package-lock.json` jest dalej zmieniony po Twoim `npm install`; nie commitowany.
+
+## Etap 8: scenariusz pokazu (2026-11-09)
+
+- `docs/SCENARIUSZ-POKAZU.md`: pokaz na ok. 10 minut (konta, kliknięcia, co powiedzieć o „inteligencji”, pytania prowadzącego) i komendy uruchomienia od zera.
