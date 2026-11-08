@@ -1,12 +1,14 @@
 from pathlib import Path
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.demo import seed
 from app.demo.courses import COURSES
+from app.modules.assessment.models import LessonQuiz
+from app.modules.content import service as content
 from app.modules.content.models import File
 from app.modules.curriculum.models import Course
 from app.modules.learning_style import service as learning_style
@@ -41,6 +43,36 @@ def test_seed_creates_published_courses_with_files(db: Session, upload_dir: Path
     files = _count(db, File, File.owner_id == teacher.id)
     assert files > 0
     assert len(list(upload_dir.iterdir())) == files
+
+
+def test_seed_adds_quiz_to_every_lesson_and_videos(db: Session):
+    teacher, _, _ = _run(db)
+    lessons = [
+        lesson
+        for course in db.scalars(select(Course).where(Course.owner_id == teacher.id))
+        for lesson in course.lessons
+    ]
+    assert len(lessons) == sum(len(c.lessons) for c in COURSES)
+    assert _count(
+        db, LessonQuiz, LessonQuiz.lesson_id.in_([lesson.id for lesson in lessons])
+    ) == len(lessons)
+    videos = [
+        block
+        for lesson in lessons
+        for block in content.get_blocks(db, lesson.id, teacher)
+        if block.get("kind") == "video"
+    ]
+    assert len(videos) == 2
+    assert all(video["forms"] == ["V", "A"] for video in videos)
+
+
+def test_seed_adds_missing_parts_to_an_existing_course(db: Session):
+    teacher, _, _ = _run(db)
+    lesson = db.scalars(select(Course).where(Course.owner_id == teacher.id)).first().lessons[0]
+    db.execute(delete(LessonQuiz).where(LessonQuiz.lesson_id == lesson.id))
+    db.commit()
+    _run(db)
+    assert _count(db, LessonQuiz, LessonQuiz.lesson_id == lesson.id) == 1
 
 
 def test_seed_student_has_proposal_and_new_student_has_no_survey(db: Session):

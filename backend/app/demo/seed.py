@@ -18,7 +18,11 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.db import SessionLocal
-from app.demo.courses import COURSES, Course, Image, Pdf, Speech, Text, doc
+from app.demo.courses import COURSES, QUIZZES, Block, Course, Image, Pdf, Text, Video, doc
+from app.demo.courses import Lesson as LessonData
+from app.modules.assessment import service as assessment
+from app.modules.assessment.models import LessonQuiz
+from app.modules.assessment.schemas import QuizContent
 from app.modules.content import service as content
 from app.modules.content.blocks import LessonBlocks
 from app.modules.curriculum import service as curriculum
@@ -83,7 +87,7 @@ def _upload(db: Session, teacher: User, name: str) -> int:
         return content.save_upload(db, teacher, name, stream).id
 
 
-def _block(db: Session, teacher: User, block: Text | Image | Pdf | Speech) -> dict[str, Any]:
+def _block(db: Session, teacher: User, block: Block) -> dict[str, Any]:
     if isinstance(block, Text):
         return {"id": block.id, "type": "text", "doc": doc(*block.nodes)}
     common = {
@@ -101,6 +105,8 @@ def _block(db: Session, teacher: User, block: Text | Image | Pdf | Speech) -> di
         }
     if isinstance(block, Pdf):
         return common | {"kind": "pdf", "file_id": _upload(db, teacher, block.file)}
+    if isinstance(block, Video):
+        return common | {"kind": "video", "file_id": _upload(db, teacher, block.file)}
     return common | {"kind": "audio", "transcript": block.transcript}
 
 
@@ -114,25 +120,67 @@ def find_course(db: Session, teacher: User, title: str) -> CourseModel | None:
     )
 
 
+def ensure_blocks(db: Session, teacher: User, lesson: Lesson, data: LessonData) -> None:
+    """Add demo blocks missing in the lesson (by id); blocks already there are kept as they are."""
+    stored = {block["id"]: block for block in content.get_blocks(db, lesson.id, teacher)}
+    missing = [block for block in data.blocks if block.id not in stored]
+    if not missing:
+        return
+    wanted = {block.id for block in data.blocks}
+    blocks = [stored.get(b.id) or _block(db, teacher, b) for b in data.blocks]
+    blocks += [block for block_id, block in stored.items() if block_id not in wanted]
+    content.save_blocks(db, lesson.id, teacher, LessonBlocks.model_validate({"blocks": blocks}))
+    log(f"  {lesson.title}: dodano bloki {', '.join(b.id for b in missing)}")
+
+
+def ensure_quiz(db: Session, teacher: User, lesson: Lesson) -> None:
+    questions = QUIZZES.get(lesson.title)
+    if not questions or db.scalar(select(LessonQuiz.id).where(LessonQuiz.lesson_id == lesson.id)):
+        return
+    quiz = QuizContent.model_validate(
+        {
+            "questions": [
+                {
+                    "id": q.id,
+                    "text": q.text,
+                    "form": q.form,
+                    "answers": [{"id": f"a{i}", "text": text} for i, text in enumerate(q.answers)],
+                    "correct_answer_id": f"a{q.correct}",
+                }
+                for q in questions
+            ]
+        }
+    )
+    assessment.save_quiz(db, lesson.id, teacher, quiz)
+    log(f"  {lesson.title}: dodano quiz ({len(questions)} pytań)")
+
+
 def ensure_course(db: Session, teacher: User, data: Course) -> CourseModel:
-    existing = find_course(db, teacher, data.title)
-    if existing is not None:
+    """Create the course if missing; in any case add missing lessons, blocks and quizzes."""
+    course = find_course(db, teacher, data.title)
+    created = course is None
+    if course is None:
+        course = curriculum.create_course(
+            db, teacher, CourseCreateRequest(title=data.title, description=data.description)
+        )
+        log(f"utworzono kurs: {data.title}")
+    else:
         log(f"kurs istnieje: {data.title}")
-        return existing
-    course = curriculum.create_course(
-        db, teacher, CourseCreateRequest(title=data.title, description=data.description)
-    )
     for lesson_data in data.lessons:
-        lesson = curriculum.create_lesson(db, course.id, teacher, lesson_data.title)
-        blocks = [_block(db, teacher, block) for block in lesson_data.blocks]
-        content.save_blocks(db, lesson.id, teacher, LessonBlocks.model_validate({"blocks": blocks}))
-    curriculum.update_course(
-        db,
-        course.id,
-        teacher,
-        CourseUpdateRequest(is_published=True, introduction=doc(*data.introduction)),
-    )
-    log(f"utworzono kurs: {data.title} ({len(data.lessons)} lekcje)")
+        lessons = {lesson.title: lesson for lesson in curriculum.active_lessons(course)}
+        lesson = lessons.get(lesson_data.title)
+        if lesson is None:
+            lesson = curriculum.create_lesson(db, course.id, teacher, lesson_data.title)
+            db.refresh(course, ["lessons"])
+        ensure_blocks(db, teacher, lesson, lesson_data)
+        ensure_quiz(db, teacher, lesson)
+    if created:
+        curriculum.update_course(
+            db,
+            course.id,
+            teacher,
+            CourseUpdateRequest(is_published=True, introduction=doc(*data.introduction)),
+        )
     return course
 
 
