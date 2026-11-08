@@ -8,6 +8,7 @@ __pycache__/
 # Env / secrets
 .env
 .env.local
+*.bak
 # Node / Next
 node_modules/
 .next/
