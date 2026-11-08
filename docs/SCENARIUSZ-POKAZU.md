@@ -19,7 +19,7 @@ Prezentacja: czwartek 12.11.2026. Aplikacja: http://localhost:3001. Hasło wszys
    ```
    Na końcu musi się wypisać: `profil uczen.demo@imsu.pl: styl V, wagi V 7 / A 8 / K 3, propozycja: A`.
 3. W Chrome otwórz dwie karty: zwykłą i incognito (dwie sesje naraz, bez ciągłego wylogowywania).
-4. Sprawdź dźwięk: w dowolnej lekcji kliknij „Posłuchaj”. Lektor korzysta z głosu systemu (Windows: „Paulina”), a film ma własną ścieżkę dźwiękową.
+4. Sprawdź dźwięk: w lekcji „Wzór i wykres funkcji liniowej” (jako nauczyciel w podglądzie) odtwórz nagranie i film. Nagrania i filmy to gotowe pliki MP3/MP4 nagrane neuronowym głosem pl-PL (Zofia), więc nie zależą od głosów zainstalowanych w systemie ani od internetu.
 
 ## Przebieg
 
@@ -43,7 +43,7 @@ Co powiedzieć:
 1. „Przejdź do kursów” → **Matematyka: funkcja liniowa** → lekcja **Wzór i wykres funkcji liniowej**.
 2. Na górze ramka **„Lekcja dopasowana do stylu… Dlaczego to widzisz: … bo tak wyszło w ankiecie (V x / A y / K z). Ukryto N materiałów…”**.
    - „Nauczyciel oznacza każdy załącznik formą V, A lub K (albo kilkoma). Uczeń widzi tekst wspólny i materiały swojego stylu. Filtruje serwer, więc nie da się podejrzeć cudzych materiałów.”
-3. Pokaż materiały swojego stylu: dla słuchowca nagrania z lektorem („Posłuchaj”) i film z lektorem (oznaczony V+A).
+3. Pokaż materiały swojego stylu: dla słuchowca nagrania z lektorką (odtwarzacz audio, ok. 25 s) i film z lektorką (oznaczony V+A, zaczyna się slajdem tytułowym). Odtwórz kilka sekund nagrania.
 4. **Zmień styl na żywo:** „Mój styl” → zaznacz tylko V → „Zapisz styl” → wróć do lekcji. Teraz widać wykres, schemat i film. Ramka mówi: „…bo ten styl został wybrany ręcznie w profilu”.
 5. Przewiń do **„Sprawdź się”**: 4 pytania (3 wspólne + 1 o materiale z Twojego stylu, z etykietą np. „Wzrokowa (V)”).
    - „Pytanie o materiał, którego uczeń nie widział, byłoby nieuczciwe, więc quiz też jest dopasowany do stylu.”

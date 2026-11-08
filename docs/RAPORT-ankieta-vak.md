@@ -173,3 +173,48 @@
 ## Etap 8: scenariusz pokazu (2026-11-09)
 
 - `docs/SCENARIUSZ-POKAZU.md`: pokaz na ok. 10 minut (konta, kliknięcia, co powiedzieć o „inteligencji”, pytania prowadzącego) i komendy uruchomienia od zera.
+
+## Etap 9: poprawki po przeglądzie (2026-11-09)
+
+**Decyzje autora:** link „Edytuj quiz” w `LessonEditor.tsx` Bartka nie jest dodawany (zostaje ścieżka przez Podgląd). `JWT_SECRET` w `.env.example` przekazuje Bartkowi autor.
+
+**Zrobione**
+- **Ankieta bez form płciowych** (commit `1b18758`): migracja danych `c3a91f2d7b40` (tylko nasze tabele `survey_questions`/`survey_answers`) zmienia 1 pytanie i 7 odpowiedzi, np. „Kupiłeś nowe urządzenie” → „Kupujesz nowe urządzenie”, „prosisz, żeby dał Ci spróbować samemu” → „prosisz o możliwość samodzielnej próby”, „To, co robiłem” → „To, co robisz na miejscu”. Odpowiedzi w 1. osobie czasu teraźniejszego („Oglądam…”) były już neutralne i zostały. Sens pytań i styl V/A/K każdej odpowiedzi bez zmian. Migracja zmienia tylko wiersze, które mają oczekiwany stary tekst; `downgrade` przywraca poprzednie brzmienie.
+- **`frontend/package-lock.json` przywrócony** (`git restore`): diff to usunięte flagi `"peer": true` i dodane opcjonalne pakiety `@emnapi/*`, czyli efekt innej wersji npm. Aplikacja tego nie potrzebuje.
+- **Głos neuronowy** (commit `e5e7d2b`), wyłącznie w naszych plikach:
+  - `app/demo/generate_audio.py`: 9 bloków audio z kursów demo nagranych głosem **pl-PL-ZofiaNeural** (edge-tts, tempo −5%), z obcięciem ciszy na początku (ffmpeg). MP3 mono 24 kHz 64 kb/s, ok. 200 KB każdy.
+  - `app/demo/generate_videos.py`: oba filmy z tym samym głosem, **pierwsza klatka to slajd tytułowy**: `m_film.mp4` 48,9 s, `p_film.mp4` 40,5 s.
+  - Bloki audio w kursach demo to teraz **pliki MP3** (oznaczenie A bez zmian). `SpeechReader.tsx` i inne pliki Bartka nie były ruszane.
+  - Seed: nowa opcja `--refresh-demo-media` podmienia **nasze** bloki audio/wideo (rozpoznawane po `id` i rodzaju) w istniejących kursach demo. Bloki dodane ręcznie przez nauczyciela zostają (test).
+  - Narzędzia (`edge-tts`, `imageio-ffmpeg`, Pillow) są tylko w osobnym narzędziowym venv, nie w `requirements.txt`.
+
+**Decyzje podjęte samodzielnie**
+- Moduł treści Bartka przyjmuje dla audio **plik albo transkrypcję** (nie oba naraz), więc bloki MP3 nie pokazują już tekstu pod odtwarzaczem. Tekst nagrania zostaje w `courses.py` (źródło nagrań) i w opisie quizu „z nagrania”.
+- Tytuł filmu „w 40 sekund” → „w skrócie” (film z tytułem trwa teraz 49 s).
+- Opcja nazywa się `--refresh-demo-media` (a nie `--refresh-demo-audio`), bo podmienia też filmy.
+
+**Jak sprawdzone**
+- Audio, techniczny odsłuch (skrypt `check_audio.py`, ffmpeg `silencedetect`/`volumedetect` + znaczniki słów edge-tts):
+
+| Plik | Długość | Tempo | Cisza na starcie | Głośność śr. | Słowa wypowiedziane / w tekście |
+|---|---|---|---|---|---|
+| m1_a-wyjasnienie.mp3 | 26,8 s | 12,8 zn/s | brak | −21,9 dB | 68/68 zgodne |
+| m1_ak-cwiczenie.mp3 | 25,1 s | 12,3 zn/s | brak | −22,7 dB | 58/58 zgodne |
+| m2_a-wyjasnienie.mp3 | 20,5 s | 13,6 zn/s | brak | −22,6 dB | 47/47 zgodne |
+| m3_a-wyjasnienie.mp3 | 25,4 s | 11,4 zn/s | brak | −23,3 dB | 53/53 zgodne |
+| e1_a-wyjasnienie.mp3 | 23,5 s | 13,5 zn/s | brak | −22,8 dB | 52/52 zgodne |
+| e1_ak-powtorz.mp3 | 22,2 s | 12,4 zn/s | brak | −22,3 dB | 47/47 zgodne |
+| e2_a-wyjasnienie.mp3 | 21,1 s | 14,5 zn/s | brak | −22,7 dB | 51/51 zgodne |
+| p1_a-wyjasnienie.mp3 | 22,3 s | 13,6 zn/s | brak | −22,1 dB | 59/59 zgodne |
+| p2_a-wyjasnienie.mp3 | 22,4 s | 14,3 zn/s | brak | −22,3 dB | 50/50 zgodne |
+
+- Filmy: 48,9 s i 40,5 s, 1280×720 H.264 + AAC; pierwsza klatka obejrzana (slajd tytułowy na granatowym tle).
+- Testy: `test_survey_wording.py` (brak form płciowych w całej ankiecie, nowe teksty przy właściwych stylach, 20 pytań × V/A/K) i nowe testy seeda (audio = pliki MP3; odświeżenie podmienia stary blok czytany przez przeglądarkę, bez flagi nic nie zmienia, blok nauczyciela zostaje na swoim miejscu).
+- Seed na bazie deweloperskiej: `--refresh-demo-media` odświeżył 9 bloków audio i 2 filmy; drugi przebieg bez flag niczego nie zmienił.
+- `pytest`: **277 passed**. `ruff check .` / `ruff format --check .`: czyste. `npm run lint`: czysto. `npm run build`: OK.
+- Playwright, `uczen.nowy`: ankieta zawiera „Kupujesz nowe urządzenie” i żadnej formy płciowej → wynik „słuchowiec” → lekcja „Wzór i wykres…”: film 48,9 s (slajd tytułowy w podglądzie) i 2 odtwarzacze audio (26,8 s i 25,1 s, `readyState` 4), brak przycisku „Posłuchaj” lektora przeglądarki → quiz oceniony („Wynik: 1 / 4”). Brak błędów JS na stronie.
+- Na koniec `python -m app.demo.seed --reset-students` (konta uczniów demo w stanie startowym).
+
+**Co nie działa / do uwagi**
+- Stare pliki z poprzednich wersji audio/wideo zostały w tabeli `files` i w `uploads/` lokalnej bazy (nic się do nich nie odwołuje). Na czystej maszynie ich nie będzie.
+- Do ponownego nagrania potrzebny jest internet (edge-tts to usługa online). Odtwarzanie gotowych plików działa offline.
