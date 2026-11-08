@@ -6,12 +6,14 @@ import {
   PencilIcon,
   Trash2Icon,
 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { useArchiveLesson, useReorderLessons } from "@/features/courses/hooks";
 import type { Course, LessonSummary } from "@/features/courses/types";
 import { errorMessage } from "@/shared/api/error-messages";
+import { confirmLeave } from "@/shared/hooks/use-unsaved-changes-warning";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +41,13 @@ function moved(
   return ids;
 }
 
-export function LessonList({ course }: { course: Course }) {
+type LessonListProps = {
+  course: Course;
+  /** Unsaved changes in the course form: confirm before opening a lesson. */
+  dirty: boolean;
+};
+
+export function LessonList({ course, dirty }: LessonListProps) {
   const reorder = useReorderLessons(course.id);
   const archive = useArchiveLesson(course.id);
   const [renaming, setRenaming] = useState<LessonSummary | null>(null);
@@ -71,9 +79,17 @@ export function LessonList({ course }: { course: Course }) {
               <span className="w-6 shrink-0 text-muted-foreground tabular-nums">
                 {index + 1}.
               </span>
-              <span className="min-w-0 flex-1 truncate font-medium">
+              <Link
+                href={`/teach/courses/${course.id}/lessons/${lesson.id}`}
+                className="min-w-0 flex-1 truncate font-medium underline-offset-4 hover:underline"
+                onClick={(event) => {
+                  if (!confirmLeave(dirty)) {
+                    event.preventDefault();
+                  }
+                }}
+              >
                 {lesson.title}
-              </span>
+              </Link>
               <div className="flex shrink-0">
                 <Button
                   variant="ghost"

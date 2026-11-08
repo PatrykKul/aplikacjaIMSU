@@ -92,7 +92,7 @@ export function CourseEditor({ courseId }: { courseId: number }) {
         <h2 id="course-lessons" className="text-xl font-semibold">
           Lekcje
         </h2>
-        <LessonList course={course} />
+        <LessonList course={course} dirty={dirty} />
       </section>
 
       <ArchiveCourseSection course={course} />

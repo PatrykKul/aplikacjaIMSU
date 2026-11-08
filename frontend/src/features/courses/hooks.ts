@@ -11,6 +11,13 @@ export function useCourses() {
   return useQuery({ queryKey: coursesKey, queryFn: coursesApi.list });
 }
 
+export function useLesson(id: number) {
+  return useQuery({
+    queryKey: lessonKey(id),
+    queryFn: () => lessonsApi.get(id),
+  });
+}
+
 export function useCourse(id: number) {
   return useQuery({
     queryKey: courseKey(id),

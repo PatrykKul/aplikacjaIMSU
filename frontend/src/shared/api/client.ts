@@ -59,3 +59,51 @@ export const api = {
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
   delete: <T = void>(path: string) => request<T>("DELETE", path),
 };
+
+/** Absolute address of an API path, e.g. an uploaded file in <img src>. */
+export function apiUrl(path: string): string {
+  return `${API_URL}${path}`;
+}
+
+/**
+ * Sends a file as multipart/form-data in the field `file`. Uses XMLHttpRequest
+ * because fetch cannot report upload progress; no timeout (large videos).
+ * `onProgress` gets the sent part of the file, from 0 to 1.
+ */
+export function uploadFile<T>(
+  path: string,
+  file: File,
+  onProgress?: (fraction: number) => void,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_URL}${path}`);
+    xhr.withCredentials = true;
+    xhr.responseType = "json";
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress?.(event.loaded / event.total);
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.response as T);
+        return;
+      }
+      const data = xhr.response;
+      reject(
+        new ApiError(
+          xhr.status,
+          data?.code ?? "UNKNOWN_ERROR",
+          data?.fields ?? [],
+        ),
+      );
+    };
+    xhr.onerror = () => reject(new ApiError(0, "NETWORK_ERROR"));
+
+    const body = new FormData();
+    body.append("file", file);
+    xhr.send(body);
+  });
+}

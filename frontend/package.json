@@ -25,6 +25,7 @@
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "react-dropzone": "^20.2.0",
     "react-hook-form": "^7.91.0",
     "react-markdown": "^10.1.0",
     "rehype-katex": "^7.0.1",
