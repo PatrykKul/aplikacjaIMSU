@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.demo import seed
-from app.demo.courses import COURSES
+from app.demo.courses import COURSES, speech_blocks
 from app.modules.assessment.models import LessonQuiz
 from app.modules.content import service as content
+from app.modules.content.blocks import LessonBlocks
 from app.modules.content.models import File
 from app.modules.curriculum.models import Course
 from app.modules.learning_style import service as learning_style
@@ -73,6 +74,53 @@ def test_seed_adds_missing_parts_to_an_existing_course(db: Session):
     db.commit()
     _run(db)
     assert _count(db, LessonQuiz, LessonQuiz.lesson_id == lesson.id) == 1
+
+
+def _first_math_lesson(db: Session, teacher):
+    course = seed.find_course(db, teacher, COURSES[0].title)
+    return course.lessons[0]
+
+
+def test_demo_audio_blocks_are_mp3_files(db: Session):
+    teacher, _, _ = _run(db)
+    audio = [
+        block
+        for course in db.scalars(select(Course).where(Course.owner_id == teacher.id))
+        for lesson in course.lessons
+        for block in content.get_blocks(db, lesson.id, teacher)
+        if block.get("kind") == "audio"
+    ]
+    assert len(audio) == sum(len(speech_blocks(c)) for c in COURSES)
+    assert all(block["file_name"].endswith(".mp3") and "transcript" not in block for block in audio)
+    assert all(block["forms"][0] == "A" for block in audio)
+
+
+def test_refresh_replaces_old_demo_audio_and_keeps_teacher_blocks(db: Session):
+    teacher, _, _ = _run(db)
+    lesson = _first_math_lesson(db, teacher)
+    blocks = content.get_blocks(db, lesson.id, teacher)
+    # Old version of the demo: audio read by the browser + a block added by the teacher
+    for block in blocks:
+        if block["id"] == "a-wyjasnienie":
+            block.pop("file_id")
+            block["transcript"] = "Stara wersja czytana przez przeglądarkę."
+    own = {"id": "moj-link", "type": "attachment", "kind": "link", "forms": ["K"],
+           "title": "Mój link", "url": "https://example.com"}  # fmt: skip
+    content.save_blocks(
+        db, lesson.id, teacher, LessonBlocks.model_validate({"blocks": [*blocks, own]})
+    )
+
+    seed.ensure_course(db, teacher, COURSES[0])  # without the flag nothing is replaced
+    stored = {b["id"]: b for b in content.get_blocks(db, lesson.id, teacher)}
+    assert "transcript" in stored["a-wyjasnienie"]
+
+    seed.ensure_course(db, teacher, COURSES[0], refresh_media=True)
+    stored = {b["id"]: b for b in content.get_blocks(db, lesson.id, teacher)}
+    assert "transcript" not in stored["a-wyjasnienie"]
+    assert stored["a-wyjasnienie"]["file_name"] == "m1_a-wyjasnienie.mp3"
+    assert stored["va-film"]["title"] == "Film: funkcja liniowa w skrócie"
+    assert stored["moj-link"]["url"] == "https://example.com"
+    assert list(stored)[-1] == "moj-link"
 
 
 def test_seed_student_has_proposal_and_new_student_has_no_survey(db: Session):

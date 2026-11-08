@@ -64,7 +64,7 @@ class Pdf:
 
 @dataclass(frozen=True)
 class Speech:
-    """Audio attachment read aloud by the browser (transcript)."""
+    """Audio attachment: an MP3 recorded from `transcript` (see `generate_audio.py`)."""
 
     id: str
     forms: tuple[str, ...]
@@ -108,9 +108,26 @@ class Course:
     description: str
     introduction: tuple[dict[str, Any], ...]
     lessons: tuple[Lesson, ...] = field(default_factory=tuple)
+    code: str = ""  # prefix of the course's asset files, e.g. "m" -> m1_a-wyjasnienie.mp3
+
+
+def speech_file(course: Course, lesson_index: int, block: Speech) -> str:
+    """Name of the MP3 of an audio block, e.g. "m1_a-wyjasnienie.mp3"."""
+    return f"{course.code}{lesson_index + 1}_{block.id}.mp3"
+
+
+def speech_blocks(course: Course) -> list[tuple[int, Speech]]:
+    """(lesson index, audio block) of every audio block in the course."""
+    return [
+        (index, block)
+        for index, lesson in enumerate(course.lessons)
+        for block in lesson.blocks
+        if isinstance(block, Speech)
+    ]
 
 
 MATH = Course(
+    code="m",
     title="Matematyka: funkcja liniowa",
     description="Wzór y = ax + b, wykres, nachylenie i miejsce zerowe – w trzech krótkich lekcjach.",
     introduction=(
@@ -142,7 +159,7 @@ MATH = Course(
                 Video(
                     "va-film",
                     ("V", "A"),
-                    "Film: funkcja liniowa w 40 sekund",
+                    "Film: funkcja liniowa w skrócie",
                     "m_film.mp4",
                     "Krótki film z lektorem: wzór, wykres, nachylenie i miejsce zerowe.",
                 ),
@@ -280,6 +297,7 @@ MATH = Course(
 )
 
 ENGLISH = Course(
+    code="e",
     title="Angielski: Present Perfect",
     description="Kiedy używać Present Perfect, jak zbudować zdanie i czym różni się od Past Simple.",
     introduction=(
@@ -385,6 +403,7 @@ ENGLISH = Course(
 )
 
 PYTHON = Course(
+    code="p",
     title="Programowanie: pętle w Pythonie",
     description="Pętle for i while: jak działają, kiedy ich używać i jak nie wpaść w pętlę bez końca.",
     introduction=(

@@ -4,6 +4,7 @@ Run from `backend/` (uploads go to UPLOAD_DIR, relative to it):
 
     python -m app.demo.seed                    # create what is missing
     python -m app.demo.seed --reset-students   # also clear survey/quiz data of demo students
+    python -m app.demo.seed --refresh-demo-media  # upload demo MP3/MP4 again (after re-recording)
 
 Creates: a teacher with three published courses (math, English, Python) whose lessons have
 V / A / K / mixed materials; a student without the survey (to show the redirect); a student
@@ -18,8 +19,19 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.db import SessionLocal
-from app.demo.courses import COURSES, QUIZZES, Block, Course, Image, Pdf, Text, Video, doc
-from app.demo.courses import Lesson as LessonData
+from app.demo.courses import (
+    COURSES,
+    QUIZZES,
+    Block,
+    Course,
+    Image,
+    Pdf,
+    Speech,
+    Text,
+    Video,
+    doc,
+    speech_file,
+)
 from app.modules.assessment import service as assessment
 from app.modules.assessment.models import LessonQuiz
 from app.modules.assessment.schemas import QuizContent
@@ -90,7 +102,10 @@ def _upload(db: Session, teacher: User, name: str) -> int:
         return content.save_upload(db, teacher, name, stream).id
 
 
-def _block(db: Session, teacher: User, block: Block) -> dict[str, Any]:
+def _block(
+    db: Session, teacher: User, block: Block, audio_file: str | None = None
+) -> dict[str, Any]:
+    """Block as saved by the content module; `audio_file` = MP3 of a Speech block."""
     if isinstance(block, Text):
         return {"id": block.id, "type": "text", "doc": doc(*block.nodes)}
     common = {
@@ -110,7 +125,9 @@ def _block(db: Session, teacher: User, block: Block) -> dict[str, Any]:
         return common | {"kind": "pdf", "file_id": _upload(db, teacher, block.file)}
     if isinstance(block, Video):
         return common | {"kind": "video", "file_id": _upload(db, teacher, block.file)}
-    return common | {"kind": "audio", "transcript": block.transcript}
+    # The content module accepts a file OR a transcript; demo audio is a recorded MP3
+    assert audio_file is not None, block.id
+    return common | {"kind": "audio", "file_id": _upload(db, teacher, audio_file)}
 
 
 def find_course(db: Session, teacher: User, title: str) -> CourseModel | None:
@@ -123,17 +140,55 @@ def find_course(db: Session, teacher: User, title: str) -> CourseModel | None:
     )
 
 
-def ensure_blocks(db: Session, teacher: User, lesson: Lesson, data: LessonData) -> None:
-    """Add demo blocks missing in the lesson (by id); blocks already there are kept as they are."""
+MEDIA_KINDS = {Speech: "audio", Video: "video"}
+
+
+def _is_demo_media(block: Block, stored: dict[str, Any]) -> bool:
+    """A stored block that is our demo audio/video (same id and kind), safe to replace."""
+    kind = MEDIA_KINDS.get(type(block))
+    return kind is not None and stored.get("type") == "attachment" and stored.get("kind") == kind
+
+
+def ensure_blocks(
+    db: Session,
+    teacher: User,
+    course: Course,
+    lesson_index: int,
+    lesson: Lesson,
+    refresh_media: bool = False,
+) -> None:
+    """Add demo blocks missing in the lesson (by id); other blocks are kept as they are.
+
+    With `refresh_media`, demo audio and video blocks are uploaded again from `assets/`
+    (e.g. after re-recording). Blocks added by the teacher are never touched.
+    """
+    data = course.lessons[lesson_index]
     stored = {block["id"]: block for block in content.get_blocks(db, lesson.id, teacher)}
-    missing = [block for block in data.blocks if block.id not in stored]
-    if not missing:
+    rebuild = [
+        block
+        for block in data.blocks
+        if block.id not in stored or (refresh_media and _is_demo_media(block, stored[block.id]))
+    ]
+    if not rebuild:
         return
+    rebuilt_ids = {block.id for block in rebuild}
+
+    def build(block: Block) -> dict[str, Any]:
+        if block.id not in rebuilt_ids:
+            return stored[block.id]
+        audio = speech_file(course, lesson_index, block) if isinstance(block, Speech) else None
+        return _block(db, teacher, block, audio)
+
     wanted = {block.id for block in data.blocks}
-    blocks = [stored.get(b.id) or _block(db, teacher, b) for b in data.blocks]
+    blocks = [build(block) for block in data.blocks]
     blocks += [block for block_id, block in stored.items() if block_id not in wanted]
     content.save_blocks(db, lesson.id, teacher, LessonBlocks.model_validate({"blocks": blocks}))
-    log(f"  {lesson.title}: dodano bloki {', '.join(b.id for b in missing)}")
+    added = [b.id for b in rebuild if b.id not in stored]
+    refreshed = [b.id for b in rebuild if b.id in stored]
+    if added:
+        log(f"  {lesson.title}: dodano bloki {', '.join(added)}")
+    if refreshed:
+        log(f"  {lesson.title}: odświeżono media {', '.join(refreshed)}")
 
 
 def ensure_quiz(db: Session, teacher: User, lesson: Lesson) -> None:
@@ -158,7 +213,9 @@ def ensure_quiz(db: Session, teacher: User, lesson: Lesson) -> None:
     log(f"  {lesson.title}: dodano quiz ({len(questions)} pytań)")
 
 
-def ensure_course(db: Session, teacher: User, data: Course) -> CourseModel:
+def ensure_course(
+    db: Session, teacher: User, data: Course, refresh_media: bool = False
+) -> CourseModel:
     """Create the course if missing; in any case add missing lessons, blocks and quizzes."""
     course = find_course(db, teacher, data.title)
     created = course is None
@@ -169,13 +226,13 @@ def ensure_course(db: Session, teacher: User, data: Course) -> CourseModel:
         log(f"utworzono kurs: {data.title}")
     else:
         log(f"kurs istnieje: {data.title}")
-    for lesson_data in data.lessons:
+    for lesson_index, lesson_data in enumerate(data.lessons):
         lessons = {lesson.title: lesson for lesson in curriculum.active_lessons(course)}
         lesson = lessons.get(lesson_data.title)
         if lesson is None:
             lesson = curriculum.create_lesson(db, course.id, teacher, lesson_data.title)
             db.refresh(course, ["lessons"])
-        ensure_blocks(db, teacher, lesson, lesson_data)
+        ensure_blocks(db, teacher, data, lesson_index, lesson, refresh_media)
         ensure_quiz(db, teacher, lesson)
     if created:
         curriculum.update_course(
@@ -246,6 +303,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="clear survey and quiz data of the demo students before seeding",
     )
+    parser.add_argument(
+        "--refresh-demo-media",
+        action="store_true",
+        help="upload the demo audio (MP3) and video blocks again from app/demo/assets",
+    )
     args = parser.parse_args(argv)
 
     with SessionLocal() as db:
@@ -257,7 +319,7 @@ def main(argv: list[str] | None = None) -> int:
         visual_student = ensure_user(db, VISUAL_STUDENT)
         print("Kursy:")
         for course in COURSES:
-            ensure_course(db, teacher, course)
+            ensure_course(db, teacher, course, refresh_media=args.refresh_demo_media)
         print("Uczniowie:")
         if args.reset_students:
             reset_student(db, new_student)
