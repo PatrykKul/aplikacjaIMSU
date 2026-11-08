@@ -51,3 +51,56 @@
 
 **Co nie działa / do uwagi**
 - Hook alembica `ruff_fix` (w `alembic.ini` Bartka) wymaga `ruff` na PATH. Bez aktywnego venv generowanie migracji kończy się błędem po zapisaniu pliku, a plik trzeba sformatować ręcznie (`python -m ruff format`). Nie zmieniam, to konfiguracja Bartka.
+
+## Etap 3: frontend (2026-11-08)
+
+**Zrobione** (commity `e904861`, `69affb8`)
+- `frontend/src/features/learning-style/`: `api.ts`, `hooks.ts` (React Query), `types.ts`, `styles.ts`, `errors.ts` i komponenty `SurveyGate`, `SurveyForm`, `SurveyResult`, `LearningStylePanel`, `StyleBars`, `StyleProposalBanner`, `PersonalizationNote`, `AdaptationFeedback`.
+- Strony: `/survey` (ankieta), `/survey/result` (wynik), `/profile` („Mój styl uczenia się”), wszystkie tylko dla roli `student` (`RoleGate` Bartka).
+- Podpięcia zgodne z akceptacją: F1 `(app)/layout.tsx` i F2 `(focus)/layout.tsx` (`SurveyGate`), F3 link „Mój styl” w menu ucznia, F4 `LessonView.tsx` (`usePersonalizedBlocks` + `PersonalizationNote`).
+
+**Decyzje podjęte samodzielnie**
+- `SurveyGate` w `(app)/layout` stoi **wewnątrz** `AuthenticatedShell`, żeby na ekranie ankiety był nagłówek z wylogowaniem.
+- Kolejność odpowiedzi w pytaniu jest mieszana deterministycznie (wg id), a nie `Math.random`, żeby uniknąć różnic przy renderowaniu i ostrzeżeń lintera. Efekt jest ten sam: V nie jest zawsze pierwsze.
+- Komunikaty błędów nowych kodów (`SURVEY_*`, `NO_PROPOSAL`) są we własnym `errors.ts`, z fallbackiem do `errorMessage` Bartka, bez zmiany jego `error-messages.ts`.
+- Notka „dlaczego to widzisz” pokazuje się tylko uczniom. Nauczyciel/admin w podglądzie widzi lekcję jak wcześniej.
+
+**Jak sprawdzone**
+- `npm run lint`: czysto. `tsc --noEmit`: 0 błędów w `src/`. `npm run build`: OK, nowe trasy `/survey`, `/survey/result`, `/profile`.
+
+**Co nie działa / do uwagi**
+- Pierwszy `npm run build` padał na `EPERM rmdir .next/server/...`: katalogi starego builda v1 (z 01.10) miały atrybut **tylko do odczytu** (pozostałość po kopiowaniu folderu). Usunąłem stare `.next/server|static|types|diagnostics` (artefakty, ignorowane przez git). `.next/dev` działającego serwera nie był ruszany.
+- Przejście w przeglądarce: w etapie 5 (po decyzji o quizie).
+
+## Etap 4: dane demo (2026-11-08)
+
+**Zrobione**
+- Komenda `python -m app.demo.seed` (z katalogu `backend/`), idempotentna; `--reset-students` czyści tylko dane ankiety i quizów **dwóch kont demo uczniów**.
+- 3 opublikowane kursy nauczyciela demo, razem 7 lekcji. W każdej lekcji: blok tekstowy (wspólny), obrazy **V**, nagrania **A** (tekst czytany przez lektora przeglądarki), karty ćwiczeń PDF **K** i materiały mieszane (V+K, A+K):
+  - Matematyka: funkcja liniowa (Wzór i wykres; Współczynnik kierunkowy a; Miejsce zerowe),
+  - Angielski: Present Perfect (Budowa zdania; Present Perfect czy Past Simple?),
+  - Programowanie: pętle w Pythonie (Pętla for; Pętla while).
+- Materiały lokalne: 10 PNG (wykresy, schematy, schemat blokowy, kod) i 7 PDF (karty ćwiczeń) w `backend/app/demo/assets/`; zero linków zewnętrznych. Generator: `app/demo/generate_assets.py` (wymaga Pillow, którego **nie** dodałem do `requirements.txt`; wygenerowane pliki są w repo, więc seed nie potrzebuje niczego dodatkowego).
+- Konta (hasło `Demo123!`):
+
+| Konto | Rola | Stan |
+|---|---|---|
+| `nauczyciel.demo@imsu.pl` | nauczyciel | właściciel 3 kursów |
+| `admin.demo@imsu.pl` | admin | – |
+| `uczen.nowy@imsu.pl` | uczeń | bez ankiety → pokaz wymuszenia |
+| `uczen.demo@imsu.pl` | uczeń | ankieta V 9 / A 8 / K 3 (styl V), 4 quizy przez `record_quiz_result` (85%, 55%, 40%, 45%) → wagi V 7 / A 8 / K 3 → **propozycja zmiany na A** z uzasadnieniem |
+
+**Decyzje podjęte samodzielnie**
+- SVG nie wchodzi w grę: moduł plików Bartka go nie przyjmuje (świadomie, ze względów bezpieczeństwa). Dlatego PNG.
+- Brak wideo: nie ma lokalnego źródła, a YouTube to link zewnętrzny (zakazany przez polecenie).
+- Lektor przeglądarki czyta po polsku (`pl-PL` w `SpeechReader` Bartka), więc transkrypcje A są po polsku, także w kursie angielskiego. Angielskie zdania są w tekście i PDF-ach.
+- `# ruff: noqa: E501` na górze `courses.py` i `generate_assets.py`: to treść dydaktyczna, zdania zostają w całości; `pyproject.toml` Bartka bez zmian.
+- Kurs rozpoznawany po (nauczyciel demo, tytuł). Jeśli istnieje, seed go nie dotyka (nie nadpisuje zmian zrobionych ręcznie).
+
+**Jak sprawdzone**
+- Seed uruchomiony dwa razy na bazie deweloperskiej: drugi przebieg niczego nie dubluje.
+- `tests/demo/test_seed.py` (4 testy): kursy opublikowane z plikami, nowy uczeń bez ankiety, uczeń demo z propozycją A, idempotencja, reset czyści tylko dane stylu.
+- `ruff check .` / `ruff format --check .`: czyste. Obrazy obejrzane, 2 poprawione (łączniki w schemacie wzoru, napis na osi czasu, strzałka powrotu w schemacie pętli).
+
+**Co nie działa / do uwagi**
+- Jeśli seed zostanie przerwany w połowie tworzenia kursu, kolejne uruchomienie uzna kurs za istniejący. Wtedy trzeba go zarchiwizować w UI nauczyciela i uruchomić seed ponownie.
