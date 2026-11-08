@@ -7,6 +7,10 @@ const messages: Record<string, string> = {
   NOT_AUTHENTICATED: "Sesja wygasła. Zaloguj się ponownie.",
   FORBIDDEN: "Nie masz uprawnień do tej operacji.",
   USER_NOT_FOUND: "Nie znaleziono użytkownika.",
+  COURSE_NOT_FOUND: "Nie znaleziono kursu. Mógł zostać usunięty.",
+  LESSON_NOT_FOUND: "Nie znaleziono lekcji. Mogła zostać usunięta.",
+  LESSON_ORDER_MISMATCH:
+    "Lista lekcji zmieniła się w międzyczasie. Odśwież stronę i spróbuj ponownie.",
   VALIDATION_ERROR: "Sprawdź dane w formularzu.",
   NETWORK_ERROR:
     "Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.",

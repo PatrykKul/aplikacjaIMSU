@@ -18,6 +18,7 @@ const roleCards: Record<UserRole, RoleCard[]> = {
   ],
   teacher: [
     {
+      href: "/teach",
       title: "Moje kursy",
       description: "Twórz kursy i lekcje.",
     },

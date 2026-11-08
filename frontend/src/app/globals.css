@@ -187,4 +187,66 @@
       padding-block: 0.25em;
     }
   }
+
+  /* Document written in the rich text editor (course introduction, lesson text) */
+  .rich-text {
+    & :where(p, ul, ol, table) {
+      margin-block: 0 0.75em;
+    }
+    & :where(h2) {
+      @apply mt-6 mb-2 text-xl font-semibold first:mt-0;
+    }
+    & :where(h3) {
+      @apply mt-5 mb-2 text-lg font-semibold first:mt-0;
+    }
+    & > :last-child,
+    & .ProseMirror > :last-child {
+      margin-bottom: 0;
+    }
+    & strong {
+      @apply font-semibold;
+    }
+    & a {
+      @apply font-medium underline underline-offset-4;
+    }
+    & ul {
+      @apply list-disc pl-6;
+    }
+    & ol {
+      @apply list-decimal pl-6;
+    }
+    & li + li {
+      margin-top: 0.25em;
+    }
+    & li > p {
+      margin-bottom: 0;
+    }
+    & table {
+      @apply w-full border-collapse;
+    }
+    & .tableWrapper {
+      @apply mb-3 max-w-full overflow-x-auto;
+    }
+    & :where(th, td) {
+      @apply min-w-16 border px-3 py-2 text-left align-top;
+    }
+    & :where(th, td) > p {
+      margin-bottom: 0;
+    }
+    & th {
+      @apply bg-muted font-medium;
+    }
+    & .selectedCell {
+      @apply bg-accent;
+    }
+    & .katex {
+      font-size: 1.1em;
+    }
+    & .tiptap-mathematics-render--editable {
+      @apply cursor-pointer rounded-sm px-0.5 hover:bg-muted;
+    }
+    & .inline-math-error {
+      @apply font-mono text-destructive;
+    }
+  }
 }

@@ -7,6 +7,13 @@ import { AppShell, type NavItem } from "@/shared/layout/AppShell";
 
 import { useCurrentUser, useLogout } from "../hooks";
 import { roleLabels } from "../roles";
+import type { UserRole } from "../types";
+
+const navByRole: Record<UserRole, NavItem[]> = {
+  student: [],
+  teacher: [{ href: "/teach", label: "Moje kursy" }],
+  admin: [{ href: "/admin/users", label: "Użytkownicy" }],
+};
 
 export function AuthenticatedShell({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -17,10 +24,7 @@ export function AuthenticatedShell({ children }: { children: ReactNode }) {
     return null; // AuthGuard above guarantees a user
   }
 
-  const nav: NavItem[] =
-    user.role === "admin"
-      ? [{ href: "/admin/users", label: "Użytkownicy" }]
-      : [];
+  const nav: NavItem[] = navByRole[user.role];
 
   return (
     <AppShell
