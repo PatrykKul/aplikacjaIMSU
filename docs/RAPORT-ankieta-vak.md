@@ -218,3 +218,30 @@
 **Co nie działa / do uwagi**
 - Stare pliki z poprzednich wersji audio/wideo zostały w tabeli `files` i w `uploads/` lokalnej bazy (nic się do nich nie odwołuje). Na czystej maszynie ich nie będzie.
 - Do ponownego nagrania potrzebny jest internet (edge-tts to usługa online). Odtwarzanie gotowych plików działa offline.
+
+## Etap 10: JWT_SECRET, miniatury filmów, scalenie do `main` (2026-11-09)
+
+**Zrobione**
+- Usunięty `.git/stale-maintenance-lock-claude` (pusty plik, pozostałość po blokadzie gita).
+- **`JWT_SECRET`** (commit `bea02d2`): w `backend/.env.example` placeholder ma teraz 49 znaków (`change_me_to_a_random_string_of_at_least_32_chars`) zamiast 24, więc `Settings` (`min_length=32` w `app/core/config.py`) ładuje się z samej kopii pliku. Notka w `SCENARIUSZ-POKAZU.md` mówi teraz, że własny klucz jest zalecany, a nie wymagany.
+- **Miniatury filmów: brak zmian w kodzie, bo problemu nie udało się odtworzyć.** Szczegóły:
+  - `AttachmentView.tsx` (Bartka) ma `preload="metadata"`, a nie `none`; `poster` nie jest ustawiony.
+  - Pliki: `moov` na początku (`+faststart` już był), pierwsza klatka to klatka kluczowa (I), slajd tytułowy. W ścieżce wideo jest edit list z pustą edycją 23 ms (opóźnienie B-klatek x264). Sprawdziłem wariant bez B-klatek: wygląda w przeglądarce identycznie, więc to nie jest przyczyna.
+  - Backend zwraca `206 Partial Content` z `Content-Range` i `video/mp4` (FileResponse obsługuje Range).
+  - W aplikacji (`/courses/2/lessons/2` i `/courses/4/lessons/7`) przed kliknięciem play widać slajd tytułowy w Chrome (z oknem i bez okna), Edge i Firefoxie: `readyState 4`, `videoWidth 1280`, piksel w kadrze to granat slajdu (27, 60, 142).
+  - Stara wersja filmu (z `bf0a027`) też pokazywała pierwszą klatkę (biały slajd), nie czarną. Notka „czarny kadr” z etapu 5 najpewniej wynikała ze zrzutu zrobionego, zanim przeglądarka zdekodowała klatkę.
+  - Nie sprawdzone: Safari (macOS/iOS). Safari przy `preload="metadata"` może nie rysować pierwszej klatki bez `poster`. Playwright-WebKit na Windowsie w ogóle nie dekoduje H.264 (`MEDIA_ERR_SRC_NOT_SUPPORTED`), więc go nie liczę. Gdyby pokaz był na Safari, poprawka to `poster` albo `#t=0.001` w `AttachmentView.tsx`, czyli zmiana w pliku Bartka, do decyzji.
+  - Filmy nie były regenerowane, więc `--refresh-demo-media` nie był potrzebny.
+- **Scalenie:** `git fetch origin`. `origin/main` = `45a252f`, przodek `feat/ankieta-vak`. `git checkout main && git merge --ff-only origin/main && git merge --ff-only feat/ankieta-vak`, czyli same fast-forwardy, bez commita scalającego i bez konfliktów. `main` = `feat/ankieta-vak` (+ ten raport).
+
+**Jak sprawdzone**
+- `Settings` z kopii `backend/.env.example` w katalogu tymczasowym (bez zmiennych środowiskowych `JWT_SECRET`/`DATABASE_URL`) ładuje się. Ten sam plik ze starym placeholderem kończy się błędem `string_too_short`.
+- Filmy: analiza atomów MP4 (skrypt), `ffmpeg showinfo` (klatka 0: `iskey:1 type:I`), porównanie w Chrome: plik oryginalny, wariant bez B-klatek i stara wersja.
+- Playwright (Chrome z oknem, konto nauczyciela, podgląd lekcji), oba filmy: przed play widać slajd tytułowy. Po play po 4 s `currentTime ≈ 3,97`, `paused: false`, `muted: false`, zdekodowane audio ok. 44–45 KB (dźwięk jest). Brak błędów JS. Zrzuty: `vt/main_m_before.png`, `vt/main_m_playing.png`, `vt/main_p_before.png` w scratchpadzie sesji (poza repo).
+- Na `feat/ankieta-vak` i ponownie na `main`: `pytest` **277 passed**, `ruff check .` i `ruff format --check .` czyste, `npm run lint` czysto, `npm run build` OK.
+- Na `main`: `alembic upgrade head`, `python -m app.demo.seed --reset-students`, aplikacja uruchomiona: backend `:8001`, frontend http://localhost:3001.
+
+**Co wymaga Patryka**
+- Push (nie wykonany): `git push origin main`. Opcjonalnie też gałąź: `git push -u origin feat/ankieta-vak`.
+- Bartek po pobraniu: `alembic upgrade head` i `python -m app.demo.seed`. Bez tego nie zobaczy ankiety ani kursów demo.
+- Decyzja tylko, jeśli pokaz będzie na Safari: `poster` lub `#t=0.001` w `AttachmentView.tsx`.
