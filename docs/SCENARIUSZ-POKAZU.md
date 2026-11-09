@@ -95,9 +95,9 @@ cd backend
 python -m venv venv
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 Copy-Item .env.example .env
-# JWT_SECRET z .env.example jest za krótki (wymagane min. 32 znaki) – wygeneruj własny:
+# JWT_SECRET z .env.example (placeholder, 49 znaków) wystarcza do uruchomienia lokalnego.
+# Zalecane: wygeneruj własny klucz (min. 32 znaki) i wklej do backend\.env jako JWT_SECRET=...
 .\venv\Scripts\python.exe -c "import secrets; print(secrets.token_hex(32))"
-#   ...i wklej wynik do backend\.env jako JWT_SECRET=...
 .\venv\Scripts\python.exe -m alembic upgrade head          # tabele + 20 pytań ankiety
 .\venv\Scripts\python.exe -m app.demo.seed --reset-students  # kursy, quizy, filmy, konta demo
 .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --reload-dir app --port 8001
