@@ -10,12 +10,16 @@ import { describeStyle } from "../styles";
 import type { PersonalizedBlocks } from "../types";
 import { StyleProposalBanner } from "./StyleProposalBanner";
 
-function hiddenText(count: number): string {
-  if (count === 1) return "Ukryto 1 materiał przeznaczony dla innego stylu.";
+function collapsedText(count: number): string {
+  if (count === 1) {
+    return "1 materiał dla innego stylu jest zwinięty – możesz go rozwinąć.";
+  }
   const lastDigit = count % 10;
   const teen = count % 100 >= 12 && count % 100 <= 14;
   const few = lastDigit >= 2 && lastDigit <= 4 && !teen;
-  return `Ukryto ${count} ${few ? "materiały przeznaczone" : "materiałów przeznaczonych"} dla innych stylów.`;
+  return few
+    ? `${count} materiały dla innych stylów są zwinięte – możesz je rozwinąć.`
+    : `${count} materiałów dla innych stylów jest zwiniętych – możesz je rozwinąć.`;
 }
 
 /** "Why you see this" above a lesson, plus a style proposal if the system has one. */
@@ -40,8 +44,8 @@ export function PersonalizationNote({ data }: { data: PersonalizedBlocks }) {
               Dlaczego to widzisz:{" "}
             </span>
             {data.explanation}
-            {data.hidden_count > 0 && (
-              <> {hiddenText(data.hidden_count)}</>
+            {data.collapsed_block_ids.length > 0 && (
+              <> {collapsedText(data.collapsed_block_ids.length)}</>
             )}{" "}
             <Link href="/profile">Zmień styl</Link>
           </p>

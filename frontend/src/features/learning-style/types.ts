@@ -39,7 +39,10 @@ export type PersonalizedBlocks = {
   blocks: Block[];
   /** null for teachers and admins (they see every block). */
   style: LearningStyle | null;
-  hidden_count: number;
+  /** Attachments without a form of the student's style, shown collapsed. */
+  collapsed_block_ids: string[];
+  /** Collapsed attachments the student has already opened in this lesson. */
+  opened_block_ids: string[];
   explanation: string;
 };
 
