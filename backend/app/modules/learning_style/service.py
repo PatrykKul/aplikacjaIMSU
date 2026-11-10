@@ -7,6 +7,7 @@ from app.modules.identity.models import User, UserRole
 from app.modules.learning_style import adaptation
 from app.modules.learning_style.models import (
     LearningProfile,
+    MaterialOpening,
     SurveyQuestion,
     SurveyResult,
 )
@@ -15,7 +16,9 @@ from app.modules.learning_style.personalization import (
     SOURCE_MANUAL,
     SOURCE_SURVEY,
     TEACHER_PREVIEW,
-    personalize,
+    collapsed_ids,
+    effective_style,
+    matches_style,
     style_explanation,
 )
 from app.modules.learning_style.schemas import (
@@ -210,19 +213,69 @@ def reject_proposal(db: Session, user: User) -> None:
 # --- Lessons -------------------------------------------------------------------------------------
 
 
+def _openings(db: Session, user_id: int, lesson_id: int) -> list[MaterialOpening]:
+    return list(
+        db.scalars(
+            select(MaterialOpening).where(
+                MaterialOpening.user_id == user_id, MaterialOpening.lesson_id == lesson_id
+            )
+        )
+    )
+
+
+def lesson_style(db: Session, profile: LearningProfile, lesson_id: int) -> str:
+    """Effective style in a lesson: the student's style plus forms of opened materials."""
+    openings = _openings(db, profile.user_id, lesson_id)
+    return effective_style(profile.style, (opening.forms for opening in openings))
+
+
 def personalized_blocks(db: Session, lesson_id: int, user: User) -> PersonalizedBlocksResponse:
-    """Blocks from the content module (same access rules), filtered for a student's style."""
+    """All blocks from the content module (same access rules) and what to collapse for a student."""
     if user.role != UserRole.STUDENT:
         blocks = content.get_blocks(db, lesson_id, user)
         return PersonalizedBlocksResponse(
-            blocks=blocks, style=None, hidden_count=0, explanation=TEACHER_PREVIEW
+            blocks=blocks,
+            style=None,
+            collapsed_block_ids=[],
+            opened_block_ids=[],
+            explanation=TEACHER_PREVIEW,
         )
     profile = require_profile(db, user)
     blocks = content.get_blocks(db, lesson_id, user)
-    visible, hidden = personalize(blocks, profile.style)
+    collapsed = collapsed_ids(blocks, profile.style)
+    opened = {opening.block_id for opening in _openings(db, user.id, lesson_id)}
     return PersonalizedBlocksResponse(
-        blocks=visible,
+        blocks=blocks,
         style=profile.style,
-        hidden_count=hidden,
+        collapsed_block_ids=collapsed,
+        opened_block_ids=[block_id for block_id in collapsed if block_id in opened],
         explanation=_explanation(db, profile),
     )
+
+
+def open_material(db: Session, lesson_id: int, block_id: str, user: User) -> None:
+    """Record the first opening of a collapsed attachment; anything else changes nothing."""
+    profile = require_profile(db, user)
+    blocks = content.get_blocks(db, lesson_id, user)
+    block = next((b for b in blocks if b["id"] == block_id), None)
+    if block is None:
+        raise AppError(404, "BLOCK_NOT_FOUND")
+    if matches_style(block, profile.style):
+        return  # text or a material of the student's style: never collapsed
+    already = db.scalar(
+        select(MaterialOpening.id).where(
+            MaterialOpening.user_id == user.id,
+            MaterialOpening.lesson_id == lesson_id,
+            MaterialOpening.block_id == block_id,
+        )
+    )
+    if already is None:
+        db.add(
+            MaterialOpening(
+                user_id=user.id,
+                lesson_id=lesson_id,
+                block_id=block_id,
+                forms=effective_style("", block["forms"]),
+            )
+        )
+        db.commit()

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 
 from app.core.db import DbSession
 from app.modules.identity.dependencies import CurrentUser, require_role
@@ -86,3 +86,10 @@ def get_personalized_blocks(
     lesson_id: int, db: DbSession, user: CurrentUser
 ) -> PersonalizedBlocksResponse:
     return service.personalized_blocks(db, lesson_id, user)
+
+
+@personalized_router.post(
+    "/{lesson_id}/blocks/{block_id}/open", status_code=status.HTTP_204_NO_CONTENT
+)
+def open_material(lesson_id: int, block_id: str, db: DbSession, user: StudentUser) -> None:
+    service.open_material(db, lesson_id, block_id, user)

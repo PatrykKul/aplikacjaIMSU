@@ -79,11 +79,14 @@ class StyleChangeRequest(BaseModel):
 
 
 class PersonalizedBlocksResponse(BaseModel):
-    """Same `blocks` as `GET /lessons/{id}/blocks`, filtered for the student's style."""
+    """All `blocks` of `GET /lessons/{id}/blocks` plus what to collapse for the student."""
 
     blocks: list[dict[str, Any]]
     style: str | None
-    hidden_count: int
+    # Attachments without a form of the student's style (empty for teachers and admins)
+    collapsed_block_ids: list[str]
+    # Collapsed attachments the student has already opened in this lesson
+    opened_block_ids: list[str]
     explanation: str
 
 

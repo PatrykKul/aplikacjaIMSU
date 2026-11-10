@@ -1,6 +1,7 @@
 from app.modules.learning_style.personalization import (
-    block_visible,
-    personalize,
+    collapsed_ids,
+    effective_style,
+    matches_style,
     style_explanation,
 )
 
@@ -12,28 +13,35 @@ def attachment(block_id: str, forms: list[str]) -> dict:
 
 
 def test_text_is_common():
-    assert block_visible(TEXT, "V")
-    assert block_visible(TEXT, "K")
+    assert matches_style(TEXT, "V")
+    assert matches_style(TEXT, "K")
 
 
 def test_attachment_needs_a_shared_form():
-    assert block_visible(attachment("a", ["V"]), "V")
-    assert not block_visible(attachment("a", ["V"]), "A")
-    assert block_visible(attachment("a", ["V", "A"]), "A")
-    assert block_visible(attachment("a", ["V", "A", "K"]), "K")
+    assert matches_style(attachment("a", ["V"]), "V")
+    assert not matches_style(attachment("a", ["V"]), "A")
+    assert matches_style(attachment("a", ["V", "A"]), "A")
+    assert matches_style(attachment("a", ["V", "A", "K"]), "K")
 
 
-def test_mixed_style_sees_both_styles():
-    assert block_visible(attachment("a", ["V"]), "VA")
-    assert block_visible(attachment("a", ["A"]), "VA")
-    assert not block_visible(attachment("a", ["K"]), "VA")
+def test_mixed_style_matches_both_styles():
+    assert matches_style(attachment("a", ["V"]), "VA")
+    assert matches_style(attachment("a", ["A"]), "VA")
+    assert not matches_style(attachment("a", ["K"]), "VA")
 
 
-def test_personalize_keeps_order_and_counts_hidden():
+def test_collapsed_ids_keep_the_teachers_order():
     blocks = [attachment("k", ["K"]), TEXT, attachment("v", ["V"]), attachment("a", ["A"])]
-    visible, hidden = personalize(blocks, "V")
-    assert [b["id"] for b in visible] == ["t", "v"]
-    assert hidden == 2
+    assert collapsed_ids(blocks, "V") == ["k", "a"]
+    assert collapsed_ids(blocks, "VAK") == []
+
+
+def test_effective_style_adds_opened_forms_in_vak_order():
+    assert effective_style("V", []) == "V"
+    assert effective_style("V", ["A"]) == "VA"
+    assert effective_style("K", ["A", "VA"]) == "VAK"
+    assert effective_style("VA", ["A"]) == "VA"
+    assert effective_style("", ["K", "V"]) == "VK"
 
 
 def test_explanations():

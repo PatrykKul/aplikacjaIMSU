@@ -1,13 +1,15 @@
-"""Choosing lesson blocks for a learning style: pure functions (ported from v1 `personalizacja.py`).
+"""Lesson blocks for a learning style: pure functions (ported from v1 `personalizacja.py`).
 
-In v2 a text block is common to everyone, and an attachment is marked with the forms
-(V / A / K) it suits, so it is shown when those forms share a letter with the student's style.
+A text block is common to everyone. An attachment is marked with the forms (V / A / K) it
+suits: it matches the student when those forms share a letter with the student's style, and
+otherwise it is shown collapsed in place. Forms of collapsed attachments the student opened
+in a lesson add to the lesson's effective style (used by the quiz and the adaptation).
 """
 
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from app.modules.learning_style.scoring import describe_style
+from app.modules.learning_style.scoring import STYLES, describe_style
 
 SOURCE_SURVEY = "survey"
 SOURCE_MANUAL = "manual"
@@ -16,22 +18,22 @@ SOURCE_ADAPTATION = "adaptation"
 TEACHER_PREVIEW = "Podgląd nauczyciela: widzisz materiały dla wszystkich stylów."
 
 
-def block_visible(block: Mapping[str, Any], style: str) -> bool:
+def matches_style(block: Mapping[str, Any], style: str) -> bool:
+    """Text is for everyone; an attachment matches when one of its forms is in the style."""
     if block.get("type") != "attachment":
         return True
     return any(form in style for form in block.get("forms", []))
 
 
-def personalize(blocks: Iterable[dict[str, Any]], style: str) -> tuple[list[dict[str, Any]], int]:
-    """Visible blocks in the teacher's order and how many were hidden."""
-    visible: list[dict[str, Any]] = []
-    hidden = 0
-    for block in blocks:
-        if block_visible(block, style):
-            visible.append(block)
-        else:
-            hidden += 1
-    return visible, hidden
+def collapsed_ids(blocks: Iterable[Mapping[str, Any]], style: str) -> list[str]:
+    """Ids of attachments shown collapsed for the style, in the teacher's order."""
+    return [block["id"] for block in blocks if not matches_style(block, style)]
+
+
+def effective_style(style: str, opened_forms: Iterable[str]) -> str:
+    """The style plus forms of opened materials, as letters in V, A, K order ("V" + "A" -> "VA")."""
+    letters = set(style).union(*opened_forms)
+    return "".join(letter for letter in STYLES if letter in letters)
 
 
 def style_explanation(style: str, source: str, points: Mapping[str, int] | None) -> str:
