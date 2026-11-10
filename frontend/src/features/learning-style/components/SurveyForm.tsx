@@ -17,7 +17,8 @@ import type { SurveyAnswer, SurveyQuestion } from "../types";
  * Deterministic (no Math.random) - the same order on every render.
  */
 function mixAnswers(question: SurveyQuestion): SurveyAnswer[] {
-  const rank = (answer: SurveyAnswer) => (question.id * 31 + answer.id * 17) % 7;
+  const rank = (answer: SurveyAnswer) =>
+    (question.id * 31 + answer.id * 17) % 7;
   return [...question.answers].sort((a, b) => rank(a) - rank(b) || a.id - b.id);
 }
 
@@ -45,7 +46,9 @@ export function SurveyForm() {
       <PageMessage
         title="Nie udało się wczytać ankiety"
         description="Sprawdź połączenie i spróbuj ponownie."
-        action={<Button onClick={() => questions.refetch()}>Spróbuj ponownie</Button>}
+        action={
+          <Button onClick={() => questions.refetch()}>Spróbuj ponownie</Button>
+        }
       />
     );
   }
@@ -78,8 +81,8 @@ export function SurveyForm() {
       <div className="sticky top-0 z-10 -mx-4 border-b bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
         <div className="flex items-center justify-between text-sm">
           <span>
-            Odpowiedziano na <strong className="tabular-nums">{answered}</strong> z{" "}
-            {total} pytań
+            Odpowiedziano na{" "}
+            <strong className="tabular-nums">{answered}</strong> z {total} pytań
           </span>
         </div>
         <div
@@ -117,7 +120,8 @@ export function SurveyForm() {
                     key={answer.id}
                     className={cn(
                       "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-muted/50",
-                      chosen[question.id] === answer.id && "border-primary bg-primary/5",
+                      chosen[question.id] === answer.id &&
+                        "border-primary bg-primary/5",
                     )}
                   >
                     <input
@@ -126,7 +130,10 @@ export function SurveyForm() {
                       value={answer.id}
                       checked={chosen[question.id] === answer.id}
                       onChange={() =>
-                        setChosen((prev) => ({ ...prev, [question.id]: answer.id }))
+                        setChosen((prev) => ({
+                          ...prev,
+                          [question.id]: answer.id,
+                        }))
                       }
                       className="mt-0.5 size-4 accent-primary"
                     />
@@ -134,7 +141,9 @@ export function SurveyForm() {
                   </label>
                 ))}
                 {missing && (
-                  <p className="text-sm text-destructive">Wybierz jedną odpowiedź.</p>
+                  <p className="text-sm text-destructive">
+                    Wybierz jedną odpowiedź.
+                  </p>
                 )}
               </fieldset>
             </li>

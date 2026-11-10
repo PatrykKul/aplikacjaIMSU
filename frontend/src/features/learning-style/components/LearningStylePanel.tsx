@@ -112,7 +112,9 @@ function ManualStyle({ profile }: { profile: LearningProfile }) {
           </Link>
         </div>
         {picked.length === 0 && (
-          <p className="text-sm text-muted-foreground">Wybierz co najmniej jeden styl.</p>
+          <p className="text-sm text-muted-foreground">
+            Wybierz co najmniej jeden styl.
+          </p>
         )}
         {(change.error ?? restore.error) && (
           <p role="alert" className="text-sm text-destructive">
@@ -142,10 +144,12 @@ function History() {
               className="flex flex-wrap items-center justify-between gap-2 py-2"
             >
               <span>{new Date(result.created_at).toLocaleString("pl-PL")}</span>
-              <span className="tabular-nums text-muted-foreground">
+              <span className="text-muted-foreground tabular-nums">
                 V {result.points.V} / A {result.points.A} / K {result.points.K}
               </span>
-              <Badge variant="secondary">{describeStyle(result.dominant_style)}</Badge>
+              <Badge variant="secondary">
+                {describeStyle(result.dominant_style)}
+              </Badge>
             </li>
           ))}
         </ul>
@@ -169,7 +173,9 @@ export function LearningStylePanel() {
       <PageMessage
         title="Nie udało się wczytać Twojego stylu"
         description={learningStyleError(profile.error)}
-        action={<Button onClick={() => profile.refetch()}>Spróbuj ponownie</Button>}
+        action={
+          <Button onClick={() => profile.refetch()}>Spróbuj ponownie</Button>
+        }
       />
     );
   }
@@ -190,7 +196,9 @@ export function LearningStylePanel() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Mój styl uczenia się</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        Mój styl uczenia się
+      </h1>
 
       {data.proposal && <StyleProposalBanner proposal={data.proposal} />}
 
@@ -200,7 +208,9 @@ export function LearningStylePanel() {
           <CardTitle className="flex flex-wrap items-center gap-2 text-xl">
             {describeStyle(data.style)}
             {data.style_source && (
-              <Badge variant="outline">{SOURCE_LABELS[data.style_source]}</Badge>
+              <Badge variant="outline">
+                {SOURCE_LABELS[data.style_source]}
+              </Badge>
             )}
           </CardTitle>
         </CardHeader>
@@ -223,7 +233,11 @@ export function LearningStylePanel() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <StyleBars values={data.weights} max={WEIGHT_MAX} label="Wagi stylów" />
+          <StyleBars
+            values={data.weights}
+            max={WEIGHT_MAX}
+            label="Wagi stylów"
+          />
         </CardContent>
       </Card>
 

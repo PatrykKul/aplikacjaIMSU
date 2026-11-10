@@ -31,12 +31,18 @@ export function PersonalizationNote({ data }: { data: PersonalizedBlocks }) {
     <div className="space-y-3">
       <Alert>
         <InfoIcon />
-        <AlertTitle>Lekcja dopasowana do stylu: {describeStyle(data.style!)}</AlertTitle>
+        <AlertTitle>
+          Lekcja dopasowana do stylu: {describeStyle(data.style!)}
+        </AlertTitle>
         <AlertDescription>
           <p>
-            <span className="font-medium text-foreground">Dlaczego to widzisz: </span>
+            <span className="font-medium text-foreground">
+              Dlaczego to widzisz:{" "}
+            </span>
             {data.explanation}
-            {data.hidden_count > 0 && <> {hiddenText(data.hidden_count)}</>}{" "}
+            {data.hidden_count > 0 && (
+              <> {hiddenText(data.hidden_count)}</>
+            )}{" "}
             <Link href="/profile">Zmień styl</Link>
           </p>
         </AlertDescription>

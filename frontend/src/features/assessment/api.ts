@@ -1,6 +1,11 @@
 import { api } from "@/shared/api/client";
 
-import type { AttemptResult, QuizContent, QuizQuestion, StudentQuiz } from "./types";
+import type {
+  AttemptResult,
+  QuizContent,
+  QuizQuestion,
+  StudentQuiz,
+} from "./types";
 
 const quizPath = (lessonId: number) => `/lessons/${lessonId}/quiz`;
 

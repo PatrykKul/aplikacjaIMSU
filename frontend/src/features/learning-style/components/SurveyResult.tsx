@@ -32,7 +32,9 @@ export function SurveyResult() {
     return (
       <PageMessage
         title="Nie udało się wczytać wyniku"
-        action={<Button onClick={() => profile.refetch()}>Spróbuj ponownie</Button>}
+        action={
+          <Button onClick={() => profile.refetch()}>Spróbuj ponownie</Button>
+        }
       />
     );
   }
@@ -91,14 +93,18 @@ export function SurveyResult() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <StyleBars values={result.points} max={total} label="Punkty z ankiety" />
+          <StyleBars
+            values={result.points}
+            max={total}
+            label="Punkty z ankiety"
+          />
         </CardContent>
       </Card>
 
       <p className="text-sm text-muted-foreground">
-        Styl możesz w każdej chwili zmienić w zakładce „Mój styl”. System podpowie
-        też zmianę, jeśli wyniki quizów pokażą, że lepiej idzie Ci z innymi
-        materiałami.
+        Styl możesz w każdej chwili zmienić w zakładce „Mój styl”. System
+        podpowie też zmianę, jeśli wyniki quizów pokażą, że lepiej idzie Ci z
+        innymi materiałami.
       </p>
 
       <div className="flex flex-wrap gap-3">

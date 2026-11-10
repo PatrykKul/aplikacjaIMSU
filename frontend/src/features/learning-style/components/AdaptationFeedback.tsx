@@ -31,7 +31,9 @@ export function AdaptationFeedback({ feedback }: { feedback: QuizFeedback }) {
           </p>
         </AlertDescription>
       </Alert>
-      {feedback.proposal && <StyleProposalBanner proposal={feedback.proposal} />}
+      {feedback.proposal && (
+        <StyleProposalBanner proposal={feedback.proposal} />
+      )}
     </div>
   );
 }

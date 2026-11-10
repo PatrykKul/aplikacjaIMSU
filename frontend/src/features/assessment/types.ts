@@ -18,7 +18,10 @@ export type QuizContent = { questions: QuizQuestion[] };
 /** Question for a student: no answer key. */
 export type StudentQuestion = Omit<QuizQuestion, "correct_answer_id">;
 
-export type StudentQuiz = { questions: StudentQuestion[]; hidden_count: number };
+export type StudentQuiz = {
+  questions: StudentQuestion[];
+  hidden_count: number;
+};
 
 export type QuestionResult = {
   question_id: string;

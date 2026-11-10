@@ -56,7 +56,10 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
           <CardDescription>Ta lekcja nie ma jeszcze quizu.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Link href={editHref} className={buttonVariants({ variant: "outline" })}>
+          <Link
+            href={editHref}
+            className={buttonVariants({ variant: "outline" })}
+          >
             <PencilIcon data-icon="inline-start" />
             Dodaj quiz
           </Link>
@@ -92,7 +95,8 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
           Sprawdź się
         </CardTitle>
         <CardDescription>
-          {questionsLabel(questions.length)} jednokrotnego wyboru. Wynik liczy serwer, a system dopasuje się do tego, jak Ci idzie.
+          {questionsLabel(questions.length)} jednokrotnego wyboru. Wynik liczy
+          serwer, a system dopasuje się do tego, jak Ci idzie.
           {quiz.data.hidden_count > 0 &&
             " Pytania dotyczą materiałów, które widzisz w tej lekcji."}
         </CardDescription>
@@ -116,12 +120,15 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
                     <legend className="flex flex-wrap items-center gap-2 font-medium">
                       {index + 1}. {question.text}
                       {question.form && (
-                        <Badge variant="outline">{FORM_LABELS[question.form]}</Badge>
+                        <Badge variant="outline">
+                          {FORM_LABELS[question.form]}
+                        </Badge>
                       )}
                     </legend>
                     {question.answers.map((answer) => {
                       const isChosen = chosen[question.id] === answer.id;
-                      const isCorrect = checked?.correct_answer_id === answer.id;
+                      const isCorrect =
+                        checked?.correct_answer_id === answer.id;
                       const isWrong = checked && isChosen && !checked.correct;
                       return (
                         <label
@@ -129,7 +136,9 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
                           className={cn(
                             "flex items-center gap-3 rounded-lg border p-3 text-sm transition-colors",
                             !result && "cursor-pointer hover:bg-muted/50",
-                            isChosen && !result && "border-primary bg-primary/5",
+                            isChosen &&
+                              !result &&
+                              "border-primary bg-primary/5",
                             isCorrect && "border-green-600 bg-green-600/10",
                             isWrong && "border-destructive bg-destructive/10",
                           )}
@@ -139,7 +148,10 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
                             name={`quiz-${question.id}`}
                             checked={isChosen}
                             onChange={() =>
-                              setChosen((prev) => ({ ...prev, [question.id]: answer.id }))
+                              setChosen((prev) => ({
+                                ...prev,
+                                [question.id]: answer.id,
+                              }))
                             }
                             className="size-4 accent-primary"
                           />
@@ -174,9 +186,12 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
           {result ? (
             <div className="space-y-4" aria-live="polite">
               <p className="text-lg font-semibold">
-                Wynik: {result.correct_count} / {result.total} ({result.percent}%)
+                Wynik: {result.correct_count} / {result.total} ({result.percent}
+                %)
               </p>
-              {result.adaptation && <AdaptationFeedback feedback={result.adaptation} />}
+              {result.adaptation && (
+                <AdaptationFeedback feedback={result.adaptation} />
+              )}
               <Button type="button" variant="outline" onClick={retry}>
                 Rozwiąż jeszcze raz
               </Button>
@@ -184,7 +199,9 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
           ) : (
             <Button type="submit" disabled={!complete || submit.isPending}>
               {submit.isPending && <Spinner data-icon="inline-start" />}
-              {complete ? "Sprawdź odpowiedzi" : "Odpowiedz na wszystkie pytania"}
+              {complete
+                ? "Sprawdź odpowiedzi"
+                : "Odpowiedz na wszystkie pytania"}
             </Button>
           )}
         </form>

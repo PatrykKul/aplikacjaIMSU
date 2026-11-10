@@ -22,11 +22,17 @@ export function StyleProposalBanner({ proposal }: { proposal: StyleProposal }) {
       <AlertTitle>{proposal.message}</AlertTitle>
       <AlertDescription className="space-y-3">
         <p>
-          <span className="font-medium text-foreground">Dlaczego to widzisz: </span>
+          <span className="font-medium text-foreground">
+            Dlaczego to widzisz:{" "}
+          </span>
           {proposal.why}
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" disabled={busy} onClick={() => accept.mutate(undefined)}>
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() => accept.mutate(undefined)}
+          >
             Przełącz
           </Button>
           <Button
@@ -38,7 +44,9 @@ export function StyleProposalBanner({ proposal }: { proposal: StyleProposal }) {
             Zostaję przy swoim
           </Button>
         </div>
-        {error && <p className="text-destructive">{learningStyleError(error)}</p>}
+        {error && (
+          <p className="text-destructive">{learningStyleError(error)}</p>
+        )}
       </AlertDescription>
     </Alert>
   );

@@ -9,7 +9,11 @@ export type StyleWeights = Record<Form, number>;
 
 export type SurveyAnswer = { id: number; text: string };
 
-export type SurveyQuestion = { id: number; text: string; answers: SurveyAnswer[] };
+export type SurveyQuestion = {
+  id: number;
+  text: string;
+  answers: SurveyAnswer[];
+};
 
 export type SurveyChoice = { question_id: number; answer_id: number };
 

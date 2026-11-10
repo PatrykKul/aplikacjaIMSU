@@ -21,7 +21,8 @@ export function SurveyGate({ children }: { children: ReactNode }) {
   const { data: user } = useCurrentUser();
   const isStudent = user?.role === "student";
   const profile = useLearningProfile(isStudent);
-  const onSurvey = pathname === SURVEY_PATH || pathname.startsWith(`${SURVEY_PATH}/`);
+  const onSurvey =
+    pathname === SURVEY_PATH || pathname.startsWith(`${SURVEY_PATH}/`);
   const mustFillIn = isStudent && profile.data?.survey_completed === false;
 
   useEffect(() => {
@@ -38,7 +39,9 @@ export function SurveyGate({ children }: { children: ReactNode }) {
       <PageMessage
         title="Nie udało się sprawdzić Twojego profilu"
         description="Sprawdź połączenie i spróbuj ponownie."
-        action={<Button onClick={() => profile.refetch()}>Spróbuj ponownie</Button>}
+        action={
+          <Button onClick={() => profile.refetch()}>Spróbuj ponownie</Button>
+        }
       />
     );
   }

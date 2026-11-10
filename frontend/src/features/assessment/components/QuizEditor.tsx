@@ -25,8 +25,17 @@ import {
 } from "../types";
 
 function emptyQuestion(): QuizQuestion {
-  const answers = Array.from({ length: MIN_ANSWERS }, () => ({ id: newQuizId("a"), text: "" }));
-  return { id: newQuizId("q"), text: "", form: null, answers, correct_answer_id: answers[0].id };
+  const answers = Array.from({ length: MIN_ANSWERS }, () => ({
+    id: newQuizId("a"),
+    text: "",
+  }));
+  return {
+    id: newQuizId("q"),
+    text: "",
+    form: null,
+    answers,
+    correct_answer_id: answers[0].id,
+  };
 }
 
 /** Problems shown before saving (the server validates the same rules). */
@@ -40,7 +49,11 @@ function problems(questions: QuizQuestion[]): string[] {
   return list;
 }
 
-type EditorProps = { lessonId: number; initial: QuizQuestion[]; previewHref: string };
+type EditorProps = {
+  lessonId: number;
+  initial: QuizQuestion[];
+  previewHref: string;
+};
 
 function Editor({ lessonId, initial, previewHref }: EditorProps) {
   const [questions, setQuestions] = useState<QuizQuestion[]>(
@@ -95,7 +108,9 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
                   <Input
                     value={question.text}
                     maxLength={500}
-                    onChange={(e) => update(index, (q) => ({ ...q, text: e.target.value }))}
+                    onChange={(e) =>
+                      update(index, (q) => ({ ...q, text: e.target.value }))
+                    }
                   />
                 </label>
                 <label className="block space-y-1.5 text-sm font-medium">
@@ -110,7 +125,9 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
                       }))
                     }
                   >
-                    <option value="">Wspólnego – pytanie widzi każdy uczeń</option>
+                    <option value="">
+                      Wspólnego – pytanie widzi każdy uczeń
+                    </option>
                     {FORMS.map((form) => (
                       <option key={form} value={form}>
                         {FORM_LABELS[form]} – widzą tylko uczniowie tego stylu
@@ -130,7 +147,10 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
                         aria-label={`Odpowiedź ${a + 1} jest poprawna`}
                         checked={question.correct_answer_id === answer.id}
                         onChange={() =>
-                          update(index, (q) => ({ ...q, correct_answer_id: answer.id }))
+                          update(index, (q) => ({
+                            ...q,
+                            correct_answer_id: answer.id,
+                          }))
                         }
                         className="size-4 accent-primary"
                       />
@@ -142,7 +162,9 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
                           update(index, (q) => ({
                             ...q,
                             answers: q.answers.map((x) =>
-                              x.id === answer.id ? { ...x, text: e.target.value } : x,
+                              x.id === answer.id
+                                ? { ...x, text: e.target.value }
+                                : x,
                             ),
                           }))
                         }
@@ -154,12 +176,18 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
                         disabled={question.answers.length <= MIN_ANSWERS}
                         onClick={() =>
                           update(index, (q) => {
-                            const answers = q.answers.filter((x) => x.id !== answer.id);
+                            const answers = q.answers.filter(
+                              (x) => x.id !== answer.id,
+                            );
                             const correct =
                               q.correct_answer_id === answer.id
                                 ? answers[0].id
                                 : q.correct_answer_id;
-                            return { ...q, answers, correct_answer_id: correct };
+                            return {
+                              ...q,
+                              answers,
+                              correct_answer_id: correct,
+                            };
                           })
                         }
                       >
@@ -174,7 +202,10 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
                       onClick={() =>
                         update(index, (q) => ({
                           ...q,
-                          answers: [...q.answers, { id: newQuizId("a"), text: "" }],
+                          answers: [
+                            ...q.answers,
+                            { id: newQuizId("a"), text: "" },
+                          ],
                         }))
                       }
                     >
@@ -203,7 +234,10 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
       )}
 
       {showProblems && found.length > 0 && (
-        <ul role="alert" className="list-disc space-y-1 pl-5 text-sm text-destructive">
+        <ul
+          role="alert"
+          className="list-disc space-y-1 pl-5 text-sm text-destructive"
+        >
           {found.map((p) => (
             <li key={p}>{p}</li>
           ))}
@@ -223,7 +257,10 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
         <span className="text-sm text-muted-foreground" aria-live="polite">
           {dirty ? "Niezapisane zmiany" : save.isSuccess ? "Zapisano" : ""}
         </span>
-        <Link href={previewHref} className={buttonVariants({ variant: "ghost" })}>
+        <Link
+          href={previewHref}
+          className={buttonVariants({ variant: "ghost" })}
+        >
           Podgląd lekcji z quizem
         </Link>
         {initial.length > 0 && (
@@ -271,7 +308,10 @@ export function QuizEditor({ courseId, lessonId }: QuizEditorProps) {
         title="Nie można edytować quizu"
         description={assessmentError(lesson.error ?? quiz.error)}
         action={
-          <Link href="/teach" className="text-sm font-medium underline underline-offset-4">
+          <Link
+            href="/teach"
+            className="text-sm font-medium underline underline-offset-4"
+          >
             Wróć do moich kursów
           </Link>
         }
@@ -289,7 +329,9 @@ export function QuizEditor({ courseId, lessonId }: QuizEditorProps) {
           <ArrowLeftIcon className="size-4" />
           {lesson.data.title}
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Quiz do lekcji</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Quiz do lekcji
+        </h1>
         <p className="text-sm text-muted-foreground">
           Pytania jednokrotnego wyboru (3–4 odpowiedzi). Pytanie o materiał
           wzrokowy, słuchowy albo kinestetyczny zobaczą tylko uczniowie, którzy

@@ -18,9 +18,13 @@ export function StyleBars({ values, max, label }: StyleBarsProps) {
         const value = values[form];
         const width = max > 0 ? Math.round((value / max) * 100) : 0;
         return (
-          <div key={form} className="grid grid-cols-[7.5rem_1fr_2rem] items-center gap-3">
+          <div
+            key={form}
+            className="grid grid-cols-[7.5rem_1fr_2rem] items-center gap-3"
+          >
             <dt className="text-sm">
-              <span className="font-semibold">{form}</span> · {STYLE_NAMES[form]}
+              <span className="font-semibold">{form}</span> ·{" "}
+              {STYLE_NAMES[form]}
             </dt>
             <dd className="h-2.5 overflow-hidden rounded-full bg-muted">
               <div
