@@ -1,0 +1,49 @@
+# Dziennik decyzji
+
+Statusy: **przyjęta** (obowiązuje) · **odroczona** (rozstrzygamy przy etapie, którego dotyczy). Decyzji wymagających wgłębienia się w temat nie podejmujemy z góry — rozstrzygamy je w specyfikacji etapu. Zmieniona decyzja zostaje w tabeli z nowym brzmieniem i datą zmiany w uwagach.
+
+## Przyjęte
+
+| # | Decyzja | Uwagi |
+|---|---|---|
+| D1 | System: **multimedialny inteligentny system uczący** dla uczniów do 16 lat; zgodny z przykładowym systemem prowadzącego (moduł nauczyciela jako główny) | `01-kontekst-i-materialy.md` §2a, `02-koncepcja.md` |
+| D2 | Stos: Next.js + FastAPI + PostgreSQL; **modularny monolit** | `03-architektura.md` |
+| D3 | Kod, nazwy, komentarze i API po angielsku; błędy jako **kody**, polskie komunikaty składa frontend; po polsku tylko interfejs i dokumentacja. **Wyjątek (10.11):** moduł `learning_style` zwraca gotowe polskie zdania „dlaczego to widzisz” i treść propozycji stylu (`explanation`, `message`, `why`) — zostawiamy, bo teksty powstają z reguł w jednym miejscu | `06-konwencje.md` |
+| D4 | Wersja 2 w katalogu głównym repozytorium; wersja 1 tylko pod tagiem `v1-final` (katalog `legacy/` do usunięcia — 10.11). Od 09.11 praca na `main`. Etapy 0–3 na gałęziach; **od 10.11 poprawki i małe etapy bezpośrednio na `main`**, gałąź `feat/<nazwa>` dla większego etapu — decyzja autora przy etapie | zmiany 09.11 i 10.11 |
+| D5 | **Podział pracy z AI:** AI nie zmienia plików kodu w repozytorium — kod podaje w rozmowie (całe pliki albo dokładne zmiany), autor sam je wprowadza, testuje i commituje; AI podaje nazwę commita. AI zmienia dokumentację `docs/` na prośbę autora albo zgodnie z procesem etapu | `00-START.md` |
+| D6 | Specyfikację etapu akceptuje autor przed implementacją | `05-plan-etapow.md` |
+| D7 | Termin: **koniec listopada 2026**; dokumentacja do oddania podstawowa; system to **prototyp** | |
+| D8 | Role: **uczeń albo nauczyciel wybierane przy rejestracji, stałe**; administrator tylko z CLI; sesja w ciasteczku `httpOnly`, rola i aktywność z bazy przy każdym żądaniu | `moduly/01-identity.md` |
+| D9 | Administrator zarządza nauczycielami i uczniami (tworzenie, edycja, **blokada zamiast usuwania**). Rola administratora wobec kursów i klas — rozstrzygamy w etapie 6 (O6) | zmiana 10.11 |
+| D10 | Nauczyciel tworzy i edytuje **tylko swoje kursy** (bez współautorów). **Dostęp do kursów przez klasy (10.11):** nauczyciel tworzy klasy, dodaje do nich istniejących uczniów i przypisuje klasom kursy; kurs **opublikowany** jest dostępny dla wszystkich uczniów (katalog). Szczegóły w specyfikacji etapu 6 | zastępuje „dodawanie ucznia po e-mailu” i zapisy na kurs |
+| D11 | Struktura: **kurs (tytuł, opis, wstęp) → lekcje**; lekcja = **bloki** (tekst, załącznik) w kolejności nauczyciela + opcjonalny **quiz na końcu lekcji** (osobny byt, nie typ bloku) | |
+| D12 | Blok tekstu: **edytor wizualny TipTap** (wklejanie z Worda z formatowaniem, wzory KaTeX), zapis jako dokument JSON TipTapa | |
+| D13 | Załącznik: **typ** (obraz, wideo — plik lub YouTube, nagranie — plik lub tekst dla lektora, PDF, link) i **formy: niepusty podzbiór {V, A, K}** zaznaczany przez nauczyciela (bez form domyślnych); jeden przycisk „+ Załącznik”, typ wybierany w oknie | 07.11 |
+| D14 | Treść tworzona w edytorze (formularze), bez importu z plików. **Wyjątek: dane demonstracyjne** tworzy seed (`python -m app.demo.seed`) przez serwisy modułów — D30 | zmiana 10.11 |
+| D15 | Quiz lekcji (stan 10.11): **stały zestaw pytań jednokrotnego wyboru** (3–4 odpowiedzi, jedna poprawna, do 20 pytań), pytanie wspólne albo **o materiale formy V / A / K**; próg zaliczenia **70%** (stały); bez limitu podejść; po podejściu uczeń widzi poprawne odpowiedzi; ocenia wyłącznie serwer. Baza pytań z losowaniem — O5 | zmiana 10.11 (wcześniej: baza pytań, typy, trudność, losowanie) |
+| D16 | Profil ucznia (stan 10.11): **styl** = jedna lub kilka liter w kolejności V, A, K (`V`, `VA`, `VAK`); z ankiety — styl(e) z największą liczbą punktów (remis → kilka liter); ankieta: 20 pytań z v1 (formy neutralne płciowo), punkt dla stylu za odpowiedź, historia wyników. **Wagi V / A / K** (0–30) startują od punktów ankiety i zmienia je adaptacja (D18). Źródło stylu: ankieta / ręczny / adaptacja | zmiana 10.11 (wcześniej: proporcje z punktami pozornymi) |
+| D17 | Lekcja ucznia: kolejność nauczyciela; bloki tekstu dla wszystkich; załącznik, którego żadna forma nie należy do stylu ucznia, **zwinięty w miejscu** (uczeń może go rozwinąć). Pierwsze rozwinięcie jest zapisywane i dodaje formy załącznika do **stylu efektywnego** w tej lekcji (D18) | zmiana 10.11; do etapu 5 takie załączniki były ukrywane |
+| D18 | Adaptacja **regułowa** (czyste funkcje, `learning_style/adaptation.py`): quiz ≥ 70% = sukces; każda litera **stylu efektywnego** (styl ucznia + formy rozwiniętych w lekcji materiałów, od etapu 5) dostaje +1 (sukces) / −1 (porażka), wagi w zakresie 0–30; w lekcji liczy się tylko **pierwszy sukces i pierwsza porażka** dla danego stylu (bez nabijania wag); każda decyzja ma zdanie „dlaczego to widzisz” | zmiana 10.11 (wcześniej: W(s, e), statystyki populacji, powtórka w innej formie) |
+| D19 | Propozycja zmiany stylu: gdy **jedna** forma ma najwyższą wagę (bez remisu) i nie należy do stylu ucznia; uczeń przyjmuje albo odrzuca (odrzucona nie wraca do kolejnej ankiety lub przyjęcia); **ręczny wybór stylu wyłącza propozycje** | zmiana 10.11 (wcześniej: ≥ 10 p.p. przy ≥ 5 sygnałach) |
+| D20 | Lekcja u ucznia jako **uporządkowany zbiór bloków na jednej stronie**, quiz na końcu | |
+| D21 | Kursy demonstracyjne: **3 kursy z seeda** (Matematyka: funkcja liniowa; Angielski: Present Perfect; Programowanie: pętle w Pythonie; razem 7 lekcji z materiałami V / A / K / mieszanymi i quizami) oraz konta demo (D30) | zmiana 10.11 (wcześniej: „Procenty” budowany ręcznie) |
+| D22 | Skuteczność pokazujemy scenariuszem na kontach demonstracyjnych (`docs/SCENARIUSZ-POKAZU.md`); w dokumentacji zastrzeżenie o *meshing* | |
+| D23 | Wzory w edytorze: oficjalne `@tiptap/extension-mathematics` v3 (MIT) + `katex`; tylko `InlineMath`, wpisywanie `$…$` | etap 3 |
+| D24 | Pliki **na dysku** w `UPLOAD_DIR` (poza gitem) + tabela `files`; biała lista rozszerzeń bez SVG/HTML; limit 50 MB; `GET /files/{id}` dla zalogowanych (prototyp) | etap 3 |
+| D25 | Blok tekstu bez obrazów (wklejone z Worda są pomijane) — obraz tylko jako załącznik z formą | etap 3 |
+| D26 | Lekcja ucznia w **trybie skupienia** (grupa tras `(focus)`, własny `LessonHeader`); nauczyciel ogląda swoje kursy jako **podgląd** z edytora | etap 3 |
+| D27 | Bloki lekcji pod `GET`/`PUT /lessons/{id}/blocks` (`content`), lekcja z sąsiadami pod `GET /lessons/{id}` (`curriculum`) | etap 3 |
+| D28 | Wgrywanie plików: `XMLHttpRequest` z paskiem postępu, wybór pliku przez **react-dropzone** | etap 3 |
+| D29 | Moduły profilu i oceny: **`learning_style`** (ankieta, profil, personalizacja, adaptacja, próby quizów) i **`assessment`** (quiz lekcji, ocenianie); `assessment` przekazuje wynik przez `learning_style.hooks.record_quiz_result` — jedyny punkt styku | etap 4, zastępuje planowane `profiling` / `learning` / `adaptation` |
+| D30 | Dane demo: `backend/app/demo/` — seed idempotentny (dokłada brakujące, nie nadpisuje zmian nauczyciela; `--reset-students`, `--refresh-demo-media`), zasoby (PNG, PDF, MP3, MP4; ok. 4 MB) w repozytorium; generatory zasobów wymagają narzędzi spoza `requirements.txt` (Pillow, edge-tts, imageio-ffmpeg, fonty Windows) i zostają w `app/demo/`. Hasło kont demo w kodzie — seed nigdy na serwerze produkcyjnym | etap 4 |
+| D31 | Ankieta **wymagana**: uczeń bez ankiety jest przekierowywany na `/survey` (`SurveyGate` w layoutach `(app)` i `(focus)`); API spersonalizowanych bloków i quizu zwraca `403 SURVEY_REQUIRED` | etap 4 |
+| D32 | Dokumentacja projektu w **`docs/` w repozytorium** — jedno źródło prawdy dla obu autorów i ich asystentów AI (wcześniej `docs/v2/` poza gitem; `moduly/` opisuje aktualny stan modułów, `08-praca-biezaca.md` — bieżącą pracę; specyfikacje i raporty etapów 0–4, w tym SPEC i RAPORT kolegi, zostały w historii gita) | 10.11 |
+
+## Odroczone
+
+| # | Pytanie | Etap | Rekomendacja wstępna |
+|---|---|---|---|
+| O3 | Wirtualny mentor, test końcowy kursu, powtórki 1 / 7 / 30 / 90 dni, symulator, powtórka tematu w innym stylu (v1), panel nauczyciela ze stylami uczniów | po etapie 8 | jeśli starczy czasu |
+| O4 | LLM (np. pytania otwarte) | po części obowiązkowej | poza zakresem |
+| O5 | **Baza pytań z losowaniem** — nauczyciel tworzy bazę, podejście losuje X pytań. Do rozstrzygnięcia: skład przy formach (ile wspólnych, ile o materiały), zapamiętanie wylosowanego zestawu (tabela podejść) albo przyjmowanie dowolnych X widocznych pytań (prostsze, mniej szczelne). Do wykorzystania z historii gita (`git show 62bccd4:<ścieżka>`): sprawdzanie odpowiedzi liczbowych (`backend/app/modules/content/numbers.py`, `answers.py`), komponenty `frontend/src/features/lessons/components/NumberAnswer.tsx`, `ChoiceAnswer.tsx`, `StepFeedback.tsx` | po etapie 7 | odłożone 10.11 |
+| O6 | Administrator a klasy i kursy: podgląd wszystkich klas, zarządzanie, moderacja kursów (wycofanie publikacji, archiwizacja) | 6 | rozstrzygnąć w specyfikacji etapu 6 |
