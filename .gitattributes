@@ -13,3 +13,6 @@
 *.wav binary
 *.m4a binary
 *.db binary
+*.pdf binary
+*.mp4 binary
+*.webm binary
