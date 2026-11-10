@@ -64,6 +64,24 @@ def test_student_gets_questions_for_own_style_without_key(
     assert all("correct_answer_id" not in q for q in quiz["questions"])
 
 
+def test_opened_material_adds_its_questions(
+    client: TestClient, lesson_with_styles, fill_survey, student, login, teacher
+):
+    lesson_id = lesson_with_styles["lesson_id"]
+    login(teacher)
+    questions = [question("q1"), question("qv", "V"), question("qa", "A"), question("qk", "K")]
+    client.put(f"/lessons/{lesson_id}/quiz", json={"questions": questions})
+    fill_survey(student, "V")
+    assert [q["id"] for q in client.get(f"/lessons/{lesson_id}/quiz").json()["questions"]] == [
+        "q1",
+        "qv",
+    ]
+    client.post(f"/lessons/{lesson_id}/blocks/a/open")
+    quiz = client.get(f"/lessons/{lesson_id}/quiz").json()
+    assert [q["id"] for q in quiz["questions"]] == ["q1", "qv", "qa"]
+    assert quiz["hidden_count"] == 1
+
+
 def test_student_without_survey(client: TestClient, lesson_with_quiz, login, student):
     login(student)
     response = client.get(_url(lesson_with_quiz))

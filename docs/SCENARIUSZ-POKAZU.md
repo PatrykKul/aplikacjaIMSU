@@ -27,13 +27,13 @@ Prezentacja: czwartek 12.11.2026. Aplikacja: http://localhost:3001. Hasło wszys
 
 Co powiedzieć:
 - „IMSU to platforma kursów, która dopasowuje **sposób podania materiału** do ucznia: na starcie według ankiety VAK, a potem według tego, jak uczniowi faktycznie idzie w quizach.”
-- „Rdzeń jest **regułowy i wyjaśnialny**: każda decyzja systemu ma widoczne uzasadnienie »dlaczego to widzisz«. Nie zależy od zewnętrznego modelu AI, działa offline i jest pokryty testami (272 testy backendu).”
+- „Rdzeń jest **regułowy i wyjaśnialny**: każda decyzja systemu ma widoczne uzasadnienie »dlaczego to widzisz«. Nie zależy od zewnętrznego modelu AI, działa offline i jest pokryty testami (ponad 280 testów backendu).”
 - Uczciwie: „Teoria stylów VAK jest w badaniach dyskusyjna, dlatego styl z ankiety to tylko **punkt startowy**. Dalej system patrzy na wyniki, a uczeń zawsze może zmienić styl sam.”
 
 ### 1:00–3:00 Nowy uczeń: wymuszona ankieta i styl (`uczen.nowy`)
 
 1. Zaloguj się jako `uczen.nowy@imsu.pl`. System **od razu przenosi na ankietę**.
-2. Kliknij „Kursy” w menu: znowu ankieta. „Bez ankiety uczeń nie wejdzie do materiałów. Pilnuje tego też serwer: API zwraca `403 SURVEY_REQUIRED`, więc ręczny adres nic nie da.”
+2. Kliknij „Kursy” w menu: znowu ankieta. „Bez ankiety uczeń nie wejdzie do lekcji — aplikacja z każdej strony kieruje go na ankietę, a serwer bez ankiety nie poda lekcji dopasowanej do stylu ani quizu (`403 SURVEY_REQUIRED`).”
 3. Zaznacz odpowiedzi (20 pytań; dla stylu słuchowego wybieraj odpowiedzi typu „słuchasz…”, „opowiada…”). Pokaż pasek postępu.
    - „Odpowiedzi są w każdym pytaniu w innej kolejności, a przeglądarka nie dostaje klucza (który styl daje odpowiedź). Punkty liczy serwer.”
 4. „Zobacz mój styl uczenia się” → **ekran wyniku**: styl dominujący, opis i punkty V/A/K na paskach. Przy remisie powstaje styl mieszany (np. wzrokowiec + słuchowiec).
@@ -41,37 +41,38 @@ Co powiedzieć:
 ### 3:00–5:30 Lekcja pod styl i quiz (`uczen.nowy`)
 
 1. „Przejdź do kursów” → **Matematyka: funkcja liniowa** → lekcja **Wzór i wykres funkcji liniowej**.
-2. Na górze ramka **„Lekcja dopasowana do stylu… Dlaczego to widzisz: … bo tak wyszło w ankiecie (V x / A y / K z). Ukryto N materiałów…”**.
-   - „Nauczyciel oznacza każdy załącznik formą V, A lub K (albo kilkoma). Uczeń widzi tekst wspólny i materiały swojego stylu. Filtruje serwer, więc nie da się podejrzeć cudzych materiałów.”
-3. Pokaż materiały swojego stylu: dla słuchowca nagrania z lektorką (odtwarzacz audio, ok. 25 s) i film z lektorką (oznaczony V+A, zaczyna się slajdem tytułowym). Odtwórz kilka sekund nagrania.
+2. Na górze ramka **„Lekcja dopasowana do stylu… Dlaczego to widzisz: … bo tak wyszło w ankiecie (V x / A y / K z). N materiałów dla innych stylów jest zwiniętych – możesz je rozwinąć.”**
+   - „Nauczyciel oznacza każdy załącznik formą V, A lub K (albo kilkoma). Uczeń ma rozwinięte materiały swojego stylu, a pozostałe są zwinięte w miejscu — widzi, że istnieją, i może je rozwinąć. Nic nie jest przed nim ukryte.”
+3. Pokaż materiały swojego stylu: dla słuchowca nagrania z lektorką (odtwarzacz audio, ok. 25 s) i film z lektorką (oznaczony V+A, zaczyna się slajdem tytułowym). Odtwórz kilka sekund nagrania. Pokaż zwiniętą kartę (rodzaj, tytuł, „Pokaż materiał”).
 4. **Zmień styl na żywo:** „Mój styl” → zaznacz tylko V → „Zapisz styl” → wróć do lekcji. Teraz widać wykres, schemat i film. Ramka mówi: „…bo ten styl został wybrany ręcznie w profilu”.
 5. Przewiń do **„Sprawdź się”**: 4 pytania (3 wspólne + 1 o materiale z Twojego stylu, z etykietą np. „Wzrokowa (V)”).
-   - „Pytanie o materiał, którego uczeń nie widział, byłoby nieuczciwe, więc quiz też jest dopasowany do stylu.”
+   - „Pytanie o materiał, którego uczeń nie oglądał, byłoby nieuczciwe, więc quiz dobiera pytania do materiałów, z których uczeń korzystał.”
+   - Wróć wyżej i kliknij **„Pokaż materiał”** przy zwiniętej karcie ćwiczeń (K): materiał się rozwija, a w quizie pojawia się pytanie „Kinestetyczna (K)”. „Rozwinięcie jest zapisywane: od teraz wynik quizu w tej lekcji zmienia też wagę K — system uczy się z tego, z czego uczeń naprawdę korzysta.”
 6. Odpowiedz i kliknij „Sprawdź odpowiedzi”. Pokaż zielone i czerwone odpowiedzi oraz **ramkę adaptacji**: „Zaliczone / spróbuj jeszcze raz, bo quiz w lekcji »…«: X% (próg 70%). System zaktualizował wagi Twoich stylów: V … / A … / K …”.
 7. „Rozwiąż jeszcze raz” i ponownie wyślij: wagi już się nie zmieniają. „Liczy się tylko pierwszy sukces i pierwsza porażka w lekcji, więc wag nie da się nabić klikaniem.”
 
 ### 5:30–7:30 System proponuje zmianę stylu (`uczen.demo`)
 
 1. Druga karta (incognito): zaloguj się jako `uczen.demo@imsu.pl` → **Mój styl**.
-2. Baner: **„Lepiej Ci idzie z materiałami słuchowymi – przełączyć? Dlaczego to widzisz: Wagi stylów po quizach: V 7 / A 8 / K 3 – najlepiej wypadają materiały słuchowe.”**
+2. Baner: **„Wagi wskazują na materiały słuchowe – przełączyć? Dlaczego to widzisz: Wagi stylów po quizach: V 7 / A 8 / K 3 – najlepiej wypadają materiały słuchowe.”**
    - „Kuba w ankiecie wyszedł wzrokowcem (V 9 / A 8 / K 3). Potem w 4 lekcjach zaliczył jeden quiz i oblał trzy, uczył się z materiałów wzrokowych. Każda porażka obniżyła wagę V. Gdy inny styl jest **jedynym** liderem, system proponuje zmianę.”
    - Reguły: „Propozycji nie ma, gdy uczeń wybrał styl ręcznie (jego decyzja wygrywa) albo gdy już ją odrzucił, wtedy nie wraca.”
    - Pokaż sekcję **„Jak system Cię widzi”**: paski wag.
-3. Kurs **Programowanie: pętle w Pythonie** → **Pętla for**. Teraz (styl V) widać schemat blokowy, kod i film.
-4. Kliknij **„Przełącz”** w banerze (w lekcji albo w profilu). Lekcja od razu pokazuje nagrania (A) i film, a quiz ma teraz pytanie o materiał słuchowy. Ramka: „…bo styl zmieniono po propozycji opartej na wynikach quizów”.
+3. Kurs **Programowanie: pętle w Pythonie** → **Pętla for**. Teraz (styl V) rozwinięte są schemat blokowy, kod i film, a nagrania zwinięte.
+4. Kliknij **„Przełącz”** w banerze (w lekcji albo w profilu). Lekcja od razu ma rozwinięte nagrania (A) i film, a materiały wzrokowe zwinięte; quiz ma teraz pytanie o materiał słuchowy. Ramka: „…bo styl zmieniono po propozycji opartej na wynikach quizów”.
 
 ### 7:30–9:00 Nauczyciel: materiały i quiz (`nauczyciel.demo`)
 
 1. Zaloguj się jako `nauczyciel.demo@imsu.pl` → **Moje kursy**: 3 kursy (matematyka, angielski, programowanie).
 2. Wejdź w kurs → lekcja → **edytor lekcji**: bloki tekstowe i załączniki (obraz, PDF, nagranie, film) z oznaczeniem form **V / A / K**.
-3. „Podgląd” → nauczyciel widzi **wszystkie** materiały (podgląd) i pod spodem quiz z linkiem **„Edytuj quiz”**.
+3. „Podgląd” → nauczyciel widzi **wszystkie** materiały rozwinięte (z dopiskiem, co widzi uczeń) i pod spodem quiz z linkiem **„Edytuj quiz”**; do edytora quizu prowadzi też przycisk **„Quiz”** w pasku edytora lekcji.
 4. **Edytor quizu**: pytania jednokrotnego wyboru, 3–4 odpowiedzi, zaznaczona poprawna i pole **„Dotyczy materiału”** (wspólny / V / A / K). Zmień treść pytania → „Zapisz quiz” → „Zapisano”.
 
 ### 9:00–10:00 Podsumowanie
 
 - **Architektura:** FastAPI + PostgreSQL + Next.js. Moduły backendu: konta (`identity`), kursy (`curriculum`), treść (`content`), **styl uczenia (`learning_style`)**, **quizy (`assessment`)**. Ocenianie quizu tylko na serwerze, potem `record_quiz_result` aktualizuje wagi.
 - **Inteligencja:** ankieta VAK → styl startowy; dobór materiałów i pytań pod styl; adaptacja wag po quizach (+1/−1, ochrona przed nabijaniem); propozycja zmiany stylu z uzasadnieniem; decyduje uczeń.
-- **Jakość:** 272 testy backendu (logika jako czyste funkcje + testy API), lint i build frontendu.
+- **Jakość:** ponad 280 testów backendu (logika jako czyste funkcje + testy API), lint i build frontendu.
 - **Dalszy rozwój:** poziomy trudności, powtórka tematu w innym stylu (było w wersji 1), panel nauczyciela ze stylami uczniów, opcjonalne pytania otwarte analizowane przez LLM.
 
 ## Pytania, które mogą paść

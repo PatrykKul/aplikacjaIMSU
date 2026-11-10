@@ -16,7 +16,7 @@ from app.modules.identity.models import User
 from app.modules.learning_style import adaptation
 from app.modules.learning_style.models import QuizAttempt
 from app.modules.learning_style.schemas import QuizFeedback
-from app.modules.learning_style.service import get_profile, proposal_response
+from app.modules.learning_style.service import get_profile, lesson_style, proposal_response
 
 
 def record_quiz_result(
@@ -36,25 +36,27 @@ def record_quiz_result(
         raise ValueError(f"lesson {lesson_id} does not exist")
 
     success = adaptation.is_passed(percent)
+    # Letters of the style the student learned in: own style + forms of opened materials
+    style = lesson_style(db, profile, lesson_id)
     previous = db.scalars(
         select(QuizAttempt.percent).where(
             QuizAttempt.user_id == user.id,
             QuizAttempt.lesson_id == lesson_id,
-            QuizAttempt.style == profile.style,
+            QuizAttempt.style == style,
         )
     )
     counted = adaptation.counts_for_weights(
         (adaptation.is_passed(value) for value in previous), success
     )
     if counted:
-        profile.weights = adaptation.update_weights(profile.weights, profile.style, success)
+        profile.weights = adaptation.update_weights(profile.weights, style, success)
     db.add(
         QuizAttempt(
             user_id=user.id,
             lesson_id=lesson_id,
             block_id=block_id,
             percent=percent,
-            style=profile.style,
+            style=style,
             counted_for_weights=counted,
         )
     )

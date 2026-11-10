@@ -41,6 +41,19 @@ export function usePersonalizedBlocks(lessonId: number) {
   });
 }
 
+/** Records the first opening of a collapsed material (the server ignores repeats). */
+export function useOpenMaterial(lessonId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (blockId: string) =>
+      learningStyleApi.openMaterial(lessonId, blockId),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: personalizedBlocksKey(lessonId),
+      }),
+  });
+}
+
 /** After every change of the profile: store it and refetch lessons and history. */
 function useProfileMutation<TArgs>(
   mutationFn: (args: TArgs) => Promise<LearningProfile>,

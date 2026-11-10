@@ -9,6 +9,8 @@ const messages: Record<string, string> = {
     "Ankieta zmieniła się w międzyczasie. Odśwież stronę i wypełnij ją ponownie.",
   SURVEY_EMPTY: "Ankieta nie ma jeszcze pytań. Skontaktuj się z nauczycielem.",
   SURVEY_REQUIRED: "Najpierw wypełnij ankietę stylu uczenia się.",
+  BLOCK_NOT_FOUND:
+    "Tego materiału nie ma już w lekcji. Odśwież stronę i spróbuj ponownie.",
   NO_PROPOSAL: "Ta propozycja jest już nieaktualna.",
 };
 

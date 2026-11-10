@@ -41,7 +41,7 @@ Migracja `6eb66f0c665b`. „Usuń” = archiwizacja (znika z list, historia uczn
 
 ## Frontend
 - `features/teach`: `/teach` („Moje kursy”: karty z plakietką Prywatny / Opublikowany, „+ Nowy kurs”), `/teach/courses/[courseId]` (edytor kursu: tytuł, opis, wstęp TipTap, przełącznik publikacji z potwierdzeniem wycofania, lista lekcji — dodaj, zmień nazwę, w górę / w dół, usuń, „Podgląd kursu”, archiwizacja kursu).
-- `features/courses`: `/courses` (uczeń, admin), `/courses/[courseId]` (opis, wstęp, ponumerowane lekcje), lekcja w trybie skupienia `(focus)/courses/[courseId]/lessons/[lessonId]` (`LessonHeader`, `LessonView`, nawigacja „Poprzednia / Następna lekcja”), pasek podglądu autora („Podgląd: tak uczeń widzi…”, „Wróć do edycji”).
+- `features/courses`: `/courses` (uczeń, admin), `/courses/[courseId]` (opis, wstęp, ponumerowane lekcje), lekcja w trybie skupienia `(focus)/courses/[courseId]/lessons/[lessonId]`: `LessonScreen` wybiera widok według roli — uczeń `LessonView` (bloki z `learning-style`, zwinięte materiały), nauczyciel i administrator `LessonPreview` (bloki z `useLessonBlocks`, czyli z klucza edytora — podgląd aktualny zaraz po zapisie; wszystkie materiały rozwinięte); oba w `LessonFrame` (`LessonHeader`, stany ładowania / 404 / błędu, pasek podglądu autora „Podgląd: tak uczeń widzi…”, „Wróć do edycji”, lista bloków, quiz, nawigacja „Poprzednia / Następna lekcja”).
 
 ## Testy
 `backend/tests/curriculum/`: uprawnienia (tworzy tylko nauczyciel; cudzy prywatny kurs 404; uczeń tylko opublikowane; admin wszystkie), CRUD, publikacja, archiwizacja, kolejność (zła lista → 400), lekcja z sąsiadami z pominięciem zarchiwizowanych, lekcje zarchiwizowanego kursu niewidoczne.

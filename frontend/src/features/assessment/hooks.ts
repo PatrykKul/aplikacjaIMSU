@@ -11,7 +11,7 @@ import { assessmentApi } from "./api";
 import type { QuizContent, QuizQuestion } from "./types";
 
 /** All student views of a lesson's quiz (one per learning style). */
-const quizKey = (lessonId: number) => ["quiz", lessonId] as const;
+export const lessonQuizKey = (lessonId: number) => ["quiz", lessonId] as const;
 const quizEditKey = (lessonId: number) => ["quiz-edit", lessonId] as const;
 
 /**
@@ -25,7 +25,7 @@ export function useLessonQuiz(lessonId: number) {
   const profile = useLearningProfile(isStudent);
   const style = isStudent ? (profile.data?.style ?? null) : "all";
   return useQuery({
-    queryKey: [...quizKey(lessonId), style],
+    queryKey: [...lessonQuizKey(lessonId), style],
     enabled: !!user && (!isStudent || profile.isSuccess),
     queryFn: async () => {
       try {
@@ -65,7 +65,7 @@ export function useSaveQuiz(lessonId: number) {
       assessmentApi.save(lessonId, questions),
     onSuccess: (saved: QuizContent) => {
       queryClient.setQueryData(quizEditKey(lessonId), saved);
-      void queryClient.invalidateQueries({ queryKey: quizKey(lessonId) });
+      void queryClient.invalidateQueries({ queryKey: lessonQuizKey(lessonId) });
     },
   });
 }
@@ -76,7 +76,7 @@ export function useDeleteQuiz(lessonId: number) {
     mutationFn: () => assessmentApi.remove(lessonId),
     onSuccess: () => {
       queryClient.setQueryData(quizEditKey(lessonId), { questions: [] });
-      void queryClient.invalidateQueries({ queryKey: quizKey(lessonId) });
+      void queryClient.invalidateQueries({ queryKey: lessonQuizKey(lessonId) });
     },
   });
 }

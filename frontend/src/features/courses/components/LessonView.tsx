@@ -1,143 +1,81 @@
 "use client";
 
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
-import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChevronUpIcon } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
-import { useCurrentUser } from "@/features/auth/hooks";
+import { lessonQuizKey } from "@/features/assessment/hooks";
 import { BlockView } from "@/features/content/components/BlockView";
-import { LessonQuiz } from "@/features/assessment/components/LessonQuiz";
+import { CollapsedMaterial } from "@/features/learning-style/components/CollapsedMaterial";
 import { PersonalizationNote } from "@/features/learning-style/components/PersonalizationNote";
-import { usePersonalizedBlocks } from "@/features/learning-style/hooks";
-import { ApiError } from "@/shared/api/client";
-import { PageMessage } from "@/shared/layout/page-states";
-import { cn } from "@/shared/lib/utils";
-import { Button, buttonVariants } from "@/shared/ui/button";
-import { Spinner } from "@/shared/ui/spinner";
+import { learningStyleError } from "@/features/learning-style/errors";
+import {
+  useOpenMaterial,
+  usePersonalizedBlocks,
+} from "@/features/learning-style/hooks";
+import { Button } from "@/shared/ui/button";
 
-import { useLesson } from "../hooks";
-import { LessonHeader } from "./LessonHeader";
-import { PreviewBanner } from "./PreviewBanner";
+import { LessonFrame } from "./LessonFrame";
 
 type LessonViewProps = { courseId: number; lessonId: number };
 
+/** A lesson as the student sees it, matched to the learning style. */
 export function LessonView({ courseId, lessonId }: LessonViewProps) {
-  const { data: user } = useCurrentUser();
-  const lesson = useLesson(lessonId);
+  const queryClient = useQueryClient();
   const blocks = usePersonalizedBlocks(lessonId);
-  const courseHref = `/courses/${courseId}`;
+  const openMaterial = useOpenMaterial(lessonId);
+  // Expanded / collapsed by the student in this view; the default comes from the server
+  const [shown, setShown] = useState<Record<string, boolean>>({});
 
-  if (lesson.isPending || blocks.isPending) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Spinner className="size-8" />
-      </div>
-    );
-  }
-  const error = lesson.error ?? blocks.error;
-  if (
-    (error instanceof ApiError && error.status === 404) ||
-    (lesson.data && lesson.data.course.id !== courseId)
-  ) {
-    return (
-      <PageMessage
-        fullScreen
-        title="Nie znaleziono lekcji"
-        description="Lekcja nie istnieje albo nie jest jeszcze dostępna."
-        action={
-          <Link
-            href={courseHref}
-            className="text-sm font-medium underline underline-offset-4"
-          >
-            Wróć do kursu
-          </Link>
-        }
-      />
-    );
-  }
-  if (error || !lesson.data || !blocks.data) {
-    return (
-      <PageMessage
-        fullScreen
-        title="Nie udało się wczytać lekcji"
-        description="Sprawdź połączenie i spróbuj ponownie."
-        action={
-          <Button
-            onClick={() => {
-              void lesson.refetch();
-              void blocks.refetch();
-            }}
-          >
-            Spróbuj ponownie
-          </Button>
-        }
-      />
-    );
-  }
+  const collapsed = new Set(blocks.data?.collapsed_block_ids);
+  const opened = new Set(blocks.data?.opened_block_ids);
 
-  const { course, previous_lesson_id, next_lesson_id } = lesson.data;
-  const lessonHref = (id: number) => `/courses/${course.id}/lessons/${id}`;
-  const isAuthor = user?.id === course.owner_id;
+  function show(blockId: string) {
+    setShown((prev) => ({ ...prev, [blockId]: true }));
+    if (!opened.has(blockId)) {
+      openMaterial.mutate(blockId, {
+        // The quiz may now include questions about this material
+        onSuccess: () =>
+          queryClient.invalidateQueries({ queryKey: lessonQuizKey(lessonId) }),
+        onError: (error) => toast.error(learningStyleError(error)),
+      });
+    }
+  }
 
   return (
-    <>
-      <LessonHeader
-        courseHref={courseHref}
-        courseTitle={course.title}
-        title={lesson.data.title}
-      />
-      <main className="mx-auto w-full max-w-3xl flex-1 space-y-5 px-4 py-8 sm:px-6">
-        {isAuthor && (
-          <PreviewBanner
-            editHref={`/teach/courses/${course.id}/lessons/${lessonId}`}
-            what="lekcję"
-          />
-        )}
-        <PersonalizationNote data={blocks.data} />
-
-        {blocks.data.blocks.length === 0 ? (
-          <p className="text-muted-foreground">Ta lekcja jest jeszcze pusta.</p>
-        ) : (
-          <ol role="list" aria-label="Treść lekcji" className="space-y-5">
-            {blocks.data.blocks.map((block) => (
-              <li key={block.id}>
-                <BlockView block={block} />
-              </li>
-            ))}
-          </ol>
-        )}
-        <LessonQuiz
-          lessonId={lessonId}
-          editHref={
-            isAuthor
-              ? `/teach/courses/${course.id}/lessons/${lessonId}/quiz`
-              : undefined
-          }
-        />
-
-        <nav
-          aria-label="Lekcje kursu"
-          className="flex flex-wrap items-center justify-between gap-3 pt-4"
-        >
-          {previous_lesson_id ? (
-            <Link
-              href={lessonHref(previous_lesson_id)}
-              className={cn(buttonVariants({ variant: "outline" }))}
+    <LessonFrame
+      courseId={courseId}
+      lessonId={lessonId}
+      blocks={blocks}
+      intro={blocks.data && <PersonalizationNote data={blocks.data} />}
+      renderBlock={(block) => {
+        if (block.type !== "attachment" || !collapsed.has(block.id)) {
+          return <BlockView block={block} />;
+        }
+        if (!(shown[block.id] ?? opened.has(block.id))) {
+          return (
+            <CollapsedMaterial
+              attachment={block}
+              onShow={() => show(block.id)}
+            />
+          );
+        }
+        return (
+          <div className="space-y-2">
+            <BlockView block={block} />
+            <Button
+              variant="ghost"
+              onClick={() =>
+                setShown((prev) => ({ ...prev, [block.id]: false }))
+              }
             >
-              <ArrowLeftIcon data-icon="inline-start" />
-              Poprzednia lekcja
-            </Link>
-          ) : (
-            <span />
-          )}
-          <Link
-            href={next_lesson_id ? lessonHref(next_lesson_id) : courseHref}
-            className={cn(buttonVariants(), "ml-auto")}
-          >
-            {next_lesson_id ? "Następna lekcja" : "Wróć do kursu"}
-            {next_lesson_id && <ArrowRightIcon data-icon="inline-end" />}
-          </Link>
-        </nav>
-      </main>
-    </>
+              <ChevronUpIcon data-icon="inline-start" />
+              Zwiń materiał
+            </Button>
+          </div>
+        );
+      }}
+    />
   );
 }

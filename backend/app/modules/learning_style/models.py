@@ -6,6 +6,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     String,
+    UniqueConstraint,
     func,
     true,
 )
@@ -111,4 +112,19 @@ class QuizAttempt(Base):
     percent: Mapped[int]
     style: Mapped[str] = mapped_column(String(STYLE_LENGTH))
     counted_for_weights: Mapped[bool]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MaterialOpening(Base):
+    """First opening of a collapsed attachment (other-style material) in a lesson."""
+
+    __tablename__ = "material_openings"
+    __table_args__ = (UniqueConstraint("user_id", "lesson_id", "block_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id", ondelete="CASCADE"))
+    block_id: Mapped[str] = mapped_column(String(40))
+    # Forms of the attachment when it was opened, in V, A, K order
+    forms: Mapped[str] = mapped_column(String(STYLE_LENGTH))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

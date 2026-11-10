@@ -26,4 +26,6 @@ export const learningStyleApi = {
 
   personalizedBlocks: (lessonId: number) =>
     api.get<PersonalizedBlocks>(`/lessons/${lessonId}/personalized-blocks`),
+  openMaterial: (lessonId: number, blockId: string) =>
+    api.post<void>(`/lessons/${lessonId}/blocks/${blockId}/open`),
 };
