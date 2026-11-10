@@ -3,15 +3,35 @@
 import { ArrowLeftIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { useLesson } from "@/features/courses/hooks";
 import { FORM_LABELS, FORMS, type Form } from "@/features/content/types";
 import { PageMessage } from "@/shared/layout/page-states";
 import { useUnsavedChangesWarning } from "@/shared/hooks/use-unsaved-changes-warning";
 import { cn } from "@/shared/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/shared/ui/alert-dialog";
 import { Button, buttonVariants } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { assessmentError } from "../errors";
@@ -24,6 +44,16 @@ import {
   newQuizId,
   questionsLabel,
 } from "../types";
+
+// Select needs a string for "no form" (a common question)
+const COMMON = "common";
+const FORM_ITEMS = [
+  { value: COMMON, label: "Wspólnego – pytanie widzi każdy uczeń" },
+  ...FORMS.map((form) => ({
+    value: form,
+    label: `${FORM_LABELS[form]} – widzą tylko uczniowie tego stylu`,
+  })),
+];
 
 function emptyQuestion(): QuizQuestion {
   const answers = Array.from({ length: MIN_ANSWERS }, () => ({
@@ -62,6 +92,7 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
   );
   const [dirty, setDirty] = useState(false);
   const [showProblems, setShowProblems] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const save = useSaveQuiz(lessonId);
   const remove = useDeleteQuiz(lessonId);
   useUnsavedChangesWarning(dirty);
@@ -114,88 +145,103 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
                     }
                   />
                 </label>
-                <label className="block space-y-1.5 text-sm font-medium">
-                  Dotyczy materiału
-                  <select
-                    className="block h-control w-full rounded-lg border bg-background px-3 text-sm"
-                    value={question.form ?? ""}
-                    onChange={(e) =>
+                <div className="space-y-1.5">
+                  <span
+                    id={`form-${question.id}`}
+                    className="block text-sm font-medium"
+                  >
+                    Dotyczy materiału
+                  </span>
+                  <Select
+                    items={FORM_ITEMS}
+                    value={question.form ?? COMMON}
+                    onValueChange={(value) =>
                       update(index, (q) => ({
                         ...q,
-                        form: (e.target.value || null) as Form | null,
+                        form: value === COMMON ? null : (value as Form),
                       }))
                     }
                   >
-                    <option value="">
-                      Wspólnego – pytanie widzi każdy uczeń
-                    </option>
-                    {FORMS.map((form) => (
-                      <option key={form} value={form}>
-                        {FORM_LABELS[form]} – widzą tylko uczniowie tego stylu
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <SelectTrigger
+                      className="w-full"
+                      aria-labelledby={`form-${question.id}`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FORM_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <fieldset className="space-y-2">
-                  <legend className="text-sm font-medium">
+                  <legend
+                    id={`answers-${question.id}`}
+                    className="text-sm font-medium"
+                  >
                     Odpowiedzi (zaznacz poprawną)
                   </legend>
-                  {question.answers.map((answer, a) => (
-                    <div key={answer.id} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name={`correct-${question.id}`}
-                        aria-label={`Odpowiedź ${a + 1} jest poprawna`}
-                        checked={question.correct_answer_id === answer.id}
-                        onChange={() =>
-                          update(index, (q) => ({
-                            ...q,
-                            correct_answer_id: answer.id,
-                          }))
-                        }
-                        className="size-4 accent-primary"
-                      />
-                      <Input
-                        value={answer.text}
-                        maxLength={200}
-                        aria-label={`Odpowiedź ${a + 1}`}
-                        onChange={(e) =>
-                          update(index, (q) => ({
-                            ...q,
-                            answers: q.answers.map((x) =>
-                              x.id === answer.id
-                                ? { ...x, text: e.target.value }
-                                : x,
-                            ),
-                          }))
-                        }
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Usuń odpowiedź ${a + 1}`}
-                        disabled={question.answers.length <= MIN_ANSWERS}
-                        onClick={() =>
-                          update(index, (q) => {
-                            const answers = q.answers.filter(
-                              (x) => x.id !== answer.id,
-                            );
-                            const correct =
-                              q.correct_answer_id === answer.id
-                                ? answers[0].id
-                                : q.correct_answer_id;
-                            return {
+                  <RadioGroup
+                    aria-labelledby={`answers-${question.id}`}
+                    value={question.correct_answer_id}
+                    onValueChange={(value) =>
+                      update(index, (q) => ({
+                        ...q,
+                        correct_answer_id: value as string,
+                      }))
+                    }
+                  >
+                    {question.answers.map((answer, a) => (
+                      <div key={answer.id} className="flex items-center gap-2">
+                        <RadioGroupItem
+                          value={answer.id}
+                          aria-label={`Odpowiedź ${a + 1} jest poprawna`}
+                        />
+                        <Input
+                          value={answer.text}
+                          maxLength={200}
+                          aria-label={`Odpowiedź ${a + 1}`}
+                          onChange={(e) =>
+                            update(index, (q) => ({
                               ...q,
-                              answers,
-                              correct_answer_id: correct,
-                            };
-                          })
-                        }
-                      >
-                        <Trash2Icon />
-                      </Button>
-                    </div>
-                  ))}
+                              answers: q.answers.map((x) =>
+                                x.id === answer.id
+                                  ? { ...x, text: e.target.value }
+                                  : x,
+                              ),
+                            }))
+                          }
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Usuń odpowiedź ${a + 1}`}
+                          disabled={question.answers.length <= MIN_ANSWERS}
+                          onClick={() =>
+                            update(index, (q) => {
+                              const answers = q.answers.filter(
+                                (x) => x.id !== answer.id,
+                              );
+                              const correct =
+                                q.correct_answer_id === answer.id
+                                  ? answers[0].id
+                                  : q.correct_answer_id;
+                              return {
+                                ...q,
+                                answers,
+                                correct_answer_id: correct,
+                              };
+                            })
+                          }
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      </div>
+                    ))}
+                  </RadioGroup>
                   {question.answers.length < MAX_ANSWERS && (
                     <Button
                       variant="ghost"
@@ -265,23 +311,44 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
           Podgląd lekcji z quizem
         </Link>
         {initial.length > 0 && (
-          <Button
-            variant="ghost"
-            className="ml-auto text-destructive"
-            disabled={remove.isPending}
-            onClick={() => {
-              if (window.confirm("Usunąć quiz z tej lekcji?")) {
-                remove.mutate(undefined, {
-                  onSuccess: () => {
-                    setQuestions([emptyQuestion()]);
-                    setDirty(false);
-                  },
-                });
+          <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+            <AlertDialogTrigger
+              render={
+                <Button variant="ghost" className="ml-auto text-destructive" />
               }
-            }}
-          >
-            Usuń quiz
-          </Button>
+            >
+              Usuń quiz
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Usunąć quiz?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Uczniowie przestaną widzieć quiz pod tą lekcją. Wyniki
+                  dotychczasowych podejść zostaną.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  disabled={remove.isPending}
+                  onClick={() =>
+                    remove.mutate(undefined, {
+                      onSuccess: () => {
+                        setConfirmDelete(false);
+                        setQuestions([emptyQuestion()]);
+                        setDirty(false);
+                        toast.success("Usunięto quiz.");
+                      },
+                    })
+                  }
+                >
+                  {remove.isPending && <Spinner data-icon="inline-start" />}
+                  Usuń quiz
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
     </div>

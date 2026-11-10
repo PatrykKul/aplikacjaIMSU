@@ -6,6 +6,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { PageMessage } from "@/shared/layout/page-states";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { learningStyleError } from "../errors";
@@ -78,7 +79,7 @@ export function SurveyForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-      <div className="sticky top-0 z-10 -mx-4 border-b bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
+      <div className="sticky top-16 z-30 -mx-4 border-b bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
         <div className="flex items-center justify-between text-sm">
           <span>
             Odpowiedziano na{" "}
@@ -112,34 +113,36 @@ export function SurveyForm() {
                 )}
                 aria-invalid={missing || undefined}
               >
-                <legend className="px-1 font-medium">
+                <legend
+                  id={`question-${question.id}-text`}
+                  className="px-1 font-medium"
+                >
                   {index + 1}. {question.text}
                 </legend>
-                {question.answers.map((answer) => (
-                  <label
-                    key={answer.id}
-                    className={cn(
-                      "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-muted/50",
-                      chosen[question.id] === answer.id &&
-                        "border-primary bg-primary/5",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name={`question-${question.id}`}
-                      value={answer.id}
-                      checked={chosen[question.id] === answer.id}
-                      onChange={() =>
-                        setChosen((prev) => ({
-                          ...prev,
-                          [question.id]: answer.id,
-                        }))
-                      }
-                      className="mt-0.5 size-4 accent-primary"
-                    />
-                    <span>{answer.text}</span>
-                  </label>
-                ))}
+                <RadioGroup
+                  aria-labelledby={`question-${question.id}-text`}
+                  value={chosen[question.id] ?? null}
+                  onValueChange={(value) =>
+                    setChosen((prev) => ({
+                      ...prev,
+                      [question.id]: value as number,
+                    }))
+                  }
+                >
+                  {question.answers.map((answer) => (
+                    <label
+                      key={answer.id}
+                      className={cn(
+                        "flex min-h-control cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:bg-muted/50",
+                        chosen[question.id] === answer.id &&
+                          "border-primary bg-primary/5",
+                      )}
+                    >
+                      <RadioGroupItem value={answer.id} />
+                      <span>{answer.text}</span>
+                    </label>
+                  ))}
+                </RadioGroup>
                 {missing && (
                   <p className="text-sm text-destructive">
                     Wybierz jedną odpowiedź.

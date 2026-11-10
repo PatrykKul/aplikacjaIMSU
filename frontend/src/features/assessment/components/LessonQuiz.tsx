@@ -16,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { assessmentError } from "../errors";
@@ -117,7 +118,10 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
               return (
                 <li key={question.id}>
                   <fieldset className="space-y-2" disabled={!!result}>
-                    <legend className="flex flex-wrap items-center gap-2 font-medium">
+                    <legend
+                      id={`quiz-${question.id}-text`}
+                      className="flex flex-wrap items-center gap-2 font-medium"
+                    >
                       {index + 1}. {question.text}
                       {question.form && (
                         <Badge variant="outline">
@@ -125,52 +129,53 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
                         </Badge>
                       )}
                     </legend>
-                    {question.answers.map((answer) => {
-                      const isChosen = chosen[question.id] === answer.id;
-                      const isCorrect =
-                        checked?.correct_answer_id === answer.id;
-                      const isWrong = checked && isChosen && !checked.correct;
-                      return (
-                        <label
-                          key={answer.id}
-                          className={cn(
-                            "flex items-center gap-3 rounded-lg border p-3 text-sm transition-colors",
-                            !result && "cursor-pointer hover:bg-muted/50",
-                            isChosen &&
-                              !result &&
-                              "border-primary bg-primary/5",
-                            isCorrect && "border-green-600 bg-green-600/10",
-                            isWrong && "border-destructive bg-destructive/10",
-                          )}
-                        >
-                          <input
-                            type="radio"
-                            name={`quiz-${question.id}`}
-                            checked={isChosen}
-                            onChange={() =>
-                              setChosen((prev) => ({
-                                ...prev,
-                                [question.id]: answer.id,
-                              }))
-                            }
-                            className="size-4 accent-primary"
-                          />
-                          <span className="flex-1">{answer.text}</span>
-                          {isCorrect && (
-                            <CheckIcon
-                              className="size-4 text-green-700"
-                              aria-label="poprawna odpowiedź"
-                            />
-                          )}
-                          {isWrong && (
-                            <XIcon
-                              className="size-4 text-destructive"
-                              aria-label="błędna odpowiedź"
-                            />
-                          )}
-                        </label>
-                      );
-                    })}
+                    <RadioGroup
+                      aria-labelledby={`quiz-${question.id}-text`}
+                      disabled={!!result}
+                      value={chosen[question.id] ?? null}
+                      onValueChange={(value) =>
+                        setChosen((prev) => ({
+                          ...prev,
+                          [question.id]: value as string,
+                        }))
+                      }
+                    >
+                      {question.answers.map((answer) => {
+                        const isChosen = chosen[question.id] === answer.id;
+                        const isCorrect =
+                          checked?.correct_answer_id === answer.id;
+                        const isWrong = checked && isChosen && !checked.correct;
+                        return (
+                          <label
+                            key={answer.id}
+                            className={cn(
+                              "flex min-h-control items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors",
+                              !result && "cursor-pointer hover:bg-muted/50",
+                              isChosen &&
+                                !result &&
+                                "border-primary bg-primary/5",
+                              isCorrect && "border-green-600 bg-green-600/10",
+                              isWrong && "border-destructive bg-destructive/10",
+                            )}
+                          >
+                            <RadioGroupItem value={answer.id} />
+                            <span className="flex-1">{answer.text}</span>
+                            {isCorrect && (
+                              <CheckIcon
+                                className="size-4 text-green-700"
+                                aria-label="poprawna odpowiedź"
+                              />
+                            )}
+                            {isWrong && (
+                              <XIcon
+                                className="size-4 text-destructive"
+                                aria-label="błędna odpowiedź"
+                              />
+                            )}
+                          </label>
+                        );
+                      })}
+                    </RadioGroup>
                   </fieldset>
                 </li>
               );

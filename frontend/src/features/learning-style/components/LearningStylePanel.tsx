@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/card";
+import { Checkbox } from "@/shared/ui/checkbox";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { learningStyleError } from "../errors";
@@ -70,11 +71,10 @@ function ManualStyle({ profile }: { profile: LearningProfile }) {
                 picked.includes(form) && "border-primary bg-primary/5",
               )}
             >
-              <input
-                type="checkbox"
+              <Checkbox
+                className="mt-0.5"
                 checked={picked.includes(form)}
-                onChange={() => toggle(form)}
-                className="mt-0.5 size-4 accent-primary"
+                onCheckedChange={() => toggle(form)}
               />
               <span>
                 <span className="font-medium">
@@ -107,7 +107,10 @@ function ManualStyle({ profile }: { profile: LearningProfile }) {
               Przywróć styl z ankiety
             </Button>
           )}
-          <Link href="/survey" className={buttonVariants({ variant: "ghost" })}>
+          <Link
+            href="/survey"
+            className={cn(buttonVariants({ variant: "ghost" }))}
+          >
             Wypełnij ankietę ponownie
           </Link>
         </div>
@@ -186,7 +189,7 @@ export function LearningStylePanel() {
       <PageMessage
         title="Nie znamy jeszcze Twojego stylu"
         action={
-          <Link href="/survey" className={buttonVariants()}>
+          <Link href="/survey" className={cn(buttonVariants())}>
             Wypełnij ankietę
           </Link>
         }

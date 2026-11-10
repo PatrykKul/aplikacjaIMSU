@@ -45,7 +45,7 @@ export function SurveyResult() {
         title="Nie masz jeszcze wyniku"
         description="Wypełnij ankietę, żeby poznać swój styl uczenia się."
         action={
-          <Link href="/survey" className={buttonVariants()}>
+          <Link href="/survey" className={cn(buttonVariants())}>
             Przejdź do ankiety
           </Link>
         }
