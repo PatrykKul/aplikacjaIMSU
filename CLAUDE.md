@@ -1,8 +1,9 @@
 # IMSU — projekt zaliczeniowy (Inteligentne multimedialne systemy uczące)
 
-Kod systemu (wersja 2) jest w katalogu głównym: `backend/`, `frontend/`, `docker-compose.yml`; prace na gałęzi `v2`. **Zanim cokolwiek zmienisz, przeczytaj `docs/v2/00-START.md`** i pozostałe dokumenty z `docs/v2/` w podanej tam kolejności — to one opisują koncepcję, decyzje, plan i zasady pracy.
+Kod systemu: `backend/`, `frontend/`, `docker-compose.yml`, gałąź `main`. **Zanim cokolwiek zmienisz, przeczytaj `docs/00-START.md`** i pozostałe dokumenty z `docs/` w podanej tam kolejności — opisują koncepcję, decyzje, plan, konwencje i zasady pracy. Stan modułów: `docs/moduly/`, bieżąca praca: `docs/08-praca-biezaca.md`.
 
-Najważniejsze zasady (szczegóły w `docs/v2/`):
-- Samodzielnie zmieniasz tylko dokumentację w `docs/v2/`. Kod przekazujesz autorowi w całych plikach (albo jako dokładne wskazanie zmiany); pliki w repozytorium zmieniasz tylko na jego wyraźną prośbę. Commituje autor — po każdym kroku podaj nazwę commita po angielsku (Conventional Commits).
-- Specyfikację etapu akceptuje autor przed implementacją.
-- Katalog `legacy/` to **wersja 1** (kod, `legacy/docs/dokumentacja.md`, `legacy/docs/postep/`) — materiał referencyjny, nie rozbudowuj jej.
+Najważniejsze zasady (szczegóły w `docs/`):
+- Samodzielnie zmieniasz tylko dokumentację w `docs/`. Kod przekazujesz autorowi w rozmowie (całe pliki albo dokładne wskazanie zmiany); pliki kodu zmieniasz tylko na jego wyraźną prośbę. Commituje autor — po każdym kroku podaj nazwę commita po angielsku (Conventional Commits).
+- Specyfikację pracy akceptuje autor przed implementacją.
+- Repozytorium jest wspólne dla dwóch autorów: przed pracą `git pull`; zmianę cudzego kodu wymień w specyfikacji.
+- Wersja 1 („StylNauki”) jest tylko pod tagiem `v1-final` (`git show v1-final:<ścieżka>`).

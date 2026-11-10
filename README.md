@@ -24,7 +24,3 @@ Pliki `.env` tworzysz, kopiując `.env.example` w katalogu głównym i w `backen
 
 - Backend: `pytest`, `ruff check .`, `ruff format --check .`
 - Frontend: `npm run lint`, `npm run build`
-
-## Wersja 1
-
-Poprzednia wersja systemu („StylNauki”) jest w katalogu `legacy/` jako materiał referencyjny.

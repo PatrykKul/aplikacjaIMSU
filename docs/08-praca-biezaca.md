@@ -5,7 +5,7 @@ Specyfikacja tego, co teraz robimy. Po zakończeniu: wynik trafia do `moduly/<nr
 ---
 
 # Etap 5 — poprawki stylu i quizów   (10.11.2026)
-Status: **szkic** — do akceptacji
+Status: **zaakceptowana** (10.11.2026)
 
 Praca bezpośrednio na `main` (D4). Źródło uwag: przegląd etapu 4 (10.11, niżej). Decyzje: D17, D18, D19 (zmienione 10.11).
 
@@ -49,7 +49,7 @@ Ograniczenie unikalności (`user_id`, `lesson_id`, `block_id`) — rozwinięcie 
 
 | Endpoint | Kto | Działanie |
 |---|---|---|
-| `POST /lessons/{id}/blocks/{block_id}/open` | uczeń z ankietą | zapisuje rozwinięcie, jeśli blok jest załącznikiem lekcji i **żadna** jego forma nie należy do stylu ucznia (zwinięty); w przeciwnym razie nic nie robi. Formy bierze z bloku na serwerze. 204; `SURVEY_REQUIRED` 403; nieznany blok `BLOCK_NOT_FOUND` 404; niewidoczna lekcja 404 |
+| `POST /lessons/{id}/blocks/{block_id}/open` | uczeń z ankietą (inne role: 403 `FORBIDDEN`) | zapisuje rozwinięcie, jeśli blok jest załącznikiem lekcji i **żadna** jego forma nie należy do stylu ucznia (zwinięty); w przeciwnym razie nic nie robi. Formy bierze z bloku na serwerze. 204; `SURVEY_REQUIRED` 403; nieznany blok `BLOCK_NOT_FOUND` 404; niewidoczna lekcja 404 |
 | `GET /lessons/{id}/personalized-blocks` (zmiana) | zalogowany | uczeń dostaje **wszystkie** bloki oraz `collapsed_block_ids` (załączniki bez formy ze stylu) i `opened_block_ids` (już rozwinięte); `hidden_count` znika; nauczyciel / admin: obie listy puste |
 
 ## Logika (K3)
@@ -69,7 +69,7 @@ Ograniczenie unikalności (`user_id`, `lesson_id`, `block_id`) — rozwinięcie 
 ## Testy
 
 - Czyste funkcje: `effective_style` (bez rozwinięć, jedno, kilka, powtórzone litery, kolejność).
-- API: rozwinięcie zwiniętego zapisuje się raz; rozwinięcie pasującego / bloku tekstu — bez zapisu; nieznany blok 404; nauczyciel — 403 lub brak zapisu; `personalized-blocks` zwraca wszystkie bloki i poprawne listy.
+- API: rozwinięcie zwiniętego zapisuje się raz; rozwinięcie pasującego / bloku tekstu — bez zapisu; nieznany blok 404; nauczyciel i administrator — 403; `personalized-blocks` zwraca wszystkie bloki i poprawne listy.
 - Adaptacja: uczeń V rozwija nagranie A i zalicza quiz → V i A +1; quiz po rozwinięciu zawiera pytanie A; reguła pierwszego sukcesu dla stylu efektywnego.
 - Istniejące testy personalizacji i quizu dostosowane do zwijania.
 - Frontend: `npm run lint`, `npm run format:check`, `npx tsc --noEmit`, `npm run build`; ręcznie: konto `uczen.demo` — zwinięte materiały, rozwinięcie, quiz z nowym pytaniem, wagi po quizie.
@@ -77,6 +77,6 @@ Ograniczenie unikalności (`user_id`, `lesson_id`, `block_id`) — rozwinięcie 
 ## Poza zakresem
 Baza pytań z losowaniem (O5), powtórka w innym stylu, panel nauczyciela ze stylami uczniów (O3).
 
-## Pytania do autora
-1. Uczeń może zwinąć z powrotem rozwinięty materiał (tylko w widoku, bez zapisu) — zgoda?
-2. Endpoint rozwinięcia dla nauczyciela / admina: 403 (proponuję) czy cicho 204?
+## Rozstrzygnięcia (10.11)
+1. Uczeń może zwinąć z powrotem rozwinięty materiał („Zwiń”) — tylko w widoku, bez zapisu.
+2. Endpoint rozwinięcia dla nauczyciela i administratora: 403 `FORBIDDEN`.
