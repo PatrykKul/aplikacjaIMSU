@@ -7,7 +7,11 @@ from fastapi.testclient import TestClient
 from app.modules.identity.models import User
 
 # Fixtures of the learning-style tests (survey filling, answer key)
-from tests.learning_style.conftest import answer_key, fill_survey  # noqa: F401
+from tests.learning_style.conftest import (  # noqa: F401
+    answer_key,
+    fill_survey,
+    lesson_with_styles,
+)
 
 
 def question(qid: str, form: str | None = None, correct: str = "a") -> dict[str, Any]:

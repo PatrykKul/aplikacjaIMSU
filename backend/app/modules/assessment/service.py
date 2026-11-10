@@ -26,11 +26,12 @@ def _quiz(db: Session, lesson_id: int) -> LessonQuiz | None:
     return db.scalar(select(LessonQuiz).where(LessonQuiz.lesson_id == lesson_id))
 
 
-def _style_filter(db: Session, user: User) -> str | None:
-    """A student's style (survey required); None = no filtering (teachers, admins)."""
+def _style_filter(db: Session, user: User, lesson_id: int) -> str | None:
+    """A student's effective style in the lesson (survey required); None = no filtering."""
     if user.role != UserRole.STUDENT:
         return None
-    return learning_style.require_profile(db, user).style
+    profile = learning_style.require_profile(db, user)
+    return learning_style.lesson_style(db, profile, lesson_id)
 
 
 def _questions_for(
@@ -40,7 +41,7 @@ def _questions_for(
     quiz = _quiz(db, lesson_id)
     if quiz is None:
         raise AppError(404, "QUIZ_NOT_FOUND")
-    visible = visible_questions(quiz.questions, _style_filter(db, user))
+    visible = visible_questions(quiz.questions, _style_filter(db, user, lesson_id))
     if not visible:
         raise AppError(404, "QUIZ_NOT_FOUND")
     return quiz, visible, len(quiz.questions) - len(visible)
