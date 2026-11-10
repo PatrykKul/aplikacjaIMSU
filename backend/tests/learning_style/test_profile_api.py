@@ -64,7 +64,7 @@ def test_accept_proposal(client: TestClient, db: Session, fill_survey, student):
     _make_auditory_leader(db, student.id)
     proposal = client.get("/profile/learning-style").json()["proposal"]
     assert proposal["style"] == "A"
-    assert proposal["message"] == "Lepiej Ci idzie z materiałami słuchowymi – przełączyć?"
+    assert proposal["message"] == "Wagi wskazują na materiały słuchowe – przełączyć?"
     assert "V 10 / A 12 / K 0" in proposal["why"]
     accepted = client.post("/profile/learning-style/proposal/accept").json()
     assert accepted["style"] == "A"

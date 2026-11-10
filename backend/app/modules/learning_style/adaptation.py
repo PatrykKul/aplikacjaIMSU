@@ -17,7 +17,6 @@ PASS_THRESHOLD = 70
 WEIGHT_MIN = 0
 WEIGHT_MAX = 30
 
-MATERIALS = {"V": "wzrokowymi", "A": "słuchowymi", "K": "praktycznymi"}
 MATERIALS_NOMINATIVE = {"V": "wzrokowe", "A": "słuchowe", "K": "praktyczne"}
 
 Weights = dict[str, int]
@@ -73,7 +72,7 @@ def proposed_style(
 
 
 def proposal_message(style: str) -> str:
-    return f"Lepiej Ci idzie z materiałami {MATERIALS[style]} – przełączyć?"
+    return f"Wagi wskazują na materiały {MATERIALS_NOMINATIVE[style]} – przełączyć?"
 
 
 def proposal_why(weights: Mapping[str, int], style: str) -> str:

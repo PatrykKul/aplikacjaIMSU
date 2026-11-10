@@ -60,7 +60,7 @@ def test_manual_style_and_rejected_proposal_are_respected():
 
 
 def test_texts():
-    assert proposal_message("A") == "Lepiej Ci idzie z materiałami słuchowymi – przełączyć?"
+    assert proposal_message("A") == "Wagi wskazują na materiały słuchowe – przełączyć?"
     assert "V 6 / A 9 / K 2" in proposal_why({"V": 6, "A": 9, "K": 2}, "A")
     assert "45%" in quiz_why("Wykres", 45) and "poniżej progu" in quiz_why("Wykres", 45)
     assert "zaliczony" in quiz_why("Wykres", 80)
