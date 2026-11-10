@@ -57,7 +57,7 @@ Struktura modułu: `models.py`, `schemas.py`, `service.py` (publiczny interfejs)
 | SurveyResult | `survey_results` | punkty V / A / K, styl dominujący, data — historia |
 | LearningProfile | `learning_profiles` | styl, źródło stylu, wagi V / A / K, odrzucona propozycja |
 | QuizAttempt | `quiz_attempts` | uczeń, lekcja, wynik %, styl (efektywny) w chwili próby, czy zmieniła wagi |
-| MaterialOpening | `material_openings` | rozwinięcie zwiniętego załącznika: uczeń, lekcja, blok, formy (etap 5) |
+| MaterialOpening | `material_openings` | rozwinięcie zwiniętego załącznika: uczeń, lekcja, blok, formy |
 | LessonQuiz | `lesson_quizzes` | pytania quizu lekcji w JSONB (treść, forma, odpowiedzi, poprawna) |
 | Class *(etap 6)* | do ustalenia | klasa nauczyciela, uczniowie klasy, kursy przypisane klasie |
 
@@ -67,8 +67,9 @@ Struktura modułu: `models.py`, `schemas.py`, `service.py` (publiczny interfejs)
 # learning_style/scoring.py
 compute_score(answer_styles) -> SurveyScore                      # points, dominant_style
 # learning_style/personalization.py
-block_visible(block, style) -> bool                                # stage 5: collapsed instead of hidden
-effective_style(style, opened_forms) -> str                        # stage 5
+matches_style(block, style) -> bool                                # otherwise shown collapsed
+collapsed_ids(blocks, style) -> list[str]
+effective_style(style, opened_forms) -> str                        # style + forms of opened materials
 style_explanation(style, source, points) -> str
 # learning_style/adaptation.py
 initial_weights(points) -> Weights

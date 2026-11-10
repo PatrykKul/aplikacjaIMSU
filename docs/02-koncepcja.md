@@ -38,17 +38,17 @@ Baza pytań z losowaniem i test końcowy kursu — opcjonalnie później (O5, O3
 |---|---|
 | IP — preferencje | **styl** (`V`, `VA`, `VAK`…; źródło: ankieta / ręczny / adaptacja) i **wagi V / A / K** (0–30, start = punkty ankiety, korekta po quizach) |
 | S — wyniki | próby quizów: wynik w procentach, styl efektywny w chwili próby, czy zmieniła wagi |
-| obserwacja bierna (Tadeusiewicz) | rozwinięcia zwiniętych materiałów (od etapu 5) |
+| obserwacja bierna (Tadeusiewicz) | rozwinięcia zwiniętych materiałów |
 | Z — zaawansowanie | nie modelujemy (prototyp) |
 
 ## 5. Reguły adaptacji (moduł nauczania)
 
 ### 5.1 Lekcja podana uczniowi
 - Bloki **w kolejności nauczyciela** (system nie przestawia toku lekcji).
-- Bloki tekstu zawsze widoczne. Załącznik, którego **żadna forma nie należy do stylu** ucznia, jest **zwinięty w miejscu** („Pokaż materiał”); pozostałe rozwinięte (od etapu 5; w etapie 4 takie załączniki były ukryte).
+- Bloki tekstu zawsze widoczne. Załącznik, którego **żadna forma nie należy do stylu** ucznia, jest **zwinięty w miejscu** („Pokaż materiał”); pozostałe rozwinięte.
 - Nad lekcją „dlaczego to widzisz”: styl, jego źródło (ankieta z punktami, wybór ręczny, propozycja systemu), liczba zwiniętych materiałów.
 
-### 5.2 Styl efektywny lekcji (od etapu 5)
+### 5.2 Styl efektywny lekcji
 Styl ucznia ∪ formy załączników, które uczeń **rozwinął** w tej lekcji. Rozwinięcie zapisuje się raz. Styl efektywny decyduje o pytaniach quizu i o tym, które wagi zmienia wynik.
 
 ### 5.3 Quiz
