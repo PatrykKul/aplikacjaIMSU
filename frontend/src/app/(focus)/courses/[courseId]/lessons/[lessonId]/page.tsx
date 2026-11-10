@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { LessonView } from "@/features/courses/components/LessonView";
+import { LessonScreen } from "@/features/courses/components/LessonScreen";
 
 function parseId(value: string): number {
   const id = Number(value);
@@ -15,6 +15,6 @@ export default async function LessonPage(
 ) {
   const { courseId, lessonId } = await props.params;
   return (
-    <LessonView courseId={parseId(courseId)} lessonId={parseId(lessonId)} />
+    <LessonScreen courseId={parseId(courseId)} lessonId={parseId(lessonId)} />
   );
 }
