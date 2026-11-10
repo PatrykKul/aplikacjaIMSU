@@ -1,7 +1,7 @@
 "use client";
 
 import type { JSONContent } from "@tiptap/react";
-import { EyeIcon } from "lucide-react";
+import { EyeIcon, ListChecksIcon } from "lucide-react";
 import Link from "next/link";
 import { type MouseEvent, useState } from "react";
 import { toast } from "sonner";
@@ -211,7 +211,16 @@ function BlockEditor({ lesson, initialBlocks }: BlockEditorProps) {
           onClick={leaveUnlessDirty}
         >
           <EyeIcon data-icon="inline-start" />
-          Podgląd
+          {/* Icon only on a phone, so the bar fits in one row */}
+          <span className="sr-only sm:not-sr-only">Podgląd</span>
+        </Link>
+        <Link
+          href={`/teach/courses/${lesson.course.id}/lessons/${lesson.id}/quiz`}
+          className={cn(buttonVariants({ variant: "outline" }))}
+          onClick={leaveUnlessDirty}
+        >
+          <ListChecksIcon data-icon="inline-start" />
+          <span className="sr-only sm:not-sr-only">Quiz</span>
         </Link>
       </div>
 

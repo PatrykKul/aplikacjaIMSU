@@ -58,7 +58,7 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
         <CardContent>
           <Link
             href={editHref}
-            className={buttonVariants({ variant: "outline" })}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             <PencilIcon data-icon="inline-start" />
             Dodaj quiz
@@ -95,8 +95,8 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
           Sprawdź się
         </CardTitle>
         <CardDescription>
-          {questionsLabel(questions.length)} jednokrotnego wyboru. Wynik liczy
-          serwer, a system dopasuje się do tego, jak Ci idzie.
+          {questionsLabel(questions.length)} jednokrotnego wyboru. Po
+          sprawdzeniu zobaczysz poprawne odpowiedzi.
           {quiz.data.hidden_count > 0 &&
             " Pytania dotyczą materiałów, które widzisz w tej lekcji."}
         </CardDescription>

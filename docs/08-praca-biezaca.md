@@ -24,7 +24,7 @@ Praca bezpośrednio na `main` (D4). Źródło uwag: przegląd etapu 4 (10.11, ni
 
 | Krok | Zakres | Commit (propozycja) |
 |---|---|---|
-| **K1** Drobne poprawki | `npm run format`; `cn(buttonVariants(…))` w `LessonQuiz` i `QuizEditor`; `useState(false)` dla `dirty` w `QuizEditor`; opis quizu „Po sprawdzeniu zobaczysz poprawne odpowiedzi.”; przycisk „Quiz” w pasku `LessonEditor` obok „Podgląd”; `LessonView`: uczeń — `usePersonalizedBlocks`, nauczyciel / admin — `useLessonBlocks` (parametr `enabled` w obu hookach) | `style(frontend): format learning-style and assessment` + `fix(frontend): …` |
+| **K1** Drobne poprawki | `npm run format`; `cn(buttonVariants(…))` w `LessonQuiz` i `QuizEditor`; `useState(false)` dla `dirty` w `QuizEditor`; opis quizu „Po sprawdzeniu zobaczysz poprawne odpowiedzi.”; przycisk „Quiz” w pasku `LessonEditor` obok „Podgląd” (na telefonie same ikony); `.gitattributes`: `*.pdf`, `*.mp4`, `*.webm` jako binarne | `style(frontend): format learning-style and assessment` + `fix(frontend): …` |
 | **K2** Kontrolki shadcn | `npx shadcn add radio-group select alert-dialog` (jeśli brak); ankieta i quiz — `RadioGroup` w kafelkach 44 px; profil — `Checkbox`; edytor quizu — `Select` formy i `RadioGroup` poprawnej odpowiedzi; usunięcie quizu — `AlertDialog` zamiast `window.confirm`; sprawdzenie przyklejonego paska postępu ankiety pod nagłówkiem `AppShell` | `refactor(frontend): use shadcn controls in survey, profile and quiz` |
 | **K3** Backend: zwijanie i rozwinięcia | tabela, endpoint i styl efektywny (niżej); nowy tekst propozycji; testy | `feat(learning-style): collapse other-style materials and record openings` |
 | **K4** Frontend: zwijanie | zwinięty załącznik w miejscu, rozwinięcie zapisywane raz, odświeżenie quizu; nowy tekst `PersonalizationNote` | `feat(frontend): show other-style materials collapsed in the lesson` |
@@ -62,6 +62,7 @@ Ograniczenie unikalności (`user_id`, `lesson_id`, `block_id`) — rozwinięcie 
 
 ## Frontend (K4)
 
+- **Podział widoku lekcji** (uwaga 3 z przeglądu): `features/courses/components/LessonFrame.tsx` — wspólna rama (stany ładowania / 404 / błędu, `LessonHeader`, `<main>`, quiz, nawigacja poprzednia / następna); `LessonView` (uczeń) — `usePersonalizedBlocks`, `PersonalizationNote`, zwinięte materiały; `features/teach/components/LessonPreview.tsx` (nauczyciel, administrator) — `useLessonBlocks` (klucz edytora, więc podgląd zawsze aktualny), `PreviewBanner`, wszystkie bloki rozwinięte. Strona `(focus)/courses/[courseId]/lessons/[lessonId]` wybiera komponent według roli; adresy bez zmian.
 - `LessonView` (uczeń): zwinięty załącznik — karta z ikoną typu, tytułem, plakietkami form i przyciskiem „Pokaż materiał” (`outline`, 44 px). Po kliknięciu blok się rozwija (`BlockView`), a przy pierwszym rozwinięciu idzie `POST …/open`; po sukcesie odświeżane są quiz lekcji i spersonalizowane bloki. Bloki z `opened_block_ids` są od razu rozwinięte. Rozwinięty można zwinąć („Zwiń”) — tylko w widoku.
 - `PersonalizationNote`: „Lekcja dopasowana do stylu: …”; zamiast „Ukryto N…” — „N materiałów dla innych stylów jest zwiniętych — możesz je rozwinąć.” (odmiana jak dotąd).
 - Klucz quizu: styl ucznia zostaje w kluczu, a rozwinięcie unieważnia `["quiz", lessonId]`.

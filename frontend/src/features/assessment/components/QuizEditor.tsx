@@ -8,6 +8,7 @@ import { useLesson } from "@/features/courses/hooks";
 import { FORM_LABELS, FORMS, type Form } from "@/features/content/types";
 import { PageMessage } from "@/shared/layout/page-states";
 import { useUnsavedChangesWarning } from "@/shared/hooks/use-unsaved-changes-warning";
+import { cn } from "@/shared/lib/utils";
 import { Button, buttonVariants } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
@@ -59,7 +60,7 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
   const [questions, setQuestions] = useState<QuizQuestion[]>(
     initial.length > 0 ? initial : [emptyQuestion()],
   );
-  const [dirty, setDirty] = useState(initial.length === 0);
+  const [dirty, setDirty] = useState(false);
   const [showProblems, setShowProblems] = useState(false);
   const save = useSaveQuiz(lessonId);
   const remove = useDeleteQuiz(lessonId);
@@ -259,7 +260,7 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
         </span>
         <Link
           href={previewHref}
-          className={buttonVariants({ variant: "ghost" })}
+          className={cn(buttonVariants({ variant: "ghost" }))}
         >
           Podgląd lekcji z quizem
         </Link>
@@ -273,7 +274,7 @@ function Editor({ lessonId, initial, previewHref }: EditorProps) {
                 remove.mutate(undefined, {
                   onSuccess: () => {
                     setQuestions([emptyQuestion()]);
-                    setDirty(true);
+                    setDirty(false);
                   },
                 });
               }
