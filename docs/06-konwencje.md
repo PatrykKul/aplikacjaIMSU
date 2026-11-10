@@ -1,4 +1,4 @@
-# Konwencje wersji 2
+# Konwencje projektu
 
 ## Język
 
@@ -70,5 +70,6 @@
 ## Dokumentacja
 
 - Dokumentacja w `docs/` w repozytorium — jedno źródło prawdy dla obu autorów (D32). AI zmienia ją na prośbę autora albo zgodnie z procesem etapu (D5); plików kodu nie zmienia — kod podaje w rozmowie.
+- **Commity dokumentacji razem z tym, co opisuje** (repozytorium czyta też drugi autor i jego AI): zaakceptowana specyfikacja w `08-praca-biezaca.md` — osobny commit `docs: …` i push od razu; postęp kroku w `08` — w commicie tego kroku; decyzja z rozmowy (`04-decyzje.md`) — najpóźniej z najbliższym commitem; zamknięcie etapu (`moduly/`, status w `05` i `00`, wyczyszczenie `08`) — jeden commit `docs: …`. Opisy modułów zmieniamy dopiero przy zamknięciu etapu.
 - Każda zmiana decyzji → `04-decyzje.md`; każdy ukończony etap → status w `05-plan-etapow.md` i `00-START.md`.
 - Bieżąca specyfikacja w `docs/08-praca-biezaca.md`; po zakończeniu pracy wynik w `docs/moduly/<nr>-<moduł>.md` (opis stanu, bez historii), a plik bieżący czyszczony. Bez osobnych plików SPEC / RAPORT.
