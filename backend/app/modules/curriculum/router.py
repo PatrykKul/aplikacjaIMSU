@@ -1,4 +1,6 @@
-from fastapi import APIRouter, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, status
 
 from app.core.db import DbSession
 from app.modules.curriculum import classrooms, service
@@ -16,11 +18,15 @@ from app.modules.curriculum.schemas import (
     LessonResponse,
     LessonUpdateRequest,
 )
-from app.modules.identity.dependencies import CurrentUser, TeacherUser
+from app.modules.identity.dependencies import CurrentUser, TeacherUser, require_role
+from app.modules.identity.models import User, UserRole
 
 courses_router = APIRouter(prefix="/courses", tags=["curriculum"])
 lessons_router = APIRouter(prefix="/lessons", tags=["curriculum"])
 classrooms_router = APIRouter(prefix="/classrooms", tags=["curriculum"])
+
+ClassroomUser = Annotated[User, Depends(require_role(UserRole.TEACHER, UserRole.STUDENT))]
+"""Who opens classrooms: the teacher and the classroom's students (admins have no classrooms)."""
 
 
 @courses_router.get("")
@@ -85,8 +91,8 @@ def archive_lesson(lesson_id: int, db: DbSession, user: CurrentUser) -> None:
 
 
 @classrooms_router.get("")
-def list_classrooms(db: DbSession, user: TeacherUser) -> list[ClassroomSummaryResponse]:
-    return classrooms.list_teacher_classrooms(db, user)
+def list_classrooms(db: DbSession, user: ClassroomUser) -> list[ClassroomSummaryResponse]:
+    return classrooms.list_classrooms(db, user)
 
 
 @classrooms_router.post("", status_code=status.HTTP_201_CREATED)
@@ -98,9 +104,9 @@ def create_classroom(
 
 
 @classrooms_router.get("/{classroom_id}")
-def get_classroom(classroom_id: int, db: DbSession, user: TeacherUser) -> ClassroomResponse:
-    classroom = classrooms.get_owned_classroom(db, classroom_id, user)
-    return classrooms.teacher_classroom_detail(db, classroom, user)
+def get_classroom(classroom_id: int, db: DbSession, user: ClassroomUser) -> ClassroomResponse:
+    classroom = classrooms.get_visible_classroom(db, classroom_id, user)
+    return classrooms.classroom_detail(db, classroom, user)
 
 
 @classrooms_router.patch("/{classroom_id}")
