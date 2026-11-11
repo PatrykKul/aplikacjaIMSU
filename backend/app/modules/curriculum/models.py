@@ -45,3 +45,51 @@ class Lesson(Base):
     )
 
     course: Mapped[Course] = relationship(back_populates="lessons")
+
+
+CLASSROOM_NAME_LENGTH = 80
+
+
+class Classroom(Base):
+    """A teacher's class; its students get access to the courses assigned to it."""
+
+    __tablename__ = "classrooms"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    name: Mapped[str] = mapped_column(String(CLASSROOM_NAME_LENGTH))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ClassroomStudent(Base):
+    """Membership of a student in a classroom (a student may be in many classrooms)."""
+
+    __tablename__ = "classroom_students"
+
+    classroom_id: Mapped[int] = mapped_column(
+        ForeignKey("classrooms.id", ondelete="CASCADE"), primary_key=True
+    )
+    # Indexed separately: the primary key only serves lookups by classroom
+    student_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ClassroomCourse(Base):
+    """A course assigned to a classroom (only the classroom teacher's own courses)."""
+
+    __tablename__ = "classroom_courses"
+
+    classroom_id: Mapped[int] = mapped_column(
+        ForeignKey("classrooms.id", ondelete="CASCADE"), primary_key=True
+    )
+    course_id: Mapped[int] = mapped_column(
+        ForeignKey("courses.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    assigned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

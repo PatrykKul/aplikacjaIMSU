@@ -105,3 +105,11 @@ Współprowadzący klasy, zaproszenia / kody dołączenia do klasy, import listy
 7. Przypisać klasie można też kurs opublikowany.
 8. Dane demo: „Klasa 7a” z oboma uczniami demo, „Programowanie” jako prywatny kurs klasy.
 9. Klasę się **usuwa** (z powiązaniami), bez archiwizacji.
+
+---
+## Stan realizacji
+
+**Kroki zrobione (commity):**
+- S1 — modele `Classroom`, `ClassroomStudent`, `ClassroomCourse` w `curriculum/models.py`, migracja `249e835bc4e5` (`create classrooms tables`); tabele łączące z kluczem złożonym, kaskadą do klasy, ucznia i kursu oraz indeksem na `student_id` / `course_id` (wyszukiwanie klas ucznia i sprawdzanie dostępu do kursu w S3); bez relacji ORM (usuwanie powiązań przez `ON DELETE CASCADE` w bazie).
+
+**Do zrobienia:** S2–S6.
