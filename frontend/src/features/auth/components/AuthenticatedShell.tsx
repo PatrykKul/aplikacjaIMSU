@@ -12,9 +12,13 @@ import type { UserRole } from "../types";
 const navByRole: Record<UserRole, NavItem[]> = {
   student: [
     { href: "/courses", label: "Kursy" },
+    { href: "/classes", label: "Moje klasy" },
     { href: "/profile", label: "Mój styl" },
   ],
-  teacher: [{ href: "/teach", label: "Moje kursy" }],
+  teacher: [
+    { href: "/teach", label: "Moje kursy" },
+    { href: "/teach/classes", label: "Klasy" },
+  ],
   admin: [
     { href: "/courses", label: "Kursy" },
     { href: "/admin/users", label: "Użytkownicy" },

@@ -13,7 +13,7 @@
 
 | Wykład (MITS / IEEE LTSC) | Moduł v2 |
 |---|---|
-| moduł dziedziny / baza wiedzy | `curriculum` (kursy, lekcje; od etapu 6 klasy) + `content` (bloki, załączniki, pliki) |
+| moduł dziedziny / baza wiedzy | `curriculum` (kursy, lekcje, klasy) + `content` (bloki, załączniki, pliki) |
 | ocena | `assessment` (quiz lekcji, ocenianie) |
 | model ucznia | `learning_style` (ankieta VAK, styl, wagi, próby quizów, rozwinięcia materiałów) |
 | moduł nauczyciela / silnik uczący / baza metod | czyste funkcje w `learning_style` (`personalization.py`, `adaptation.py`) i `assessment/grading.py` |
@@ -27,7 +27,7 @@ backend/app/
   core/              config, db session, errors, rich text schema
   modules/
     identity/        auth, users, roles (fixed), admin user management, create-admin CLI
-    curriculum/      courses, lessons, owners, publishing (stage 6: classes)
+    curriculum/      courses, lessons, owners, publishing, classrooms
     content/         lesson blocks (TipTap text, attachments with forms), files
     learning_style/  VAK survey, learning profile, personalization, adaptation, quiz attempts, hooks
     assessment/      lesson quiz, grading, quiz editor API
@@ -59,7 +59,9 @@ Struktura modułu: `models.py`, `schemas.py`, `service.py` (publiczny interfejs)
 | QuizAttempt | `quiz_attempts` | uczeń, lekcja, wynik %, styl (efektywny) w chwili próby, czy zmieniła wagi |
 | MaterialOpening | `material_openings` | rozwinięcie zwiniętego załącznika: uczeń, lekcja, blok, formy |
 | LessonQuiz | `lesson_quizzes` | pytania quizu lekcji w JSONB (treść, forma, odpowiedzi, poprawna) |
-| Class *(etap 6)* | do ustalenia | klasa nauczyciela, uczniowie klasy, kursy przypisane klasie |
+| Classroom | `classrooms` | klasa nauczyciela: nazwa, `teacher_id` |
+| ClassroomStudent | `classroom_students` | uczeń klasy (wiele do wielu) |
+| ClassroomCourse | `classroom_courses` | kurs przypisany klasie (wiele do wielu) |
 
 ## 5. Reguły — interfejs czystych funkcji
 
@@ -88,7 +90,7 @@ Reguły i progi: `02-koncepcja.md` §5.
 frontend/src/
   app/                 routes only (thin pages composing features); (app) with AppShell, (focus) for lessons
   features/<feature>/  api.ts, hooks.ts, types.ts, errors.ts, components/
-                       auth, users, dashboard, courses, teach, content, learning-style, assessment
+                       auth, users, dashboard, courses, teach, classes, content, learning-style, assessment
   shared/              ui (shadcn), api client, layout, rich-text, hooks, utils
 ```
 - Dane przez TanStack Query, jeden klient API (`credentials: "include"`).

@@ -4,10 +4,14 @@ from typing import Annotated, Any
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.core.rich_text import RichTextDocument
-from app.modules.curriculum.models import TITLE_LENGTH
+from app.modules.curriculum.models import CLASSROOM_NAME_LENGTH, TITLE_LENGTH
+from app.modules.identity.schemas import StudentResponse
 
 Title = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=TITLE_LENGTH)
+]
+ClassroomName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=CLASSROOM_NAME_LENGTH)
 ]
 Description = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
 
@@ -77,3 +81,42 @@ class LessonResponse(BaseModel):
     course: LessonCourseResponse
     previous_lesson_id: int | None
     next_lesson_id: int | None
+
+
+# --- Classrooms --------------------------------------------------------------------------------
+
+
+class ClassroomCreateRequest(BaseModel):
+    name: ClassroomName
+
+
+class ClassroomUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: ClassroomName
+
+
+class ClassroomTeacherResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    display_name: str
+    email: str
+
+
+class ClassroomSummaryResponse(BaseModel):
+    id: int
+    name: str
+    teacher: ClassroomTeacherResponse
+    course_count: int
+    # Only for the classroom teacher; students do not see who else is in the classroom
+    student_count: int | None = None
+
+
+class ClassroomResponse(BaseModel):
+    id: int
+    name: str
+    teacher: ClassroomTeacherResponse
+    courses: list[CourseSummaryResponse]
+    # Only for the classroom teacher
+    students: list[StudentResponse] | None = None

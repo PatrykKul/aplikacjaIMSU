@@ -6,9 +6,11 @@ Run from `backend/` (uploads go to UPLOAD_DIR, relative to it):
     python -m app.demo.seed --reset-students   # also clear survey/quiz data of demo students
     python -m app.demo.seed --refresh-demo-media  # upload demo MP3/MP4 again (after re-recording)
 
-Creates: a teacher with three published courses (math, English, Python) whose lessons have
+Creates: a teacher with three courses (math, English, Python) whose lessons have
 V / A / K / mixed materials; a student without the survey (to show the redirect); a student
-with a survey and quiz results whose profile shows a proposal to switch the learning style.
+with a survey and quiz results whose profile shows a proposal to switch the learning style;
+the teacher's classroom with both students and the Python course, which is private (it is
+not in the catalog, the students of the classroom see it in the classroom).
 """
 
 import argparse
@@ -21,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.core.db import SessionLocal
 from app.demo.courses import (
     COURSES,
+    PYTHON,
     QUIZZES,
     Block,
     Course,
@@ -37,9 +40,10 @@ from app.modules.assessment.models import LessonQuiz
 from app.modules.assessment.schemas import QuizContent
 from app.modules.content import service as content
 from app.modules.content.blocks import LessonBlocks
+from app.modules.curriculum import classrooms
 from app.modules.curriculum import service as curriculum
+from app.modules.curriculum.models import Classroom, Lesson
 from app.modules.curriculum.models import Course as CourseModel
-from app.modules.curriculum.models import Lesson
 from app.modules.curriculum.schemas import CourseCreateRequest, CourseUpdateRequest
 from app.modules.identity import service as identity
 from app.modules.identity.models import User, UserRole
@@ -71,6 +75,10 @@ VISUAL_QUIZZES = (
     ("Matematyka: funkcja liniowa", 2, 40),
     ("Angielski: Present Perfect", 0, 45),
 )
+# The demo classroom: both demo students and the Python course, made private when the
+# classroom is created (it leaves the catalog and stays available in the classroom)
+CLASSROOM_NAME = "Klasa 7a"
+CLASSROOM_COURSE = PYTHON.title
 
 
 def log(message: str) -> None:
@@ -244,6 +252,39 @@ def ensure_course(
     return course
 
 
+# --- Classroom -----------------------------------------------------------------------------------
+
+
+def find_classroom(db: Session, teacher: User) -> Classroom | None:
+    return db.scalar(
+        select(Classroom).where(
+            Classroom.teacher_id == teacher.id, Classroom.name == CLASSROOM_NAME
+        )
+    )
+
+
+def ensure_classroom(db: Session, teacher: User, students: list[User]) -> Classroom:
+    """Create the demo classroom if missing; in any case add missing students and the course.
+
+    The course is made private only when the classroom is created, so a teacher who
+    publishes it again during the presentation keeps it published on the next run.
+    """
+    course = find_course(db, teacher, CLASSROOM_COURSE)
+    assert course is not None, CLASSROOM_COURSE
+    classroom = find_classroom(db, teacher)
+    if classroom is None:
+        classroom = classrooms.create_classroom(db, teacher, CLASSROOM_NAME)
+        curriculum.update_course(db, course.id, teacher, CourseUpdateRequest(is_published=False))
+        log(f"utworzono klasę: {CLASSROOM_NAME} (kurs prywatny: {course.title})")
+    else:
+        log(f"klasa istnieje: {CLASSROOM_NAME}")
+    for student in students:
+        classrooms.add_student(db, classroom.id, teacher, student.id)
+    classrooms.assign_course(db, classroom.id, teacher, course.id)
+    log(f"  uczniowie: {', '.join(student.email for student in students)}; kurs: {course.title}")
+    return classroom
+
+
 # --- Students ------------------------------------------------------------------------------------
 
 
@@ -320,6 +361,8 @@ def main(argv: list[str] | None = None) -> int:
         print("Kursy:")
         for course in COURSES:
             ensure_course(db, teacher, course, refresh_media=args.refresh_demo_media)
+        print("Klasa:")
+        ensure_classroom(db, teacher, [new_student, visual_student])
         print("Uczniowie:")
         if args.reset_students:
             reset_student(db, new_student)

@@ -30,6 +30,7 @@ Ten katalog zawiera pełny kontekst projektu dla każdej nowej sesji pracy (czł
 - Asystent AI **nie zmienia plików kodu w repozytorium**. Kod przekazuje w rozmowie — w całych plikach albo jako dokładne wskazanie zmiany (plik, miejsce, przed / po). Autor sam wprowadza zmiany, żeby świadomie śledzić każdy krok.
 - AI zmienia **dokumentację `docs/`** (status, praca bieżąca, opisy modułów, decyzje), gdy autor o to poprosi albo gdy wynika to z ustalonego procesu (`05-plan-etapow.md`).
 - AI może **czytać** repozytorium autora poleceniami bez zapisu (`git --no-optional-locks status`, `diff`, `log`, `show`, testy), żeby sprawdzić zmiany przed commitem.
+- **Testy, lint i build uruchamia autor.** Przy sprawdzaniu kroku AI tylko **porównuje pliki autora z kodem, który podało** (diff), i wskazuje różnice — nie uruchamia testów (zajmuje to dużo czasu).
 - Autor uruchamia testy i **commituje**; po każdym kroku AI podaje nazwę commita po angielsku (Conventional Commits).
 - Kod w rozmowie (nie w archiwach) i **w kolejności zależności**: każdy plik importuje tylko to, co już istnieje; przy większym kroku — części do sprawdzenia po kolei.
 - Polecenia dla autora: Windows, `cmd`, pojedynczo (bez łączenia przez `;`).
@@ -45,6 +46,6 @@ Ten katalog zawiera pełny kontekst projektu dla każdej nowej sesji pracy (czł
 ## Aktualny status
 
 - **Termin: koniec listopada 2026.** Pokaz roboczy: 12.11.2026.
-- Zrobione: etap 0 (szkielet), 1 (konta i role), 2 (administracja kont), 3 (kursy i edytor lekcji), 4 (styl uczenia się i quizy — kolega), 5 (poprawki stylu i quizów: zwijanie materiałów, styl efektywny lekcji, kontrolki shadcn). Testy backendu: 286.
-- **Następny:** etap 6 — klasy i dostęp do kursów (specyfikacja w `08-praca-biezaca.md`).
-- **Dalej:** etap 7 — wygląd; etap 8 — dokumentacja i pokaz.
+- Zrobione: etap 0 (szkielet), 1 (konta i role), 2 (administracja kont), 3 (kursy i edytor lekcji), 4 (styl uczenia się i quizy — kolega), 5 (poprawki stylu i quizów: zwijanie materiałów, styl efektywny lekcji, kontrolki shadcn), 6 (klasy i dostęp do kursów). Testy backendu: 349.
+- **Następny:** etap 7 — wygląd (specyfikacja do przygotowania w `08-praca-biezaca.md`).
+- **Dalej:** etap 8 — dokumentacja i pokaz.

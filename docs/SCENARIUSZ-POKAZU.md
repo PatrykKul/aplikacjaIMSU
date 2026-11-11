@@ -6,7 +6,7 @@ Prezentacja: czwartek 12.11.2026. Aplikacja: http://localhost:3001. Hasło wszys
 |---|---|
 | `uczen.nowy@imsu.pl` (Ola Kowalska) | nowy uczeń: wymuszenie ankiety, styl, lekcja pod styl, quiz |
 | `uczen.demo@imsu.pl` (Kuba Wiśniewski) | uczeń z historią quizów: propozycja zmiany stylu |
-| `nauczyciel.demo@imsu.pl` (Anna Nowak) | kursy, materiały V/A/K, edytor quizu |
+| `nauczyciel.demo@imsu.pl` (Anna Nowak) | kursy, materiały V/A/K, edytor quizu, klasa „Klasa 7a” |
 | `admin.demo@imsu.pl` | zarządzanie kontami (opcjonalnie) |
 
 ## Przed pokazem (5 minut wcześniej)
@@ -27,7 +27,7 @@ Prezentacja: czwartek 12.11.2026. Aplikacja: http://localhost:3001. Hasło wszys
 
 Co powiedzieć:
 - „IMSU to platforma kursów, która dopasowuje **sposób podania materiału** do ucznia: na starcie według ankiety VAK, a potem według tego, jak uczniowi faktycznie idzie w quizach.”
-- „Rdzeń jest **regułowy i wyjaśnialny**: każda decyzja systemu ma widoczne uzasadnienie »dlaczego to widzisz«. Nie zależy od zewnętrznego modelu AI, działa offline i jest pokryty testami (ponad 280 testów backendu).”
+- „Rdzeń jest **regułowy i wyjaśnialny**: każda decyzja systemu ma widoczne uzasadnienie »dlaczego to widzisz«. Nie zależy od zewnętrznego modelu AI, działa offline i jest pokryty testami (ponad 340 testów backendu).”
 - Uczciwie: „Teoria stylów VAK jest w badaniach dyskusyjna, dlatego styl z ankiety to tylko **punkt startowy**. Dalej system patrzy na wyniki, a uczeń zawsze może zmienić styl sam.”
 
 ### 1:00–3:00 Nowy uczeń: wymuszona ankieta i styl (`uczen.nowy`)
@@ -58,7 +58,7 @@ Co powiedzieć:
    - „Kuba w ankiecie wyszedł wzrokowcem (V 9 / A 8 / K 3). Potem w 4 lekcjach zaliczył jeden quiz i oblał trzy, uczył się z materiałów wzrokowych. Każda porażka obniżyła wagę V. Gdy inny styl jest **jedynym** liderem, system proponuje zmianę.”
    - Reguły: „Propozycji nie ma, gdy uczeń wybrał styl ręcznie (jego decyzja wygrywa) albo gdy już ją odrzucił, wtedy nie wraca.”
    - Pokaż sekcję **„Jak system Cię widzi”**: paski wag.
-3. Kurs **Programowanie: pętle w Pythonie** → **Pętla for**. Teraz (styl V) rozwinięte są schemat blokowy, kod i film, a nagrania zwinięte.
+3. **Kursy**: nie ma tu kursu „Programowanie” — jest prywatny. **Moje klasy** → **Klasa 7a** (nauczycielka Anna Nowak z e-mailem do kontaktu) → **Programowanie: pętle w Pythonie** → **Pętla for**. „Nauczyciel udostępnia kurs klasie — także prywatny; uczniowie spoza klasy go nie widzą.” Teraz (styl V) rozwinięte są schemat blokowy, kod i film, a nagrania zwinięte.
 4. Kliknij **„Przełącz”** w banerze (w lekcji albo w profilu). Lekcja od razu ma rozwinięte nagrania (A) i film, a materiały wzrokowe zwinięte; quiz ma teraz pytanie o materiał słuchowy. Ramka: „…bo styl zmieniono po propozycji opartej na wynikach quizów”.
 
 ### 7:30–9:00 Nauczyciel: materiały i quiz (`nauczyciel.demo`)
@@ -67,12 +67,13 @@ Co powiedzieć:
 2. Wejdź w kurs → lekcja → **edytor lekcji**: bloki tekstowe i załączniki (obraz, PDF, nagranie, film) z oznaczeniem form **V / A / K**.
 3. „Podgląd” → nauczyciel widzi **wszystkie** materiały rozwinięte (z dopiskiem, co widzi uczeń) i pod spodem quiz z linkiem **„Edytuj quiz”**; do edytora quizu prowadzi też przycisk **„Quiz”** w pasku edytora lekcji.
 4. **Edytor quizu**: pytania jednokrotnego wyboru, 3–4 odpowiedzi, zaznaczona poprawna i pole **„Dotyczy materiału”** (wspólny / V / A / K). Zmień treść pytania → „Zapisz quiz” → „Zapisano”.
+5. **Klasy** → **Klasa 7a**: dwoje uczniów i prywatny kurs „Programowanie”. „Dodaj ucznia” → wpisz `uczen` — wyniki pojawiają się w trakcie pisania (po krótkiej przerwie, od 3 znaków), uczniowie już w klasie mają plakietkę „W klasie”. „Przypisz kurs” pokazuje nieprzypisane kursy nauczyciela.
 
 ### 9:00–10:00 Podsumowanie
 
-- **Architektura:** FastAPI + PostgreSQL + Next.js. Moduły backendu: konta (`identity`), kursy (`curriculum`), treść (`content`), **styl uczenia (`learning_style`)**, **quizy (`assessment`)**. Ocenianie quizu tylko na serwerze, potem `record_quiz_result` aktualizuje wagi.
+- **Architektura:** FastAPI + PostgreSQL + Next.js. Moduły backendu: konta (`identity`), kursy i klasy (`curriculum`), treść (`content`), **styl uczenia (`learning_style`)**, **quizy (`assessment`)**. Ocenianie quizu tylko na serwerze, potem `record_quiz_result` aktualizuje wagi.
 - **Inteligencja:** ankieta VAK → styl startowy; dobór materiałów i pytań pod styl; adaptacja wag po quizach (+1/−1, ochrona przed nabijaniem); propozycja zmiany stylu z uzasadnieniem; decyduje uczeń.
-- **Jakość:** ponad 280 testów backendu (logika jako czyste funkcje + testy API), lint i build frontendu.
+- **Jakość:** ponad 340 testów backendu (logika jako czyste funkcje + testy API), lint i build frontendu.
 - **Dalszy rozwój:** poziomy trudności, powtórka tematu w innym stylu (było w wersji 1), panel nauczyciela ze stylami uczniów, opcjonalne pytania otwarte analizowane przez LLM.
 
 ## Pytania, które mogą paść

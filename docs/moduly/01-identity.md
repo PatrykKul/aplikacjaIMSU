@@ -3,7 +3,8 @@
 Konta, role, sesja, administracja kont. Decyzje: D3, D8, D9.
 
 ## Odpowiedzialność
-- `identity`: konta użytkowników, role, rejestracja, logowanie, wylogowanie, „kim jestem”, zarządzanie kontami uczniów i nauczycieli przez administratora, polecenie `create-admin`.
+- `identity`: konta użytkowników, role, rejestracja, logowanie, wylogowanie, „kim jestem”, zarządzanie kontami uczniów i nauczycieli przez administratora, wyszukiwanie uczniów dla nauczyciela, polecenie `create-admin`.
+- Dla innych modułów (`service.py`): `get_users` (użytkownicy o podanych id, wg imienia), `get_active_student` (aktywny uczeń albo `None`) — z nich `curriculum` bierze dane uczniów i nauczycieli klas.
 - `core`: ustawienia (`config.py`), sesja bazy (`db.py`, `DbSession`, konwencja nazw ograniczeń), format błędów (`errors.py`, `AppError`), `GET /health`, dokument TipTap (`rich_text.py`).
 - Zależności dla innych modułów (`identity/dependencies.py`): `CurrentUser`, `TeacherUser`, `AdminUser`, `require_role(...)`.
 
@@ -30,6 +31,7 @@ Konta, role, sesja, administracja kont. Decyzje: D3, D8, D9.
 | `GET /auth/me` | zalogowany | `UserResponse` | 401 `NOT_AUTHENTICATED` |
 | `GET /users?role=` | admin | uczniowie albo nauczyciele (wymagane `role`), wg e-maila | 401, 403, 422 |
 | `POST /users` | admin | konto ucznia / nauczyciela z hasłem → 201 (bez ciasteczka) | 409, 422 |
+| `GET /students?email=` | nauczyciel | aktywni uczniowie, których e-mail zawiera tekst (bez wielkości liter; `%` i `_` dosłownie), najwyżej 20, wg e-maila; `StudentResponse` (`id`, `display_name`, `email`) | 401, 403, 422 (tekst krótszy niż 3 znaki po przycięciu) |
 | `PATCH /users/{id}` | admin | `display_name?`, `email?`, `password?`, `is_active?` (`role` → 422) | 404 `USER_NOT_FOUND` (także konto administratora), 409 |
 | `GET /health` | każdy | `{"status": "ok", "database": "ok"}` | |
 
@@ -40,10 +42,11 @@ Konta, role, sesja, administracja kont. Decyzje: D3, D8, D9.
 - `features/users`: `/admin/users` — zakładki Nauczyciele / Uczniowie, tabela (imię, e-mail, status, data), `UserFormDialog` (dodawanie i edycja, nowe hasło opcjonalne), blokada z potwierdzeniem.
 - `features/dashboard`: `/dashboard` — powitanie i karty zależne od roli.
 - Trasy: `(public)/login`, `(public)/register`, `/` przekierowuje, `/dev/ui` i `/dev/shell` (plac zabaw, tylko w trybie deweloperskim).
-- Nawigacja: uczeń — „Kursy”, „Mój styl”; nauczyciel — „Moje kursy”; admin — „Kursy”, „Użytkownicy”.
+- Nawigacja: uczeń — „Kursy”, „Moje klasy”, „Mój styl”; nauczyciel — „Moje kursy”, „Klasy”; admin — „Kursy”, „Użytkownicy”. Karty na `/dashboard` odpowiadają pozycjom menu.
+- Wyszukiwanie uczniów na żywo używa `features/classes` (`useStudentSearch`) — opis w `02-curriculum.md`.
 
 ## Testy
-`backend/tests/identity/`, `test_health.py`: hasła, rejestracja (role, duplikat bez względu na wielkość liter, walidacja), logowanie (zablokowane konto), `/auth/me` (brak, podrobiony, wygasły token), blokada i rola czytane z bazy, wylogowanie, administracja kont (lista według roli, tworzenie, edycja e-maila i hasła, `role` → 422, konto admina → 404), CLI, `/health`, 500 bez treści wyjątku.
+`backend/tests/identity/`, `test_health.py`: hasła, rejestracja (role, duplikat bez względu na wielkość liter, walidacja), logowanie (zablokowane konto), `/auth/me` (brak, podrobiony, wygasły token), blokada i rola czytane z bazy, wylogowanie, administracja kont (lista według roli, tworzenie, edycja e-maila i hasła, `role` → 422, konto admina → 404), wyszukiwanie uczniów (`test_student_search.py`: fragment bez wielkości liter, kolejność, tylko aktywni uczniowie, znaki wieloznaczne dosłownie, limit 20, min. 3 znaki, tylko nauczyciel), CLI, `/health`, 500 bez treści wyjątku.
 
 ## Jak sprawdzić ręcznie
 Rejestracja ucznia i nauczyciela, logowanie, wylogowanie; jako admin `/admin/users`: dodanie nauczyciela (puste pola, zajęty e-mail), edycja z nowym hasłem i logowanie nim, blokada ucznia (nie zaloguje się), odblokowanie; `/dashboard` dla każdej roli.

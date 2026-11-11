@@ -1,8 +1,8 @@
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
-from app.modules.curriculum.models import Course, Lesson
+from app.modules.curriculum.models import ClassroomCourse, ClassroomStudent, Course, Lesson
 from app.modules.curriculum.schemas import (
     CourseCreateRequest,
     CourseResponse,
@@ -15,17 +15,36 @@ from app.modules.curriculum.schemas import (
 from app.modules.identity.models import User, UserRole
 
 
-def can_view_course(course: Course, user: User) -> bool:
+def _assigned_to_student_classroom(db: Session, course_id: int, student_id: int) -> bool:
+    """Whether the course is assigned to a classroom the student belongs to."""
+    return bool(
+        db.scalar(
+            select(
+                exists().where(
+                    ClassroomCourse.course_id == course_id,
+                    ClassroomStudent.classroom_id == ClassroomCourse.classroom_id,
+                    ClassroomStudent.student_id == student_id,
+                )
+            )
+        )
+    )
+
+
+def can_view_course(db: Session, course: Course, user: User) -> bool:
+    """Admin: every course; teacher: own; student: published or assigned to their classroom."""
     if user.role == UserRole.ADMIN:
         return True
     if course.is_archived:
         return False
     if course.owner_id == user.id:
         return True
-    return user.role == UserRole.STUDENT and course.is_published
+    if user.role != UserRole.STUDENT:
+        return False
+    return course.is_published or _assigned_to_student_classroom(db, course.id, user.id)
 
 
 def list_courses(db: Session, user: User) -> list[Course]:
+    """Teacher: own courses; student: the catalog (published only); admin: all."""
     query = select(Course).order_by(Course.created_at.desc(), Course.id.desc())
     if user.role == UserRole.TEACHER:
         query = query.where(Course.owner_id == user.id, Course.is_archived.is_(False))
@@ -36,7 +55,7 @@ def list_courses(db: Session, user: User) -> list[Course]:
 
 def get_visible_course(db: Session, course_id: int, user: User) -> Course:
     course = db.get(Course, course_id)
-    if course is None or not can_view_course(course, user):
+    if course is None or not can_view_course(db, course, user):
         raise AppError(404, "COURSE_NOT_FOUND")
     return course
 
@@ -123,7 +142,7 @@ def _lesson_with_course(db: Session, lesson_id: int) -> Lesson | None:
 def get_visible_lesson(db: Session, lesson_id: int, user: User) -> Lesson:
     """For other modules too: a lesson the user may open."""
     lesson = _lesson_with_course(db, lesson_id)
-    if lesson is None or not can_view_course(lesson.course, user):
+    if lesson is None or not can_view_course(db, lesson.course, user):
         raise AppError(404, "LESSON_NOT_FOUND")
     return lesson
 

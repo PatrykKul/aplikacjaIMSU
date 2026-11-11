@@ -14,7 +14,7 @@
 | opis / wstęp kursu | description / introduction |
 | autor kursu | owner |
 | kurs prywatny / opublikowany | private / published (`is_published`) |
-| klasa / uczeń klasy *(etap 6)* | class / class member (nazwa w specyfikacji etapu 6) |
+| klasa / uczeń klasy / kurs przypisany klasie | classroom / classroom student / classroom course (`class` jest zarezerwowane w Pythonie) |
 | blok lekcji: tekst / załącznik | block: text / attachment |
 | typ załącznika | attachment kind |
 | forma: wzrokowa / słuchowa / kinestetyczna | form: `V` / `A` / `K` (załącznik ma zbiór `forms`) |

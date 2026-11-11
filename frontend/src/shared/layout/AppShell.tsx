@@ -28,6 +28,14 @@ type AppShellProps = {
   children: ReactNode;
 };
 
+/** The nav item of the current page: the longest matching address (/teach/classes over /teach). */
+function activeHref(nav: NavItem[], pathname: string): string | undefined {
+  return nav
+    .map((item) => item.href)
+    .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
+}
+
 function initials(name: string): string {
   return name
     .split(/\s+/)
@@ -39,6 +47,7 @@ function initials(name: string): string {
 
 export function AppShell({ nav, user, onLogout, children }: AppShellProps) {
   const pathname = usePathname();
+  const currentHref = activeHref(nav, pathname);
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -53,8 +62,7 @@ export function AppShell({ nav, user, onLogout, children }: AppShellProps) {
 
           <nav className="flex min-w-0 items-center gap-1 px-4 sm:px-6">
             {nav.map((item) => {
-              const active =
-                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active = item.href === currentHref;
               return (
                 <Link
                   key={item.href}
