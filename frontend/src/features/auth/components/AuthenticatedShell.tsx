@@ -14,7 +14,10 @@ const navByRole: Record<UserRole, NavItem[]> = {
     { href: "/courses", label: "Kursy" },
     { href: "/profile", label: "Mój styl" },
   ],
-  teacher: [{ href: "/teach", label: "Moje kursy" }],
+  teacher: [
+    { href: "/teach", label: "Moje kursy" },
+    { href: "/teach/classes", label: "Klasy" },
+  ],
   admin: [
     { href: "/courses", label: "Kursy" },
     { href: "/admin/users", label: "Użytkownicy" },
