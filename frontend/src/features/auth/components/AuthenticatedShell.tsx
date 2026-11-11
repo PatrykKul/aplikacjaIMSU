@@ -44,7 +44,7 @@ export function AuthenticatedShell({ children }: { children: ReactNode }) {
         roleLabel: roleLabels[user.role],
       }}
       onLogout={() =>
-        logout.mutate(undefined, { onSettled: () => router.replace("/login") })
+        logout.mutate(undefined, { onSettled: () => router.replace("/") })
       }
     >
       {children}
