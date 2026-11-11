@@ -1,6 +1,6 @@
 # Koncepcja systemu
 
-Źródła: system prowadzącego z filmów, feedback ustny i slajdy wykładu (`01-kontekst-i-materialy.md`; odwołania „§3.x” dotyczą tamtego dokumentu). Ustalenia autorów: listopad 2026; stan po etapie 4 i planie z 10.11 (etapy 5–6).
+Źródła: system prowadzącego z filmów, feedback ustny i slajdy wykładu (`01-kontekst-i-materialy.md`; odwołania „§3.x” dotyczą tamtego dokumentu). Ustalenia autorów: listopad 2026; stan po etapie 6 (11.11).
 
 ## 1. W skrócie
 
@@ -10,13 +10,13 @@ Multimedialny inteligentny system uczący (MITS, §3.1) z **głównym modułem n
 
 | Rola | Co robi |
 |---|---|
-| Uczeń | rejestracja → **ankieta VAK** (wymagana) → kursy (katalog opublikowanych, od etapu 6 też kursy klas) → lekcje i quizy → „Mój styl” (styl, wagi, ręczna zmiana, propozycje, historia ankiet) |
-| Nauczyciel | **moduł główny:** CRUD swoich kursów, lekcji, bloków, załączników (wgrywanie plików) i quizów; publikacja kursu; podgląd lekcji; od etapu 6: **klasy** (uczniowie, przypisane kursy) |
-| Administrator | zarządza **nauczycielami i uczniami**: lista, tworzenie i edycja kont, **blokada** (zamiast usuwania); rola wobec klas i kursów — etap 6 (O6) |
+| Uczeń | rejestracja → **ankieta VAK** (wymagana) → kursy (katalog opublikowanych) i „Moje klasy” (kursy klas, także prywatne; nauczyciel z e-mailem) → lekcje i quizy → „Mój styl” (styl, wagi, ręczna zmiana, propozycje, historia ankiet) |
+| Nauczyciel | **moduł główny:** CRUD swoich kursów, lekcji, bloków, załączników (wgrywanie plików) i quizów; publikacja kursu; podgląd lekcji; **klasy** (uczniowie dodawani po e-mailu, przypisane kursy) |
+| Administrator | zarządza **nauczycielami i uczniami**: lista, tworzenie i edycja kont, **blokada** (zamiast usuwania); bez klas i moderacji kursów (O6) |
 
 - **Rola wybierana przy rejestracji (uczeń albo nauczyciel) i stała.** Administrator powstaje tylko poleceniem CLI.
 - Nauczyciel widzi i edytuje **tylko swoje kursy**; nie ma współautorów.
-- **Dostęp do kursów (stan 10.11):** uczeń widzi kursy opublikowane. **Plan etapu 6 (D10):** nauczyciel tworzy klasy, dodaje do nich istniejących uczniów, zarządza nimi i przypisuje klasom kursy; kurs opublikowany jest dostępny dla wszystkich uczniów (katalog); uczeń ma katalog kursów publicznych i panel swoich klas (kursy klasy, uczestnicy). Szczegóły — specyfikacja etapu 6.
+- **Dostęp do kursów (D10, D35):** kurs opublikowany jest dostępny dla wszystkich uczniów (katalog). Nauczyciel tworzy klasy, dodaje do nich istniejących uczniów (wyszukiwanie po e-mailu) i przypisuje klasom swoje kursy — także prywatne, które widzą wtedy tylko uczniowie tych klas. Uczeń widzi swoje klasy (kursy, nauczyciel z e-mailem), bez listy uczestników. Szczegóły: `moduly/02-curriculum.md`.
 
 ## 3. Struktura kursu (model dziedziny)
 
@@ -72,9 +72,9 @@ Strategia = forma podania (V / A / K). Zamiast W(s, e) = argmax w(s, e) z pełny
 
 ## 6. Widoki
 
-- **Uczeń:** ankieta i wynik; kursy (od etapu 6: katalog i panel klas); strona kursu (wstęp, lekcje); lekcja w trybie skupienia (bloki, zwinięte materiały, „dlaczego to widzisz”, quiz na końcu z wynikiem i informacją o adaptacji, nawigacja między lekcjami); „Mój styl” (styl, źródło, wagi, propozycja, ręczna zmiana, powrót do ankiety, historia).
-- **Nauczyciel:** „Moje kursy”; edytor kursu (opis, wstęp, publikacja, lekcje z kolejnością); edytor lekcji (bloki: „+ Tekst”, „+ Załącznik”, przesuwanie, usuwanie; okno załącznika: typ, plik / adres / tekst lektora, tytuł, formy V / A / K); edytor quizu; podgląd lekcji; od etapu 6 — klasy.
-- **Administrator:** nauczyciele i uczniowie (tworzenie, edycja, blokada); od etapu 6 — według O6.
+- **Uczeń:** ankieta i wynik; kursy (katalog) i „Moje klasy” (strona klasy z kursami i kontaktem do nauczyciela); strona kursu (wstęp, lekcje); lekcja w trybie skupienia (bloki, zwinięte materiały, „dlaczego to widzisz”, quiz na końcu z wynikiem i informacją o adaptacji, nawigacja między lekcjami); „Mój styl” (styl, źródło, wagi, propozycja, ręczna zmiana, powrót do ankiety, historia).
+- **Nauczyciel:** „Moje kursy”; edytor kursu (opis, wstęp, publikacja, lekcje z kolejnością); edytor lekcji (bloki: „+ Tekst”, „+ Załącznik”, przesuwanie, usuwanie; okno załącznika: typ, plik / adres / tekst lektora, tytuł, formy V / A / K); edytor quizu; podgląd lekcji; klasy (lista, strona klasy: uczniowie z wyszukiwaniem na żywo, kursy, usuwanie).
+- **Administrator:** nauczyciele i uczniowie (tworzenie, edycja, blokada); podgląd wszystkich kursów (bez klas — O6).
 
 ## 7. Wirtualny mentor (opcjonalnie, O3)
 Jedna stała postać, komunikaty z reguł („dlaczego to widzisz”, propozycja zmiany stylu, zachęta po porażce), bez LLM (§3.7).
