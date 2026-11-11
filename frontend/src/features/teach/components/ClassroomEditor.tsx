@@ -1,6 +1,6 @@
 "use client";
 
-import { PencilIcon } from "lucide-react";
+import { CloudOffIcon, PencilIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ export function ClassroomEditor({ classroomId }: { classroomId: number }) {
     if (error instanceof ApiError && error.status === 404) {
       return (
         <PageMessage
+          icon={SearchXIcon}
           title="Nie znaleziono klasy"
           description="Klasa nie istnieje albo została usunięta."
           action={
@@ -52,6 +53,7 @@ export function ClassroomEditor({ classroomId }: { classroomId: number }) {
     }
     return (
       <PageMessage
+        icon={CloudOffIcon}
         title="Nie udało się wczytać klasy"
         description="Sprawdź połączenie i spróbuj ponownie."
         action={<Button onClick={() => refetch()}>Spróbuj ponownie</Button>}

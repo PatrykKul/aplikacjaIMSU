@@ -1,7 +1,7 @@
 import { KIND_INFO } from "@/features/content/attachment-kinds";
-import { type Attachment, FORM_LABELS } from "@/features/content/types";
+import type { Attachment } from "@/features/content/types";
+import { FormBadge } from "@/features/content/components/FormBadge";
 import { apiUrl } from "@/shared/api/client";
-import { Badge } from "@/shared/ui/badge";
 
 /** What the attachment points to: file name, address or the reader's text. */
 function source(attachment: Attachment): string {
@@ -49,7 +49,7 @@ export function AttachmentSummary({ attachment }: { attachment: Attachment }) {
         >
           {attachment.forms.map((form) => (
             <li key={form}>
-              <Badge variant="secondary">{FORM_LABELS[form]}</Badge>
+              <FormBadge form={form} />
             </li>
           ))}
         </ul>

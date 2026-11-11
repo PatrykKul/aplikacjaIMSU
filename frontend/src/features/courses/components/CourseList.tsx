@@ -1,5 +1,7 @@
 "use client";
 
+import { BookOpenIcon, CloudOffIcon } from "lucide-react";
+
 import { useCurrentUser } from "@/features/auth/hooks";
 import { PageMessage } from "@/shared/layout/page-states";
 import { Button } from "@/shared/ui/button";
@@ -24,6 +26,7 @@ export function CourseList() {
   } else if (error) {
     content = (
       <PageMessage
+        icon={CloudOffIcon}
         title="Nie udało się wczytać kursów"
         description="Sprawdź połączenie i spróbuj ponownie."
         action={<Button onClick={() => refetch()}>Spróbuj ponownie</Button>}
@@ -32,6 +35,7 @@ export function CourseList() {
   } else if (courses.length === 0) {
     content = (
       <PageMessage
+        icon={BookOpenIcon}
         title="Nie ma jeszcze kursów"
         description={
           isAdmin

@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import { CloudOffIcon, PlusIcon, UsersIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -41,6 +41,7 @@ export function TeacherClassroomsPage() {
   } else if (error) {
     content = (
       <PageMessage
+        icon={CloudOffIcon}
         title="Nie udało się wczytać klas"
         description="Sprawdź połączenie i spróbuj ponownie."
         action={<Button onClick={() => refetch()}>Spróbuj ponownie</Button>}
@@ -49,6 +50,7 @@ export function TeacherClassroomsPage() {
   } else if (classrooms.length === 0) {
     content = (
       <PageMessage
+        icon={UsersIcon}
         title="Nie masz jeszcze klas"
         description="Utwórz klasę, dodaj do niej uczniów i przypisz jej kursy — także prywatne."
         action={newClassroomButton}

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { cn } from "@/shared/lib/utils";
+import { Logo } from "@/shared/layout/Logo";
 import { Avatar, AvatarFallback } from "@/shared/ui/avatar";
 import { Button } from "@/shared/ui/button";
 import {
@@ -55,9 +56,10 @@ export function AppShell({ nav, user, onLogout, children }: AppShellProps) {
         <div className="grid h-16 grid-cols-[minmax(max-content,1fr)_minmax(0,64rem)_minmax(max-content,1fr)] items-center px-4 sm:px-6">
           <Link
             href="/dashboard"
-            className="justify-self-start text-lg font-semibold tracking-tight"
+            aria-label="IMSU - strona główna"
+            className="justify-self-start rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            IMSU
+            <Logo />
           </Link>
 
           <nav className="flex min-w-0 items-center gap-1 px-4 sm:px-6">

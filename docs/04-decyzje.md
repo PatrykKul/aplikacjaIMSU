@@ -44,6 +44,8 @@ Statusy: **przyjęta** (obowiązuje) · **odroczona** (rozstrzygamy przy etapie,
 | D36 | **Członkowie i kursy klasy:** nauczyciel dodaje istniejących **aktywnych** uczniów znalezionych po fragmencie e-maila (`GET /students?email=`: min. 3 znaki, najwyżej 20 wyników, tylko aktywni uczniowie); przypisuje swoje niezarchiwizowane kursy (prywatne i opublikowane); `PUT` / `DELETE` powiązań idempotentne (powtórka — 204 bez zmian); usunięcie ucznia i odpięcie kursu bez okna potwierdzenia, usunięcie klasy — z potwierdzeniem | etap 6 |
 | D37 | **Wyszukiwanie na żywo we frontendzie:** zapytanie po 300 ms przerwy w pisaniu (`useDebouncedValue`), tekst w kluczu TanStack Query, poprzednie wyniki przygaszone do nadejścia nowych, nieaktualne zapytanie anulowane (`api.get` przyjmuje `signal`); nie pobieramy listy wszystkich uczniów (prywatność, skala). Aktywna pozycja menu = najdłuższy pasujący adres | etap 6 |
 | D38 | **Klasa demo:** seed tworzy „Klasę 7a” z oboma uczniami demo i kursem „Programowanie”, który staje się prywatny **tylko przy tworzeniu klasy** (ponowna publikacja przez nauczyciela nie jest cofana) | etap 6 |
+| D39 | **Paleta (W6):** kolor główny indygo `oklch(0.50 0.19 280)`, neutralne szare, kolory informacji zwrotnej (zieleń / cegła zamiast `destructive`) i **kolory form V / A / K** (błękit, bursztyn, malina; zawsze z literą i nazwą); `muted-foreground` przyciemniony do AA; ciemny motyw — tylko wartości tokenów, bez przełącznika | etap 7, `07-design.md` |
+| D40 | **Strona startowa pod `/`** dla gościa (zalogowany → `/dashboard`); niezalogowany na stronie aplikacji i „Wyloguj” → `/` (wcześniej `/login`; jeden cel usuwa wyścig przekierowań); hasło przewodnie bez dziedziny: „Nauka na Twoją miarę” | etap 7 |
 
 ## Odroczone
 

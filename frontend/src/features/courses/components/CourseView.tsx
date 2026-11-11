@@ -1,5 +1,6 @@
 "use client";
 
+import { CloudOffIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 
 import { useCurrentUser } from "@/features/auth/hooks";
@@ -31,6 +32,7 @@ export function CourseView({ courseId }: { courseId: number }) {
     if (error instanceof ApiError && error.status === 404) {
       return (
         <PageMessage
+          icon={SearchXIcon}
           title="Nie znaleziono kursu"
           description="Kurs nie istnieje albo nie jest jeszcze dostępny."
           action={
@@ -43,6 +45,7 @@ export function CourseView({ courseId }: { courseId: number }) {
     }
     return (
       <PageMessage
+        icon={CloudOffIcon}
         title="Nie udało się wczytać kursu"
         description="Sprawdź połączenie i spróbuj ponownie."
         action={<Button onClick={() => refetch()}>Spróbuj ponownie</Button>}
@@ -58,9 +61,16 @@ export function CourseView({ courseId }: { courseId: number }) {
         <PreviewBanner editHref={`/teach/courses/${course.id}`} what="kurs" />
       ) : (
         <nav aria-label="Ścieżka" className="text-sm text-muted-foreground">
-          <Link href="/courses" className="hover:text-foreground">
-            Kursy
-          </Link>
+          {/* A private course is visible to a student only through a class */}
+          {user?.role === "student" && !course.is_published ? (
+            <Link href="/classes" className="hover:text-foreground">
+              Moje klasy
+            </Link>
+          ) : (
+            <Link href="/courses" className="hover:text-foreground">
+              Kursy
+            </Link>
+          )}
           <span aria-hidden="true"> / </span>
           <span aria-current="page">{course.title}</span>
         </nav>

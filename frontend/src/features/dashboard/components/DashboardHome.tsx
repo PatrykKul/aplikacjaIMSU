@@ -1,25 +1,45 @@
 "use client";
 
+import {
+  BookOpenIcon,
+  type LucideIcon,
+  SlidersHorizontalIcon,
+  UserCogIcon,
+  UsersIcon,
+} from "lucide-react";
 import Link from "next/link";
 
 import { useCurrentUser } from "@/features/auth/hooks";
 import type { UserRole } from "@/features/auth/types";
-import { Badge } from "@/shared/ui/badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 
-type RoleCard = { title: string; description: string; href?: string };
+type RoleCard = {
+  href: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+};
 
+// The same order as the navigation of the role
 const roleCards: Record<UserRole, RoleCard[]> = {
   student: [
     {
       href: "/courses",
       title: "Kursy",
       description: "Wybierz kurs i ucz się lekcja po lekcji.",
+      icon: BookOpenIcon,
     },
     {
       href: "/classes",
       title: "Moje klasy",
       description: "Kursy od Twoich nauczycieli i kontakt z nimi.",
+      icon: UsersIcon,
+    },
+    {
+      href: "/profile",
+      title: "Mój styl",
+      description: "Zobacz swój styl uczenia się i jak zmienia się po quizach.",
+      icon: SlidersHorizontalIcon,
     },
   ],
   teacher: [
@@ -27,40 +47,30 @@ const roleCards: Record<UserRole, RoleCard[]> = {
       href: "/teach",
       title: "Moje kursy",
       description: "Twórz kursy i lekcje.",
+      icon: BookOpenIcon,
     },
     {
       href: "/teach/classes",
       title: "Klasy",
       description: "Dodawaj uczniów do klas i przypisuj im swoje kursy.",
+      icon: UsersIcon,
     },
   ],
   admin: [
     {
-      href: "/admin/users",
-      title: "Użytkownicy",
-      description: "Dodawaj nauczycieli i uczniów, edytuj i blokuj konta.",
-    },
-    {
       href: "/courses",
       title: "Kursy nauczycieli",
       description: "Przeglądaj kursy wszystkich nauczycieli.",
+      icon: BookOpenIcon,
+    },
+    {
+      href: "/admin/users",
+      title: "Użytkownicy",
+      description: "Dodawaj nauczycieli i uczniów, edytuj i blokuj konta.",
+      icon: UserCogIcon,
     },
   ],
 };
-
-function CardBody({ card }: { card: RoleCard }) {
-  return (
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2 text-lg">
-        {card.title}
-        {!card.href && <Badge variant="secondary">Wkrótce</Badge>}
-      </CardTitle>
-      <CardDescription className="text-base">
-        {card.description}
-      </CardDescription>
-    </CardHeader>
-  );
-}
 
 export function DashboardHome() {
   const { data: user } = useCurrentUser();
@@ -75,25 +85,36 @@ export function DashboardHome() {
       <h1 className="text-2xl font-semibold tracking-tight">
         Cześć, {firstName}!
       </h1>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {roleCards[user.role].map((card) =>
-          card.href ? (
-            <Link
-              key={card.title}
-              href={card.href}
-              className="rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <Card className="h-full transition-colors hover:bg-muted/50">
-                <CardBody card={card} />
+      <ul role="list" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {roleCards[user.role].map(
+          ({ href, title, description, icon: Icon }) => (
+            <li key={href}>
+              {/* The title link stretches over the whole card, as in CourseCard */}
+              <Card className="relative h-full transition-colors hover:bg-muted/50 has-[a:focus-visible]:ring-3 has-[a:focus-visible]:ring-ring/50">
+                <CardHeader className="gap-3">
+                  <span
+                    aria-hidden="true"
+                    className="flex size-10 items-center justify-center rounded-full bg-accent text-accent-foreground"
+                  >
+                    <Icon className="size-5" />
+                  </span>
+                  <CardTitle className="text-lg">
+                    <Link
+                      href={href}
+                      className="outline-none after:absolute after:inset-0"
+                    >
+                      {title}
+                    </Link>
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    {description}
+                  </CardDescription>
+                </CardHeader>
               </Card>
-            </Link>
-          ) : (
-            <Card key={card.title} className="h-full">
-              <CardBody card={card} />
-            </Card>
+            </li>
           ),
         )}
-      </div>
+      </ul>
     </div>
   );
 }

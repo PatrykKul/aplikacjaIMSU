@@ -4,10 +4,9 @@ import { CheckIcon, ListChecksIcon, PencilIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
-import { FORM_LABELS } from "@/features/content/types";
+import { FormBadge } from "@/features/content/components/FormBadge";
 import { AdaptationFeedback } from "@/features/learning-style/components/AdaptationFeedback";
 import { cn } from "@/shared/lib/utils";
-import { Badge } from "@/shared/ui/badge";
 import { Button, buttonVariants } from "@/shared/ui/button";
 import {
   Card,
@@ -123,11 +122,7 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
                       className="flex flex-wrap items-center gap-2 font-medium"
                     >
                       {index + 1}. {question.text}
-                      {question.form && (
-                        <Badge variant="outline">
-                          {FORM_LABELS[question.form]}
-                        </Badge>
-                      )}
+                      {question.form && <FormBadge form={question.form} />}
                     </legend>
                     <RadioGroup
                       aria-labelledby={`quiz-${question.id}-text`}
@@ -154,21 +149,23 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
                               isChosen &&
                                 !result &&
                                 "border-primary bg-primary/5",
-                              isCorrect && "border-green-600 bg-green-600/10",
-                              isWrong && "border-destructive bg-destructive/10",
+                              isCorrect &&
+                                "border-feedback-correct-foreground/50 bg-feedback-correct",
+                              isWrong &&
+                                "border-feedback-incorrect-foreground/50 bg-feedback-incorrect",
                             )}
                           >
                             <RadioGroupItem value={answer.id} />
                             <span className="flex-1">{answer.text}</span>
                             {isCorrect && (
                               <CheckIcon
-                                className="size-4 text-green-700"
+                                className="size-4 text-feedback-correct-foreground"
                                 aria-label="poprawna odpowiedź"
                               />
                             )}
                             {isWrong && (
                               <XIcon
-                                className="size-4 text-destructive"
+                                className="size-4 text-feedback-incorrect-foreground"
                                 aria-label="błędna odpowiedź"
                               />
                             )}

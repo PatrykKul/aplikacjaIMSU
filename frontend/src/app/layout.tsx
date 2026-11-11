@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "IMSU",
-  description: "Inteligentny system uczący matematyki",
+  description: "Inteligentny system uczący - nauka na Twoją miarę",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

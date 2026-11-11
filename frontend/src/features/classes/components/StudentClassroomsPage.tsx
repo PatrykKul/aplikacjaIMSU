@@ -1,5 +1,7 @@
 "use client";
 
+import { CloudOffIcon, UsersIcon } from "lucide-react";
+
 import { PageMessage } from "@/shared/layout/page-states";
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
@@ -20,6 +22,7 @@ export function StudentClassroomsPage() {
   } else if (error) {
     content = (
       <PageMessage
+        icon={CloudOffIcon}
         title="Nie udało się wczytać klas"
         description="Sprawdź połączenie i spróbuj ponownie."
         action={<Button onClick={() => refetch()}>Spróbuj ponownie</Button>}
@@ -28,6 +31,7 @@ export function StudentClassroomsPage() {
   } else if (classrooms.length === 0) {
     content = (
       <PageMessage
+        icon={UsersIcon}
         title="Nie należysz jeszcze do żadnej klasy"
         description="Nauczyciel doda Cię do klasy. Do tego czasu możesz uczyć się z kursów w zakładce „Kursy”."
       />

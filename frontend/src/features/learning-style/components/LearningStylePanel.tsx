@@ -1,5 +1,6 @@
 "use client";
 
+import { ClipboardListIcon, CloudOffIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -174,6 +175,7 @@ export function LearningStylePanel() {
   if (profile.isError) {
     return (
       <PageMessage
+        icon={CloudOffIcon}
         title="Nie udało się wczytać Twojego stylu"
         description={learningStyleError(profile.error)}
         action={
@@ -187,6 +189,7 @@ export function LearningStylePanel() {
   if (!data.survey_completed || !data.style || !data.weights) {
     return (
       <PageMessage
+        icon={ClipboardListIcon}
         title="Nie znamy jeszcze Twojego stylu"
         action={
           <Link href="/survey" className={cn(buttonVariants())}>
