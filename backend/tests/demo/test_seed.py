@@ -11,7 +11,9 @@ from app.modules.assessment.models import LessonQuiz
 from app.modules.content import service as content
 from app.modules.content.blocks import LessonBlocks
 from app.modules.content.models import File
-from app.modules.curriculum.models import Course
+from app.modules.curriculum import service as curriculum
+from app.modules.curriculum.models import ClassroomCourse, ClassroomStudent, Course
+from app.modules.curriculum.schemas import CourseUpdateRequest
 from app.modules.learning_style import service as learning_style
 from app.modules.learning_style.models import LearningProfile, QuizAttempt
 
@@ -28,6 +30,7 @@ def _run(db: Session) -> tuple:
     student = seed.ensure_user(db, seed.VISUAL_STUDENT)
     for course in COURSES:
         seed.ensure_course(db, teacher, course)
+    seed.ensure_classroom(db, teacher, [new_student, student])
     seed.ensure_visual_student(db, student, teacher)
     return teacher, new_student, student
 
@@ -36,11 +39,12 @@ def _count(db: Session, model, *where) -> int:
     return db.scalar(select(func.count()).select_from(model).where(*where))
 
 
-def test_seed_creates_published_courses_with_files(db: Session, upload_dir: Path):
+def test_seed_creates_courses_with_files(db: Session, upload_dir: Path):
     teacher, _, _ = _run(db)
     courses = db.scalars(select(Course).where(Course.owner_id == teacher.id)).all()
     assert {c.title for c in courses} == {c.title for c in COURSES}
-    assert all(c.is_published for c in courses)
+    # Published, except the course of the demo classroom
+    assert {c.title for c in courses if not c.is_published} == {seed.CLASSROOM_COURSE}
     files = _count(db, File, File.owner_id == teacher.id)
     assert files > 0
     assert len(list(upload_dir.iterdir())) == files
@@ -132,6 +136,32 @@ def test_seed_student_has_proposal_and_new_student_has_no_survey(db: Session):
     assert profile.proposal is not None and profile.proposal.style == "A"
 
 
+def test_seed_classroom_has_both_students_and_the_private_course(db: Session):
+    teacher, new_student, student = _run(db)
+    classroom = seed.find_classroom(db, teacher)
+    assert classroom is not None
+    course = seed.find_course(db, teacher, seed.CLASSROOM_COURSE)
+    members = db.scalars(
+        select(ClassroomStudent.student_id).where(ClassroomStudent.classroom_id == classroom.id)
+    ).all()
+    assert set(members) == {new_student.id, student.id}
+    assert db.scalars(
+        select(ClassroomCourse.course_id).where(ClassroomCourse.classroom_id == classroom.id)
+    ).all() == [course.id]
+    # Not in the catalog, but open to the students of the classroom
+    assert course.id not in {c.id for c in curriculum.list_courses(db, student)}
+    assert curriculum.get_visible_course(db, course.id, student).id == course.id
+
+
+def test_seed_keeps_the_classroom_course_published_again_by_the_teacher(db: Session):
+    teacher, _, _ = _run(db)
+    course = seed.find_course(db, teacher, seed.CLASSROOM_COURSE)
+    curriculum.update_course(db, course.id, teacher, CourseUpdateRequest(is_published=True))
+    _run(db)
+    db.refresh(course)
+    assert course.is_published
+
+
 def test_seed_is_idempotent(db: Session):
     teacher, _, student = _run(db)
     files = _count(db, File, File.owner_id == teacher.id)
@@ -139,6 +169,9 @@ def test_seed_is_idempotent(db: Session):
     assert _count(db, Course, Course.owner_id == teacher.id) == len(COURSES)
     assert _count(db, File, File.owner_id == teacher.id) == files
     assert _count(db, QuizAttempt, QuizAttempt.user_id == student.id) == len(seed.VISUAL_QUIZZES)
+    classroom = seed.find_classroom(db, teacher)
+    assert _count(db, ClassroomStudent, ClassroomStudent.classroom_id == classroom.id) == 2
+    assert _count(db, ClassroomCourse, ClassroomCourse.classroom_id == classroom.id) == 1
 
 
 def test_reset_clears_only_learning_data(db: Session):
