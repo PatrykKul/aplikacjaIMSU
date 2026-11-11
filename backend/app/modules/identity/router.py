@@ -1,14 +1,18 @@
-from fastapi import APIRouter, Response, status
+from typing import Annotated
+
+from fastapi import APIRouter, Query, Response, status
 
 from app.core.config import get_settings
 from app.core.db import DbSession
 from app.modules.identity import service
-from app.modules.identity.dependencies import AdminUser, CurrentUser
+from app.modules.identity.dependencies import AdminUser, CurrentUser, TeacherUser
 from app.modules.identity.models import User, UserRole
 from app.modules.identity.schemas import (
+    EmailFragment,
     LoginRequest,
     ManagedRole,
     RegisterRequest,
+    StudentResponse,
     UserCreateRequest,
     UserResponse,
     UserUpdateRequest,
@@ -17,6 +21,7 @@ from app.modules.identity.security import create_access_token
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 users_router = APIRouter(prefix="/users", tags=["users"])
+students_router = APIRouter(prefix="/students", tags=["users"])
 
 
 def _set_auth_cookie(response: Response, user: User) -> None:
@@ -78,3 +83,10 @@ def update_user(
     user_id: int, data: UserUpdateRequest, db: DbSession, _admin: AdminUser
 ) -> UserResponse:
     return UserResponse.model_validate(service.update_user(db, user_id=user_id, data=data))
+
+
+@students_router.get("")
+def search_students(
+    email: Annotated[EmailFragment, Query()], db: DbSession, _teacher: TeacherUser
+) -> list[StudentResponse]:
+    return [StudentResponse.model_validate(user) for user in service.search_students(db, email)]

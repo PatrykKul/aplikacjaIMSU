@@ -1,3 +1,5 @@
+from collections.abc import Collection
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -9,6 +11,8 @@ from app.modules.identity.security import hash_password, verify_password
 
 MANAGED_ROLES = frozenset({UserRole.STUDENT, UserRole.TEACHER})
 """Roles whose accounts the admin manages through the API."""
+
+STUDENT_SEARCH_LIMIT = 20
 
 
 def get_by_email(db: Session, email: str) -> User | None:
@@ -83,4 +87,37 @@ def update_user(db: Session, *, user_id: int, data: UserUpdateRequest) -> User:
         user.is_active = data.is_active
     _commit_with_unique_email(db)
     db.refresh(user)
+    return user
+
+
+def search_students(db: Session, email_fragment: str) -> list[User]:
+    """Active students whose e-mail contains the fragment (case-insensitive), by e-mail."""
+    query = (
+        select(User)
+        .where(
+            User.role == UserRole.STUDENT,
+            User.is_active,
+            User.email.icontains(email_fragment, autoescape=True),
+        )
+        .order_by(User.email)
+        .limit(STUDENT_SEARCH_LIMIT)
+    )
+    return list(db.scalars(query))
+
+
+# --- For other modules -------------------------------------------------------------------------
+
+
+def get_users(db: Session, user_ids: Collection[int]) -> list[User]:
+    """Users with the given ids (missing ids are skipped), by name."""
+    if not user_ids:
+        return []
+    query = select(User).where(User.id.in_(user_ids)).order_by(User.display_name, User.id)
+    return list(db.scalars(query))
+
+
+def get_active_student(db: Session, user_id: int) -> User | None:
+    user = db.get(User, user_id)
+    if user is None or user.role != UserRole.STUDENT or not user.is_active:
+        return None
     return user

@@ -111,5 +111,14 @@ Współprowadzący klasy, zaproszenia / kody dołączenia do klasy, import listy
 
 **Kroki zrobione (commity):**
 - S1 — modele `Classroom`, `ClassroomStudent`, `ClassroomCourse` w `curriculum/models.py`, migracja `249e835bc4e5` (`create classrooms tables`); tabele łączące z kluczem złożonym, kaskadą do klasy, ucznia i kursu oraz indeksem na `student_id` / `course_id` (wyszukiwanie klas ucznia i sprawdzanie dostępu do kursu w S3); bez relacji ORM (usuwanie powiązań przez `ON DELETE CASCADE` w bazie).
+- S2 — `GET /students?email=` (`identity`: `search_students`, `StudentResponse`; dla innych modułów `get_users`, `get_active_student`); API klas nauczyciela w `curriculum/classrooms.py` + `classrooms_router`; na razie wszystkie endpointy `/classrooms` tylko dla nauczyciela (uczeń dostaje odczyt w S3). Testy: `tests/identity/test_student_search.py`, `tests/curriculum/test_classrooms.py` (43).
 
-**Do zrobienia:** S2–S6.
+**Decyzje w trakcie:**
+- Dodać do klasy można tylko **aktywnego** ucznia (zablokowany → `STUDENT_NOT_FOUND`, jak w wyszukiwaniu); zablokowany uczeń już w klasie zostaje na liście.
+- `DELETE` ucznia / kursu, którego nie ma w klasie → 204 bez zmian (jak ponowne `PUT`); 404 tylko dla niewidocznej klasy.
+- Nauczyciel widzi w klasie także kursy **zarchiwizowane** (`is_archived`), żeby mógł je odpiąć; `course_count` na liście klas nauczyciela liczy wszystkie przypisane.
+- Kolejność: klasy wg nazwy, kursy klasy wg tytułu, uczniowie klasy wg imienia.
+- Wyszukiwanie: znaki `%` i `_` traktowane dosłownie; tekst przycinany, min. 3 znaki po przycięciu.
+- `curriculum` pobiera dane uczniów przez `identity.service` (bez złączeń z `users`); `classrooms.py` korzysta z `service.py`, nie odwrotnie (w S3 sprawdzenie członkostwa w `service.can_view_course` zapytaniem na tabelach klas, bez importu `classrooms.py`).
+
+**Do zrobienia:** S3–S6.

@@ -26,6 +26,9 @@ def _check_bcrypt_limit(value: str) -> str:
 
 Email = Annotated[EmailStr, BeforeValidator(_normalize_email)]
 Password = Annotated[str, Field(min_length=8), AfterValidator(_check_bcrypt_limit)]
+EmailFragment = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=3, max_length=254)
+]
 DisplayName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
 
 
@@ -69,3 +72,13 @@ class UserResponse(BaseModel):
     role: UserRole
     is_active: bool
     created_at: datetime
+
+
+class StudentResponse(BaseModel):
+    """A student as shown to a teacher (search results, classroom members)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    display_name: str
+    email: str
