@@ -1,6 +1,6 @@
 "use client";
 
-import { MailIcon } from "lucide-react";
+import { CloudOffIcon, MailIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 
 import { CourseCard } from "@/features/courses/components/CourseCard";
@@ -30,6 +30,7 @@ export function StudentClassroomView({ classroomId }: { classroomId: number }) {
     if (error instanceof ApiError && error.status === 404) {
       return (
         <PageMessage
+          icon={SearchXIcon}
           title="Nie znaleziono klasy"
           description="Klasa nie istnieje albo nie należysz już do niej."
           action={
@@ -45,6 +46,7 @@ export function StudentClassroomView({ classroomId }: { classroomId: number }) {
     }
     return (
       <PageMessage
+        icon={CloudOffIcon}
         title="Nie udało się wczytać klasy"
         description="Sprawdź połączenie i spróbuj ponownie."
         action={<Button onClick={() => refetch()}>Spróbuj ponownie</Button>}

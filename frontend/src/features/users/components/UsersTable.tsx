@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import { CloudOffIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -66,6 +66,7 @@ export function UsersTable({ role }: { role: ManagedRole }) {
   if (isError) {
     return (
       <PageMessage
+        icon={CloudOffIcon}
         title="Nie udało się wczytać użytkowników"
         description="Sprawdź połączenie i spróbuj ponownie."
         action={<Button onClick={() => refetch()}>Spróbuj ponownie</Button>}

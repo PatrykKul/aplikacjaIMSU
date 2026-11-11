@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import { BookOpenIcon, CloudOffIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { useCourses } from "@/features/courses/hooks";
@@ -32,6 +32,7 @@ export function TeacherCoursesPage() {
   } else if (error) {
     content = (
       <PageMessage
+        icon={CloudOffIcon}
         title="Nie udało się wczytać kursów"
         description="Sprawdź połączenie i spróbuj ponownie."
         action={<Button onClick={() => refetch()}>Spróbuj ponownie</Button>}
@@ -40,6 +41,7 @@ export function TeacherCoursesPage() {
   } else if (courses.length === 0) {
     content = (
       <PageMessage
+        icon={BookOpenIcon}
         title="Nie masz jeszcze kursów"
         description="Utwórz pierwszy kurs, a potem dodaj do niego lekcje."
         action={newCourseButton}

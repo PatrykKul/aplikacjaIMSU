@@ -1,7 +1,12 @@
 "use client";
 
 import type { UseQueryResult } from "@tanstack/react-query";
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CloudOffIcon,
+  SearchXIcon,
+} from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -55,6 +60,7 @@ export function LessonFrame({
     return (
       <PageMessage
         fullScreen
+        icon={SearchXIcon}
         title="Nie znaleziono lekcji"
         description="Lekcja nie istnieje albo nie jest jeszcze dostępna."
         action={
@@ -72,6 +78,7 @@ export function LessonFrame({
     return (
       <PageMessage
         fullScreen
+        icon={CloudOffIcon}
         title="Nie udało się wczytać lekcji"
         description="Sprawdź połączenie i spróbuj ponownie."
         action={

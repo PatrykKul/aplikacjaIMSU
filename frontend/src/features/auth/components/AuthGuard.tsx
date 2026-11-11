@@ -1,5 +1,6 @@
 "use client";
 
+import { CloudOffIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
 
@@ -22,6 +23,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
     return (
       <PageMessage
         fullScreen
+        icon={CloudOffIcon}
         title="Brak połączenia z serwerem"
         description="Sprawdź połączenie z internetem i spróbuj ponownie."
         action={<Button onClick={() => refetch()}>Spróbuj ponownie</Button>}
