@@ -31,7 +31,7 @@ Design tworzymy **razem, krok po kroku**: AI prowadzi autora przez proces projek
 | W3 | Formularze: `Input`, `Label`, komunikat błędu, stany | pola z błędem, wyłączone, ładowanie przycisku | zrobione |
 | W4 | Układ strony: `AppShell`, siatka, responsywność | nagłówek z menu, obszar treści, wersja na telefon | zrobione |
 | W5 | Typografia treści (tekst lekcji, wzory KaTeX) | skala tekstu, `math-markdown`, karty bloków | zrobione |
-| W6 | Kolory dla dzieci do 16 lat | paleta: kolor główny, sukces / błąd, oba motywy, WCAG AA | do zrobienia (po ekranach etapów 3–5) |
+| W6 | Kolory dla dzieci do 16 lat | paleta: kolor główny, sukces / błąd, formy V / A / K, oba motywy, WCAG AA | zrobione (etap 7) |
 
 Decyzje dotyczące wyglądu dopisujemy niżej po każdym kroku, razem z krótkim uzasadnieniem.
 
@@ -41,16 +41,16 @@ Decyzje dotyczące wyglądu dopisujemy niżej po każdym kroku, razem z krótkim
 - shadcn/ui w stylu `base-nova` (prymitywy **Base UI**), kolor bazowy **Neutral**, łączenie klas pakietem `cn` (oficjalny zamiennik `clsx` + `tailwind-merge`).
 - `globals.css` ma trzy warstwy: wartości tokenów (`:root`, `.dark`) → mapowanie na klasy Tailwinda (`@theme inline`) → style bazowe (`@layer base`).
 - Tokeny występują parami `X` / `X-foreground` (tło i tekst na tym tle) — kontrast pilnujemy w parze.
-- Kolory w OKLCH (jasność, nasycenie, odcień). Paleta Neutral ma nasycenie 0 (szarości); własny kolor główny dobieramy w kroku palety.
+- Kolory w OKLCH (jasność, nasycenie, odcień). Neutralne z palety Neutral (nasycenie 0); kolor główny i semantyczne — W6.
 - Tryb ciemny: klasa `.dark` na `<html>` (nie ustawienie systemu). Na razie aplikacja tylko w trybie jasnym; przełącznik — decyzja później.
 - Poprawka po `shadcn init`: `--font-sans: var(--font-sans)` wskazywało samo na siebie (font się nie ładował) → `var(--font-geist-sans)`.
 - Tailwind ładowany przez oficjalną integrację **PostCSS** (`@tailwindcss/postcss`, `postcss.config.mjs`) zamiast loadera `@tailwindcss/turbopack` z szablonu — z loaderem zmiany w `globals.css` pojawiały się z dużym opóźnieniem.
 
 ### Treść i przepływ ekranów kont
-- **Adresy:** panel zalogowanego pod `/dashboard`; `/` tylko przekierowuje (niezalogowany → `/login`, zalogowany → `/dashboard`). Landing page może później zająć `/` bez zmian w reszcie aplikacji.
-- **Przepływ:** niezalogowany na stronie aplikacji → `/login`; sukces logowania / rejestracji → `/dashboard`; zalogowany na `/login` lub `/register` → `/dashboard`; „Wyloguj” → `/login`; zła rola → ekran „Brak dostępu”.
+- **Adresy:** panel zalogowanego pod `/dashboard`; `/` — strona startowa dla gościa, zalogowany → `/dashboard` (etap 7).
+- **Przepływ:** niezalogowany na stronie aplikacji → `/` (strona startowa z „Zaloguj się”); sukces logowania / rejestracji → `/dashboard`; zalogowany na `/login` lub `/register` → `/dashboard`; „Wyloguj” → `/`; zła rola → ekran „Brak dostępu”. `AuthGuard` i wylogowanie kierują w to samo miejsce — dwa różne cele dawały wyścig przekierowań (wygrywało `/login`).
 - **`/login`:** nazwa systemu i hasło przewodnie, nagłówek „Zaloguj się”, alert błędu nad polami, e-mail, hasło z przyciskiem „pokaż hasło”, przycisk na całą szerokość, link do rejestracji.
-- **`/register`:** wybór roli jako **dwa duże kafelki** (Uczeń / Nauczyciel) na początku formularza, imię, e-mail, hasło z „pokaż hasło” i podpowiedzią „co najmniej 8 znaków” (**bez pola „powtórz hasło”**), link do logowania.
+- **`/register`:** wybór roli jako **dwa duże kafelki** (Uczeń / Nauczyciel) na początku formularza (`RadioGroup`: kropka w rogu, zaznaczony — ramka `primary`, tło `accent`, ikona w kolorze; strzałki zmieniają wybór), imię, e-mail, hasło z „pokaż hasło” i podpowiedzią „co najmniej 8 znaków” (**bez pola „powtórz hasło”**), link do logowania.
 - **`/dashboard`:** układ aplikacji (nagłówek: nazwa, nawigacja wg roli, menu użytkownika z imieniem, rolą i „Wyloguj”), powitanie „Cześć, {imię}!” i karty zależne od roli.
 - **`/admin/users`:** zakładki **Nauczyciele / Uczniowie**; tabela (imię, e-mail, status, akcje); „+ Dodaj” i „Edytuj” w oknie; **blokada / odblokowanie z oknem potwierdzenia**; na telefonie przewijanie tabeli w poziomie. Szczegóły: `moduly/01-identity.md`.
 - **Stany wspólne:** sprawdzanie sesji — spinner na środku; brak dostępu — komunikat i „Wróć na stronę główną”; brak połączenia — komunikat i „Spróbuj ponownie”.
@@ -106,8 +106,8 @@ Decyzje dotyczące wyglądu dopisujemy niżej po każdym kroku, razem z krótkim
 - Słowa: „Dobrze!” / „Jeszcze nie” + komunikat (typowy błąd z treści pytania albo wyjaśnienie); nigdy „Źle!”. Wynik podawany neutralnie (bez czerwieni i gwiazdek).
 - **Przyciski:** jeden wypełniony (primary) na akcję główną; pozostałe obramowane (outline). Pole odpowiedzi i przyciski 44 px.
 - **Kolor tylko w bloku informacji** (jasne tło + ciemny tekst), ramka karty bez zmian po odpowiedzi (kolorowanie ramek przy kilku kartach to za dużo koloru). Stan nie jest przekazywany tylko kolorem — zawsze słowo i ikona (`check` / `x`).
-- **Nazwy semantyczne** kolorów: `feedback-correct` / `feedback-correct-foreground` i `feedback-incorrect` / `feedback-incorrect-foreground` (klasy `bg-feedback-correct`, `text-feedback-correct-foreground`…), do czasu kroku W6 jako szarości w `globals.css` (oba motywy) — W6 zmienia tylko ten plik. Nie `destructive`: w motywie shadcn jest czerwony i służy błędom formularzy, a „Jeszcze nie” ma być łagodniejsze.
-- Wstępnie policzone kandydatury do W6: indygo `oklch(0.50 0.19 280)` (biały tekst 6,4 : 1), niebieski `oklch(0.52 0.17 258)` (5,6), morski `oklch(0.50 0.09 205)` (5,7 — za blisko zieleni sukcesu); sukces tekst `oklch(0.42 0.11 150)` na `oklch(0.965 0.035 150)` (7,4), błąd tekst `oklch(0.47 0.15 30)` na `oklch(0.965 0.025 30)` (6,5).
+- **Nazwy semantyczne** kolorów: `feedback-correct` / `feedback-correct-foreground` i `feedback-incorrect` / `feedback-incorrect-foreground` (klasy `bg-feedback-correct`, `text-feedback-correct-foreground`…), wartości w `globals.css` (W6). Nie `destructive`: w motywie shadcn jest czerwony i służy błędom formularzy, a „Jeszcze nie” ma być łagodniejsze.
+- Poprawna / błędna odpowiedź: tło `bg-feedback-*`, ramka `border-feedback-*-foreground/50`, ikona `text-feedback-*-foreground`; ramka wyniku (`AdaptationFeedback`) w tych samych kolorach, z opisem w kolorze tekstu ramki (`text-current`).
 
 ### Nagłówek lekcji — tryb skupienia
 
@@ -131,3 +131,30 @@ Decyzje dotyczące wyglądu dopisujemy niżej po każdym kroku, razem z krótkim
 - **Lekcja:** nad blokami ramka `Alert` „Lekcja dopasowana do stylu…” z uzasadnieniem i linkiem „Zmień styl”. Zwinięty załącznik: karta w miejscu materiału — ikona i nazwa rodzaju („Nagranie”, „PDF”…), tytuł, przycisk „Pokaż materiał” (outline; na telefonie pod treścią); bez plakietek form — to, że materiał jest dla innego stylu, mówi notka nad lekcją. Rozwinięty ma pod spodem „Zwiń materiał” (ghost). W podglądzie nauczyciela wszystko rozwinięte, pod paskiem podglądu zdanie, co widzi uczeń.
 - **Quiz pod lekcją:** karta „Sprawdź się”, pytania z plakietką formy (np. „Wzrokowa (V)”), po sprawdzeniu poprawna odpowiedź na zielono z ikoną `check`, błędna z `x`, wynik słownie i liczbowo, informacja o adaptacji (`AdaptationFeedback`), „Rozwiąż jeszcze raz” (outline).
 - **Edytor quizu:** pytania jako karty; forma pytania w `Select` („Wspólne / Wzrokowa / Słuchowa / Kinestetyczna”); usunięcie quizu przez `AlertDialog`.
+
+### Paleta (W6, etap 7)
+
+- **Kolor główny indygo** `oklch(0.50 0.19 280)`, biały tekst 6,4 : 1 (ciemny motyw: `oklch(0.72 0.14 280)` z ciemnym tekstem, 7,0 : 1). Przyjazny, a nie dziecinny; daleko od zieleni sukcesu i czerwieni błędu, więc nie jest odczytywany jako ocena. Odrzucone: niebieski (bardziej „biurowy”), morski (za blisko zieleni sukcesu).
+- `--ring` w odcieniu marki (`oklch(0.65 0.15 280)`); `--accent` — jasne indygo `oklch(0.96 0.025 280)` z tekstem `oklch(0.40 0.15 280)` (8,6 : 1): kółka ikon, zaznaczenia, pozycja menu pod kursorem, pas dla nauczyciela na stronie startowej.
+- `--muted-foreground` `oklch(0.50 0 0)` zamiast 0.556 — stara wartość miała na tle `--muted` 4,34 : 1 (poniżej AA).
+- Neutralne (`background`, `secondary`, `muted`, `border`) bez zmian — zasada **60-30-10**: dużo neutralnego tła, trochę struktury, mało akcentu; kolor znaczy „kliknij / wybrane”.
+- Przycisk `default` po najechaniu `bg-primary/90` (było `/80`) — jaśniejsze indygo obniżało kontrast białego napisu.
+- **Informacja zwrotna:** sukces tekst `oklch(0.42 0.11 150)` na `oklch(0.965 0.035 150)` (7,4 : 1), „Jeszcze nie” tekst `oklch(0.47 0.15 30)` na `oklch(0.965 0.025 30)` (6,5 : 1) — ceglasty, łagodniejszy niż `destructive`.
+- **Formy V / A / K** (tokeny `form-x` — pełny, `form-x-soft` — tinta, `form-x-foreground` — tekst na tincie): V błękit 230°, A bursztyn 70°, K malina 340° — odcinki koła barw wolne od indygo (akcja), zieleni i cegły (wynik); ta sama jasność (0,58 pełny, 0,955 tinta), żadna forma nie dominuje. Pełny kolor tylko na paskach `StyleBars` (grafika, ≥ 3 : 1), plakietki (`FormBadge`) jako tinta z ciemnym tekstem (≥ 7 : 1). **Kolor formy zawsze z literą i nazwą** — nigdy jedyny nośnik informacji.
+- Klasy z kolorami form zapisane w całości (`bg-form-v-soft`), nie składane z kawałków — Tailwind szuka nazw klas w tekście plików.
+- Tryb ciemny: wartości wszystkich tokenów w `.dark`, bez przełącznika.
+
+### Stany puste i błędów (etap 7)
+
+- `PageMessage` z opcjonalnym `icon`: ikona 24 px w kółku 48 px na `bg-accent`, nad tytułem; ikona `aria-hidden`.
+- Słownik ikon (zawsze te same): pusto — rzecz, której brakuje (`BookOpen` kursy, `Users` klasy, `ClipboardList` brak stylu); błąd połączenia — `CloudOff`; nie znaleziono — `SearchX`. Pusty stan to zaproszenie do pierwszego kroku, nie ostrzeżenie.
+- Ikona zamiast ilustracji: ten sam „zaczep” dla wzroku za ułamek kosztu. Ładowanie bez zmian (spinner); szkielety treści — może później.
+
+### Logo, strona startowa, dashboard (etap 7)
+
+- `shared/layout/Logo.tsx`: biała czapka (`GraduationCap`) na kwadracie `bg-primary` + „IMSU”; rozmiary `default` (nagłówki) i `lg` (logowanie, rejestracja); czysto wizualne — link dookoła daje wywołujący (`AppShell` → `/dashboard`, `(auth)` → `/`), z `aria-label` mówiącym, dokąd prowadzi.
+- Hasło przewodnie bez dziedziny: „Nauka na Twoją miarę” (kursy demo: matematyka, angielski, Python).
+- **Strona startowa** (`features/landing`): nagłówek w konwencji trzech części (logo · — · „Zaloguj się” ghost, „Załóż konto” primary — na telefonie tylko „Zaloguj się”); hero „Ucz się po swojemu” z jednym wypełnionym przyciskiem (`lg`) i jednym obramowanym, obok trzy karty form V / A / K w ich kolorach; „Jak to działa” — trzy ponumerowane kroki (`<ol>`, numery `bg-primary`); pas „Uczysz innych?” na `bg-accent`; stopka. Kolejność: co to jest → jak działa → co zrobić.
+- **Dashboard**: karty w kolejności menu (uczeń — także „Mój styl”), ikona w kółku `bg-accent`, wzór rozciągniętego linku jak w `CourseCard`, siatka `sm:grid-cols-2 lg:grid-cols-3`.
+- Ścieżka na stronie kursu: uczeń na kursie prywatnym (widocznym tylko przez klasę) → „Moje klasy”, w pozostałych przypadkach „Kursy”.
+

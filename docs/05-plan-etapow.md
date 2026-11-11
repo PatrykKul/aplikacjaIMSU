@@ -13,8 +13,8 @@ Termin: **koniec listopada 2026**. Daty orientacyjne. Koncepcja: `02-koncepcja.m
 | 4 | Styl uczenia się i quizy | ankieta VAK (wymagana), profil i ręczna zmiana stylu, personalizacja lekcji, quiz lekcji z edytorem, adaptacja wag i propozycja zmiany stylu, dane demo, scenariusz pokazu | `learning_style`, `assessment`, `demo`, frontend | 08–09.11 | **zrobione** 09.11 (kolega) |
 | 5 | Poprawki stylu i quizów | poprawki po przeglądzie etapu 4; materiały innych stylów **zwinięte** zamiast ukrytych, zapis rozwinięć i styl efektywny w adaptacji i quizie; kontrolki shadcn | `learning_style`, `assessment`, frontend | 10–12.11 | **zrobione** 10.11 |
 | 6 | Klasy i dostęp do kursów | klasy nauczyciela (uczniowie z wyszukiwaniem po e-mailu, przypisane kursy), dostęp ucznia do kursów swoich klas, katalog kursów opublikowanych, „Moje klasy” ucznia, klasa demo; administrator bez klas (O6 odroczona) | `curriculum`, `identity`, `demo`, frontend | 13–18.11 | **zrobione** 11.11 |
-| 7 | Wygląd | poprawa wrażeń wizualnych małym kosztem (kolory, ilustracje stanów, strona startowa, spójność; kafelki ról w rejestracji na `RadioGroup`) | frontend | 19–22.11 | **następny** |
-| 8 | Dokumentacja i pokaz | dokumentacja do oddania, kopia danych demo, scenariusz prezentacji | docs | 23–27.11 | do zrobienia |
+| 7 | Wygląd | paleta (indygo, informacja zwrotna, kolory form V / A / K), ikony stanów pustych i błędów, logo, strona startowa, dashboard i ścieżka kursu, kafelki ról na `RadioGroup` | frontend | 19–22.11 | **zrobione** 11.11 |
+| 8 | Dokumentacja i pokaz | dokumentacja do oddania, kopia danych demo, scenariusz prezentacji | docs | 23–27.11 | **następny** |
 | — | Zapas | poprawki | | 28–30.11 | |
 | 9 | Opcjonalne (O3, O5) | baza pytań z losowaniem, panel nauczyciela ze stylami uczniów, powtórka w innym stylu, test końcowy, mentor | | jeśli starczy czasu | — |
 

@@ -25,6 +25,8 @@ Prezentacja: czwartek 12.11.2026. Aplikacja: http://localhost:3001. Hasło wszys
 
 ### 0:00–1:00 Wstęp: co to jest i gdzie jest „inteligencja”
 
+Pokaż stronę startową (http://localhost:3001, okno bez zalogowania): trzy formy V / A / K i „Jak to działa” — to plan pokazu w trzech krokach.
+
 Co powiedzieć:
 - „IMSU to platforma kursów, która dopasowuje **sposób podania materiału** do ucznia: na starcie według ankiety VAK, a potem według tego, jak uczniowi faktycznie idzie w quizach.”
 - „Rdzeń jest **regułowy i wyjaśnialny**: każda decyzja systemu ma widoczne uzasadnienie »dlaczego to widzisz«. Nie zależy od zewnętrznego modelu AI, działa offline i jest pokryty testami (ponad 340 testów backendu).”
@@ -32,7 +34,7 @@ Co powiedzieć:
 
 ### 1:00–3:00 Nowy uczeń: wymuszona ankieta i styl (`uczen.nowy`)
 
-1. Zaloguj się jako `uczen.nowy@imsu.pl`. System **od razu przenosi na ankietę**.
+1. Na stronie startowej „Zaloguj się” → `uczen.nowy@imsu.pl`. System **od razu przenosi na ankietę**.
 2. Kliknij „Kursy” w menu: znowu ankieta. „Bez ankiety uczeń nie wejdzie do lekcji — aplikacja z każdej strony kieruje go na ankietę, a serwer bez ankiety nie poda lekcji dopasowanej do stylu ani quizu (`403 SURVEY_REQUIRED`).”
 3. Zaznacz odpowiedzi (20 pytań; dla stylu słuchowego wybieraj odpowiedzi typu „słuchasz…”, „opowiada…”). Pokaż pasek postępu.
    - „Odpowiedzi są w każdym pytaniu w innej kolejności, a przeglądarka nie dostaje klucza (który styl daje odpowiedź). Punkty liczy serwer.”

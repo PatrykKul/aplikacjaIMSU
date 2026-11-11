@@ -46,6 +46,5 @@ Ten katalog zawiera pełny kontekst projektu dla każdej nowej sesji pracy (czł
 ## Aktualny status
 
 - **Termin: koniec listopada 2026.** Pokaz roboczy: 12.11.2026.
-- Zrobione: etap 0 (szkielet), 1 (konta i role), 2 (administracja kont), 3 (kursy i edytor lekcji), 4 (styl uczenia się i quizy — kolega), 5 (poprawki stylu i quizów: zwijanie materiałów, styl efektywny lekcji, kontrolki shadcn), 6 (klasy i dostęp do kursów). Testy backendu: 349.
-- **Następny:** etap 7 — wygląd (specyfikacja do przygotowania w `08-praca-biezaca.md`).
-- **Dalej:** etap 8 — dokumentacja i pokaz.
+- Zrobione: etap 0 (szkielet), 1 (konta i role), 2 (administracja kont), 3 (kursy i edytor lekcji), 4 (styl uczenia się i quizy — kolega), 5 (poprawki stylu i quizów: zwijanie materiałów, styl efektywny lekcji, kontrolki shadcn), 6 (klasy i dostęp do kursów), 7 (wygląd: paleta, stany, strona startowa). Testy backendu: 349.
+- **Następny:** etap 8 — dokumentacja i pokaz.

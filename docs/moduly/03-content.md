@@ -51,7 +51,8 @@ Walidacja: unikalne `id`; `file_id` = plik autora kursu o rodzaju zgodnym z type
 
 ## Frontend
 - `shared/rich-text/`: `RichTextEditor` (TipTap: H2/H3, pogrubienie, kursywa, podkreślenie, listy, tabela, link, wzór `$…$` i „∑”, cofnij / ponów; wklejanie z Worda bez obrazów), `RichTextView` (tylko odczyt), okna wzoru i linku.
-- `features/teach`: edytor lekcji `/teach/courses/[courseId]/lessons/[lessonId]` — bloki jako karty (w górę / w dół, edytuj, usuń), „+ Tekst” / „+ Załącznik” między blokami i pod listą, „Zapisz lekcję” i „Podgląd” w przyklejonym pasku, ostrzeżenie o niezapisanych zmianach; `AttachmentDialog` (krok 1: typ, krok 2: źródło, tytuł, opis, formy), `FileUpload` (react-dropzone, pasek postępu przez `XMLHttpRequest`), `AttachmentSummary` (miniatura, plakietki form).
+- `features/teach`: edytor lekcji `/teach/courses/[courseId]/lessons/[lessonId]` — bloki jako karty (w górę / w dół, edytuj, usuń), „+ Tekst” / „+ Załącznik” między blokami i pod listą, „Zapisz lekcję” i „Podgląd” w przyklejonym pasku, ostrzeżenie o niezapisanych zmianach; `AttachmentDialog` (krok 1: typ, krok 2: źródło, tytuł, opis, formy), `FileUpload` (react-dropzone, pasek postępu przez `XMLHttpRequest`), `AttachmentSummary` (miniatura, plakietki form `FormBadge`).
+- `features/content/components/FormBadge.tsx`: plakietka formy w jej kolorze (tinta `form-x-soft` + `form-x-foreground`) z nazwą (`FORM_LABELS`); używają jej `AttachmentSummary` i quiz lekcji.
 - `features/content`: `BlockView`, `AttachmentView` (obraz, wideo z pliku / YouTube, nagranie z pliku / lektor `SpeechReader` `pl-PL`, PDF — przycisk i ramka od `sm`, link), `api.ts`, `hooks.ts` (`useLessonBlocks`, klucz `["lessons", id, "blocks"]`; `useSaveBlocks`).
 
 ## Testy
