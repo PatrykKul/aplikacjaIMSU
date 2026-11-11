@@ -11,7 +11,7 @@ Gałąź: `feat/classes` (większy etap, D4). Decyzje: D10 (dostęp przez klasy)
 
 ## Odpowiedzialność
 - Nauczyciel tworzy **klasy**, dodaje do nich istniejących uczniów (wyszukiwanie po e-mailu), usuwa ich, zmienia nazwę klasy, usuwa klasę i **przypisuje klasie swoje kursy** (opublikowane i prywatne).
-- Uczeń widzi **katalog** (kursy opublikowane — jak dziś) oraz **swoje klasy**: nazwę, nauczyciela i kursy klasy (bez listy uczniów).
+- Uczeń widzi **katalog** (kursy opublikowane — jak dziś) oraz **swoje klasy**: nazwę, nauczyciela (imię i e-mail do kontaktu) i kursy klasy (bez listy uczniów).
 - Administrator — bez klas w tym etapie (O6).
 - Kurs prywatny przypisany klasie jest dostępny dla jej uczniów (lekcje, quizy, personalizacja — przez istniejące reguły widoczności).
 
@@ -43,7 +43,7 @@ Klasy (`curriculum`, router `/classrooms`):
 
 | Metoda i ścieżka | Kto | Działanie | Błędy |
 |---|---|---|---|
-| `GET /classrooms` | nauczyciel, uczeń | nauczyciel: swoje klasy; uczeń: klasy, do których należy; pola: `id`, `name`, `teacher` (`id`, `display_name`), `course_count`, dla nauczyciela też `student_count` | 403 `FORBIDDEN` (administrator) |
+| `GET /classrooms` | nauczyciel, uczeń | nauczyciel: swoje klasy; uczeń: klasy, do których należy; pola: `id`, `name`, `teacher` (`id`, `display_name`, `email`), `course_count`, dla nauczyciela też `student_count` | 403 `FORBIDDEN` (administrator) |
 | `POST /classrooms` | nauczyciel | `{name}` → 201, klasa | 422 |
 | `GET /classrooms/{id}` | właściciel, uczeń klasy | klasa, `courses` (podsumowania kursów; dla ucznia tylko niezarchiwizowane); **tylko dla nauczyciela** `students` (`id`, `display_name`, `email`) | 404 `CLASSROOM_NOT_FOUND` (niewidoczna też 404), 403 (administrator) |
 | `PATCH /classrooms/{id}` | właściciel | `{name}` | 404 |
@@ -69,7 +69,7 @@ Wyszukiwanie uczniów (`identity`): `GET /students?email=` — nauczyciel; aktyw
 **Uczeń** (`features/classes`):
 - Nawigacja: „Kursy” (katalog — bez zmian), **„Moje klasy”** (`/classes`), „Mój styl”; karta „Moje klasy” na `/dashboard`.
 - `/classes`: karty klas (nazwa, nauczyciel, liczba kursów); pusty stan „Nie należysz jeszcze do żadnej klasy. Nauczyciel doda Cię do klasy.”
-- `/classes/[classroomId]`: nazwa, nauczyciel, **Kursy** (karty jak w katalogu, prowadzą do `/courses/[id]`).
+- `/classes/[classroomId]`: nazwa, nauczyciel (imię i e-mail do kontaktu), **Kursy** (karty jak w katalogu, prowadzą do `/courses/[id]`).
 - Strona kursu i lekcja — bez zmian (dostęp wynika z nowej reguły widoczności).
 
 ## Dane demo
@@ -117,6 +117,7 @@ Współprowadzący klasy, zaproszenia / kody dołączenia do klasy, import listy
 - Dodać do klasy można tylko **aktywnego** ucznia (zablokowany → `STUDENT_NOT_FOUND`, jak w wyszukiwaniu); zablokowany uczeń już w klasie zostaje na liście.
 - `DELETE` ucznia / kursu, którego nie ma w klasie → 204 bez zmian (jak ponowne `PUT`); 404 tylko dla niewidocznej klasy.
 - Nauczyciel widzi w klasie także kursy **zarchiwizowane** (`is_archived`), żeby mógł je odpiąć; `course_count` na liście klas nauczyciela liczy wszystkie przypisane.
+- **E-mail nauczyciela** w danych klasy (`teacher.email`) — uczeń widzi go do kontaktu; dostają go tylko uczniowie tej klasy (zmiana autora 11.11).
 - Kolejność: klasy wg nazwy, kursy klasy wg tytułu, uczniowie klasy wg imienia.
 - Wyszukiwanie: znaki `%` i `_` traktowane dosłownie; tekst przycinany, min. 3 znaki po przycięciu.
 - `curriculum` pobiera dane uczniów przez `identity.service` (bez złączeń z `users`); `classrooms.py` korzysta z `service.py`, nie odwrotnie (w S3 sprawdzenie członkostwa w `service.can_view_course` zapytaniem na tabelach klas, bez importu `classrooms.py`).
