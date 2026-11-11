@@ -4,10 +4,9 @@ import { CheckIcon, ListChecksIcon, PencilIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
-import { FORM_LABELS } from "@/features/content/types";
+import { FormBadge } from "@/features/content/components/FormBadge";
 import { AdaptationFeedback } from "@/features/learning-style/components/AdaptationFeedback";
 import { cn } from "@/shared/lib/utils";
-import { Badge } from "@/shared/ui/badge";
 import { Button, buttonVariants } from "@/shared/ui/button";
 import {
   Card,
@@ -123,11 +122,7 @@ export function LessonQuiz({ lessonId, editHref }: LessonQuizProps) {
                       className="flex flex-wrap items-center gap-2 font-medium"
                     >
                       {index + 1}. {question.text}
-                      {question.form && (
-                        <Badge variant="outline">
-                          {FORM_LABELS[question.form]}
-                        </Badge>
-                      )}
+                      {question.form && <FormBadge form={question.form} />}
                     </legend>
                     <RadioGroup
                       aria-labelledby={`quiz-${question.id}-text`}

@@ -1,7 +1,14 @@
-import { FORMS } from "@/features/content/types";
+import { FORMS, type Form } from "@/features/content/types";
 
 import { STYLE_NAMES } from "../styles";
 import type { StyleWeights } from "../types";
+
+/** Literal classes, so Tailwind can find them. */
+const BAR_COLORS: Record<Form, string> = {
+  V: "bg-form-v",
+  A: "bg-form-a",
+  K: "bg-form-k",
+};
 
 type StyleBarsProps = {
   values: StyleWeights;
@@ -28,7 +35,7 @@ export function StyleBars({ values, max, label }: StyleBarsProps) {
             </dt>
             <dd className="h-2.5 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-primary transition-[width]"
+                className={`h-full rounded-full transition-[width] ${BAR_COLORS[form]}`}
                 style={{ width: `${width}%` }}
               />
             </dd>
