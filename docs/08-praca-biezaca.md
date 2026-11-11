@@ -114,6 +114,7 @@ Współprowadzący klasy, zaproszenia / kody dołączenia do klasy, import listy
 - S2 — `GET /students?email=` (`identity`: `search_students`, `StudentResponse`; dla innych modułów `get_users`, `get_active_student`); API klas nauczyciela w `curriculum/classrooms.py` + `classrooms_router`; na razie wszystkie endpointy `/classrooms` tylko dla nauczyciela (uczeń dostaje odczyt w S3). Testy: `tests/identity/test_student_search.py`, `tests/curriculum/test_classrooms.py` (43).
 - S3 — `service.can_view_course(db, course, user)`: uczeń widzi kurs opublikowany **albo przypisany do swojej klasy** (zapytanie `EXISTS` na `classroom_courses` × `classroom_students`); katalog `GET /courses` bez zmian. `GET /classrooms` i `GET /classrooms/{id}` dla ucznia (`ClassroomUser` = nauczyciel lub uczeń): jego klasy, nauczyciel z e-mailem, tylko niezarchiwizowane kursy, `students` i `student_count` = `null`. Zmiany nadal tylko dla nauczyciela. Testy: `tests/curriculum/test_classroom_access.py` (18).
 - S4 — frontend nauczyciela: `features/classes` (typy, API, hooki, kody błędów — wspólne z S5), `/teach/classes` (karty klas, „Nowa klasa”), `/teach/classes/[classroomId]` (zmiana nazwy, uczniowie z wyszukiwaniem na żywo, kursy, usuwanie klasy); w menu i na panelu „Klasy”. Wspólne: `api.get` przyjmuje `signal` (anulowanie nieaktualnych zapytań), `useDebouncedValue`, `plural`, aktywna pozycja menu = najdłuższe dopasowanie adresu.
+- S5 — frontend ucznia: `/classes` („Moje klasy”: karty z nazwą, nauczycielem i liczbą kursów; pusty stan), `/classes/[classroomId]` (nazwa, nauczyciel z e-mailem jako link `mailto:`, kursy klasy jako karty katalogu); „Moje klasy” w menu i na panelu ucznia.
 
 **Decyzje w trakcie:**
 - Dodać do klasy można tylko **aktywnego** ucznia (zablokowany → `STUDENT_NOT_FOUND`, jak w wyszukiwaniu); zablokowany uczeń już w klasie zostaje na liście.
@@ -127,4 +128,4 @@ Współprowadzący klasy, zaproszenia / kody dołączenia do klasy, import listy
 - Wyszukiwanie: znaki `%` i `_` traktowane dosłownie; tekst przycinany, min. 3 znaki po przycięciu.
 - `curriculum` pobiera dane uczniów przez `identity.service` (bez złączeń z `users`); `classrooms.py` korzysta z `service.py`, nie odwrotnie (w S3 sprawdzenie członkostwa w `service.can_view_course` zapytaniem na tabelach klas, bez importu `classrooms.py`).
 
-**Do zrobienia:** S5–S6.
+**Do zrobienia:** S6.

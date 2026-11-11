@@ -16,6 +16,11 @@ const roleCards: Record<UserRole, RoleCard[]> = {
       title: "Kursy",
       description: "Wybierz kurs i ucz się lekcja po lekcji.",
     },
+    {
+      href: "/classes",
+      title: "Moje klasy",
+      description: "Kursy od Twoich nauczycieli i kontakt z nimi.",
+    },
   ],
   teacher: [
     {
