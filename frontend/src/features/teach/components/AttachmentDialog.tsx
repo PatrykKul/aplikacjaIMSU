@@ -2,7 +2,7 @@
 
 import { ArrowLeftIcon } from "lucide-react";
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 
 import {
   ATTACHMENT_KINDS,
@@ -12,13 +12,9 @@ import {
 import {
   type Attachment,
   type AttachmentKind,
-  type Form,
-  FORM_LABELS,
-  FORMS,
   newBlockId,
 } from "@/features/content/types";
 import { Button } from "@/shared/ui/button";
-import { Checkbox } from "@/shared/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -114,7 +110,6 @@ function KindPicker({ onPick }: { onPick: (kind: AttachmentKind) => void }) {
 type FormValues = {
   title: string;
   description: string;
-  forms: Form[];
   alt: string;
   youtube_url: string;
   transcript: string;
@@ -166,7 +161,6 @@ function AttachmentForm({ attachment, onSave }: AttachmentFormProps) {
   const [fileError, setFileError] = useState<string>();
   const [source, setSource] = useState<Source>(initialSource(attachment));
   const {
-    control,
     register,
     handleSubmit,
     formState: { errors },
@@ -174,7 +168,6 @@ function AttachmentForm({ attachment, onSave }: AttachmentFormProps) {
     defaultValues: {
       title: attachment?.title ?? "",
       description: attachment?.description ?? "",
-      forms: attachment?.forms ?? [],
       alt: attachment?.kind === "image" ? (attachment.alt ?? "") : "",
       youtube_url:
         attachment?.kind === "video" ? (attachment.youtube_url ?? "") : "",
@@ -201,7 +194,6 @@ function AttachmentForm({ attachment, onSave }: AttachmentFormProps) {
       id: attachment?.id ?? newBlockId(),
       type: "attachment" as const,
       title: values.title.trim(),
-      forms: FORMS.filter((form) => values.forms.includes(form)),
       ...(values.description.trim() && {
         description: values.description.trim(),
       }),
@@ -410,51 +402,6 @@ function AttachmentForm({ attachment, onSave }: AttachmentFormProps) {
             />
           )}
         </FormField>
-
-        <Controller
-          control={control}
-          name="forms"
-          rules={{
-            validate: (value) =>
-              value.length > 0 || "Zaznacz co najmniej jedną formę.",
-          }}
-          render={({ field, fieldState }) => (
-            <fieldset
-              className="space-y-3"
-              aria-describedby={fieldState.error ? "forms-error" : undefined}
-            >
-              <legend className="mb-3 text-sm font-medium">Formy</legend>
-              {FORMS.map((form) => (
-                <label
-                  key={form}
-                  className="flex min-h-control cursor-pointer items-center gap-3 text-base"
-                >
-                  <Checkbox
-                    checked={field.value.includes(form)}
-                    onCheckedChange={(checked) =>
-                      field.onChange(
-                        checked
-                          ? [...field.value, form]
-                          : field.value.filter((item) => item !== form),
-                      )
-                    }
-                    aria-invalid={fieldState.error ? true : undefined}
-                  />
-                  {FORM_LABELS[form]}
-                </label>
-              ))}
-              {fieldState.error && (
-                <p
-                  id="forms-error"
-                  role="alert"
-                  className="text-sm text-destructive"
-                >
-                  {fieldState.error.message}
-                </p>
-              )}
-            </fieldset>
-          )}
-        />
       </FieldGroup>
 
       <DialogFooter>

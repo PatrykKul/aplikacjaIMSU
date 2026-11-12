@@ -3,9 +3,6 @@
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { useArchiveCourse } from "@/features/courses/hooks";
-import type { Course } from "@/features/courses/types";
-import { errorMessage } from "@/shared/api/error-messages";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +17,11 @@ import {
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 
-export function ArchiveCourseSection({ course }: { course: Course }) {
+import { teachError } from "../errors";
+import { useArchiveCourse } from "../hooks";
+import type { TeacherCourse } from "../types";
+
+export function ArchiveCourseSection({ course }: { course: TeacherCourse }) {
   const router = useRouter();
   const archive = useArchiveCourse(course.id);
 
@@ -44,6 +45,7 @@ export function ArchiveCourseSection({ course }: { course: Course }) {
             <AlertDialogTitle>Usunąć kurs?</AlertDialogTitle>
             <AlertDialogDescription>
               Kurs „{course.title}” zniknie z Twojej listy razem z lekcjami.
+              Zapisani uczniowie stracą do niego dostęp.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -57,7 +59,7 @@ export function ArchiveCourseSection({ course }: { course: Course }) {
                     toast.success(`Usunięto kurs: ${course.title}.`);
                     router.replace("/teach");
                   },
-                  onError: (error) => toast.error(errorMessage(error)),
+                  onError: (error) => toast.error(teachError(error)),
                 })
               }
             >

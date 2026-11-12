@@ -4,13 +4,13 @@ import { PlusIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { useAddLesson } from "@/features/courses/hooks";
 import { errorMessage } from "@/shared/api/error-messages";
 import { Button } from "@/shared/ui/button";
 import { FormField } from "@/shared/ui/form-field";
 import { Input } from "@/shared/ui/input";
 import { Spinner } from "@/shared/ui/spinner";
 
+import { useAddLesson } from "../hooks";
 import { lessonTitleRules } from "./course-form-rules";
 
 export function AddLessonForm({ courseId }: { courseId: number }) {

@@ -1,21 +1,11 @@
 "use client";
 
-import type { JSONContent } from "@tiptap/react";
-import { EyeIcon, ListChecksIcon } from "lucide-react";
+import { CloudOffIcon, EyeIcon, PencilIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
-import { type MouseEvent, useState } from "react";
-import { toast } from "sonner";
+import { type MouseEvent, useCallback, useState } from "react";
 
-import { useLessonBlocks, useSaveBlocks } from "@/features/content/hooks";
-import {
-  type Attachment,
-  type Block,
-  newBlockId,
-} from "@/features/content/types";
-import { useLesson } from "@/features/courses/hooks";
-import type { Lesson } from "@/features/courses/types";
+import { FORMS } from "@/features/content/types";
 import { ApiError } from "@/shared/api/client";
-import { errorMessage } from "@/shared/api/error-messages";
 import {
   confirmLeave,
   useUnsavedChangesWarning,
@@ -24,25 +14,46 @@ import { PageMessage } from "@/shared/layout/page-states";
 import { cn } from "@/shared/lib/utils";
 import { Button, buttonVariants } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 
-import { type AttachmentTarget, AttachmentDialog } from "./AttachmentDialog";
-import { BlockCard } from "./BlockCard";
-import { InsertBlockBar } from "./InsertBlockBar";
+import {
+  EDITOR_TABS,
+  type EditorTab,
+  TAB_LABELS,
+  tabOfArea,
+} from "../editor-tabs";
+import { useLessonVersions, useQuestionPool, useTeacherLesson } from "../hooks";
+import type { LessonVersions, QuizPool, TeacherLesson } from "../types";
+import { OutlineEditor } from "./OutlineEditor";
+import { PoolEditor } from "./PoolEditor";
+import { ReadinessPanel } from "./ReadinessPanel";
+import { RenameLessonDialog } from "./RenameLessonDialog";
+import { VersionEditor } from "./VersionEditor";
 
-type LessonEditorProps = { courseId: number; lessonId: number };
+type LessonEditorProps = {
+  courseId: number;
+  lessonId: number;
+  initialTab?: EditorTab;
+};
 
-export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
-  const lesson = useLesson(lessonId);
-  const blocks = useLessonBlocks(lessonId);
+export function LessonEditor({
+  courseId,
+  lessonId,
+  initialTab = "outline",
+}: LessonEditorProps) {
+  const lesson = useTeacherLesson(lessonId);
+  const versions = useLessonVersions(lessonId);
+  const pool = useQuestionPool(lessonId);
+  const queries = [lesson, versions, pool];
 
-  if (lesson.isPending || blocks.isPending) {
+  if (queries.some((query) => query.isPending)) {
     return (
       <div className="flex justify-center py-16">
         <Spinner className="size-6" />
       </div>
     );
   }
-  const error = lesson.error ?? blocks.error;
+  const error = queries.find((query) => query.error)?.error;
   // A lesson of another course in the address is "not found" as well
   if (
     (error instanceof ApiError && error.status === 404) ||
@@ -50,6 +61,7 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
   ) {
     return (
       <PageMessage
+        icon={SearchXIcon}
         title="Nie znaleziono lekcji"
         description="Lekcja nie istnieje albo została usunięta."
         action={
@@ -63,17 +75,15 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
       />
     );
   }
-  if (error || !lesson.data || !blocks.data) {
+  if (error || !lesson.data || !versions.data || !pool.data) {
     return (
       <PageMessage
+        icon={CloudOffIcon}
         title="Nie udało się wczytać lekcji"
         description="Sprawdź połączenie i spróbuj ponownie."
         action={
           <Button
-            onClick={() => {
-              void lesson.refetch();
-              void blocks.refetch();
-            }}
+            onClick={() => queries.forEach((query) => void query.refetch())}
           >
             Spróbuj ponownie
           </Button>
@@ -83,89 +93,66 @@ export function LessonEditor({ courseId, lessonId }: LessonEditorProps) {
   }
 
   return (
-    <BlockEditor lesson={lesson.data} initialBlocks={blocks.data.blocks} />
+    <LessonWorkspace
+      lesson={lesson.data}
+      versions={versions.data}
+      pool={pool.data}
+      initialTab={initialTab}
+    />
   );
 }
 
-/** Where a new block goes: before the block at `index` (`blocks.length` = at the end). */
-type Insertion = { index: number };
+type LessonWorkspaceProps = {
+  lesson: TeacherLesson;
+  versions: LessonVersions;
+  pool: QuizPool;
+  initialTab: EditorTab;
+};
 
-type BlockEditorProps = { lesson: Lesson; initialBlocks: Block[] };
-
-function BlockEditor({ lesson, initialBlocks }: BlockEditorProps) {
-  const save = useSaveBlocks(lesson.id);
-  const [blocks, setBlocks] = useState(initialBlocks);
-  const [dirty, setDirty] = useState(false);
-  const [attachmentTarget, setAttachmentTarget] =
-    useState<AttachmentTarget | null>(null);
-  const [insertion, setInsertion] = useState<Insertion | null>(null);
+function LessonWorkspace({
+  lesson,
+  versions,
+  pool,
+  initialTab,
+}: LessonWorkspaceProps) {
+  const [tab, setTab] = useState<EditorTab>(initialTab);
+  const [dirtyTabs, setDirtyTabs] = useState<Record<EditorTab, boolean>>({
+    outline: false,
+    V: false,
+    A: false,
+    K: false,
+    quiz: false,
+  });
+  const [renaming, setRenaming] = useState(false);
+  const dirty = Object.values(dirtyTabs).some(Boolean);
   useUnsavedChangesWarning(dirty);
 
   const courseHref = `/teach/courses/${lesson.course.id}`;
+
+  // One stable callback per tab, so the editors' effects do not loop
+  const [dirtyHandlers] = useState(
+    () =>
+      Object.fromEntries(
+        EDITOR_TABS.map((key) => [
+          key,
+          (value: boolean) =>
+            setDirtyTabs((current) =>
+              current[key] === value ? current : { ...current, [key]: value },
+            ),
+        ]),
+      ) as Record<EditorTab, (dirty: boolean) => void>,
+  );
+
+  const showTab = useCallback((next: EditorTab) => {
+    setTab(next);
+    // Keep the tab in the address, so a reload opens the same one
+    window.history.replaceState(null, "", `?tab=${next}`);
+  }, []);
 
   function leaveUnlessDirty(event: MouseEvent) {
     if (!confirmLeave(dirty)) {
       event.preventDefault();
     }
-  }
-
-  function change(next: Block[]) {
-    setBlocks(next);
-    setDirty(true);
-  }
-
-  function insert(index: number, block: Block) {
-    change([...blocks.slice(0, index), block, ...blocks.slice(index)]);
-  }
-
-  function move(index: number, step: -1 | 1) {
-    const next = [...blocks];
-    [next[index], next[index + step]] = [next[index + step], next[index]];
-    change(next);
-  }
-
-  function updateText(id: string, doc: JSONContent) {
-    setBlocks((current) =>
-      current.map((block) =>
-        block.id === id && block.type === "text" ? { ...block, doc } : block,
-      ),
-    );
-    setDirty(true);
-  }
-
-  function saveAttachment(attachment: Attachment) {
-    if (insertion) {
-      insert(insertion.index, attachment);
-    } else {
-      change(blocks.map((b) => (b.id === attachment.id ? attachment : b)));
-    }
-    setAttachmentTarget(null);
-    setInsertion(null);
-  }
-
-  function addText(index: number) {
-    insert(index, {
-      id: newBlockId(),
-      type: "text",
-      doc: { type: "doc", content: [{ type: "paragraph" }] },
-    });
-  }
-
-  function addAttachment(index: number) {
-    setInsertion({ index });
-    setAttachmentTarget({ attachment: null });
-  }
-
-  function onSave() {
-    save.mutate(blocks, {
-      onSuccess: (saved) => {
-        // Same ids, so the text editors stay mounted; display fields come from the server
-        setBlocks(saved.blocks);
-        setDirty(false);
-        toast.success("Zapisano lekcję.");
-      },
-      onError: (error) => toast.error(errorMessage(error)),
-    });
   }
 
   return (
@@ -190,89 +177,98 @@ function BlockEditor({ lesson, initialBlocks }: BlockEditorProps) {
           <span aria-hidden="true"> / </span>
           <span aria-current="page">{lesson.title}</span>
         </nav>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {lesson.title}
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm text-muted-foreground">
+              Lekcja {lesson.number}
+            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {lesson.title}
+            </h1>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={() => setRenaming(true)}>
+              <PencilIcon data-icon="inline-start" />
+              Zmień nazwę
+            </Button>
+            {/* The preview shows the saved lesson, so unsaved changes need a confirmation */}
+            <Link
+              href={`/courses/${lesson.course.id}/lessons/${lesson.id}`}
+              className={cn(buttonVariants({ variant: "outline" }))}
+              onClick={leaveUnlessDirty}
+            >
+              <EyeIcon data-icon="inline-start" />
+              Podgląd
+            </Link>
+          </div>
+        </div>
       </div>
 
-      {/* Stays at the top while scrolling a long lesson */}
-      <div className="sticky top-16 z-30 -mx-4 flex items-center gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-        <Button onClick={onSave} disabled={!dirty || save.isPending}>
-          {save.isPending && <Spinner data-icon="inline-start" />}
-          Zapisz lekcję
-        </Button>
-        <p className="flex-1 text-sm text-muted-foreground" aria-live="polite">
-          {dirty ? "Masz niezapisane zmiany." : "Wszystkie zmiany zapisane."}
-        </p>
-        {/* The preview shows the saved lesson, so unsaved changes need a confirmation */}
-        <Link
-          href={`/courses/${lesson.course.id}/lessons/${lesson.id}`}
-          className={cn(buttonVariants({ variant: "outline" }))}
-          onClick={leaveUnlessDirty}
-        >
-          <EyeIcon data-icon="inline-start" />
-          {/* Icon only on a phone, so the bar fits in one row */}
-          <span className="sr-only sm:not-sr-only">Podgląd</span>
-        </Link>
-        <Link
-          href={`/teach/courses/${lesson.course.id}/lessons/${lesson.id}/quiz`}
-          className={cn(buttonVariants({ variant: "outline" }))}
-          onClick={leaveUnlessDirty}
-        >
-          <ListChecksIcon data-icon="inline-start" />
-          <span className="sr-only sm:not-sr-only">Quiz</span>
-        </Link>
-      </div>
-
-      {blocks.length === 0 ? (
-        <p className="text-muted-foreground">
-          Lekcja jest pusta. Dodaj pierwszy tekst albo załącznik.
-        </p>
-      ) : (
-        <ol role="list" aria-label="Bloki lekcji" className="space-y-2">
-          {blocks.map((block, index) => (
-            <li key={block.id} className="space-y-2">
-              {index > 0 && (
-                <InsertBlockBar
-                  compact
-                  place={`przed blokiem ${index + 1}`}
-                  onText={() => addText(index)}
-                  onAttachment={() => addAttachment(index)}
-                />
-              )}
-              <BlockCard
-                block={block}
-                number={index + 1}
-                isFirst={index === 0}
-                isLast={index === blocks.length - 1}
-                onMove={(step) => move(index, step)}
-                onRemove={() => change(blocks.filter((b) => b.id !== block.id))}
-                onEditAttachment={() => {
-                  if (block.type === "attachment") {
-                    setInsertion(null);
-                    setAttachmentTarget({ attachment: block });
-                  }
-                }}
-                onTextChange={(doc) => updateText(block.id, doc)}
-              />
-            </li>
-          ))}
-        </ol>
-      )}
-
-      <InsertBlockBar
-        place="na końcu lekcji"
-        onText={() => addText(blocks.length)}
-        onAttachment={() => addAttachment(blocks.length)}
+      <ReadinessPanel
+        lesson={lesson}
+        dirty={dirty}
+        onShowArea={(area) => showTab(tabOfArea(area))}
       />
 
-      <AttachmentDialog
-        target={attachmentTarget}
-        onClose={() => {
-          setAttachmentTarget(null);
-          setInsertion(null);
-        }}
-        onSave={saveAttachment}
+      <Tabs
+        value={tab}
+        onValueChange={(value) => showTab(value as EditorTab)}
+        className="gap-4"
+      >
+        {/* Five tabs do not fit a phone: the list scrolls sideways */}
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <TabsList className="w-max">
+            {EDITOR_TABS.map((key) => (
+              <TabsTrigger key={key} value={key}>
+                {TAB_LABELS[key]}
+                {dirtyTabs[key] && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="size-1.5 rounded-full bg-primary"
+                    />
+                    <span className="sr-only">(niezapisane zmiany)</span>
+                  </>
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+
+        {/* Kept mounted: switching tabs must not drop unsaved edits */}
+        <TabsContent value="outline" keepMounted className="text-base">
+          <OutlineEditor
+            lesson={lesson}
+            onDirtyChange={dirtyHandlers.outline}
+          />
+        </TabsContent>
+        {FORMS.map((form) => (
+          <TabsContent
+            key={form}
+            value={form}
+            keepMounted
+            className="text-base"
+          >
+            <VersionEditor
+              lessonId={lesson.id}
+              form={form}
+              initialBlocks={versions[form]?.blocks ?? []}
+              onDirtyChange={dirtyHandlers[form]}
+            />
+          </TabsContent>
+        ))}
+        <TabsContent value="quiz" keepMounted className="text-base">
+          <PoolEditor
+            lessonId={lesson.id}
+            initial={pool.questions}
+            onDirtyChange={dirtyHandlers.quiz}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <RenameLessonDialog
+        lesson={renaming ? lesson : null}
+        onClose={() => setRenaming(false)}
       />
     </div>
   );

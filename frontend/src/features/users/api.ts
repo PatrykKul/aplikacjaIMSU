@@ -20,4 +20,6 @@ export const usersApi = {
   create: (data: UserCreateInput) => api.post<User>("/users", data),
   update: (id: number, data: UserUpdateInput) =>
     api.patch<User>(`/users/${id}`, data),
+  approve: (id: number) => api.post<User>(`/users/${id}/approve`),
+  reject: (id: number) => api.post<User>(`/users/${id}/reject`),
 };

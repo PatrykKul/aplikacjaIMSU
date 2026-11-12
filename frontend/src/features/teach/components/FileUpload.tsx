@@ -8,7 +8,6 @@ import {
   ACCEPTED_EXTENSIONS,
   formatFileSize,
 } from "@/features/content/attachment-kinds";
-import { contentApi } from "@/features/content/api";
 import {
   type FileKind,
   MAX_UPLOAD_BYTES,
@@ -17,6 +16,8 @@ import {
 import { errorMessage } from "@/shared/api/error-messages";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
+
+import { versionsApi } from "../api";
 
 /** The file chosen for an attachment (a new upload or the saved one). */
 export type ChosenFile = { id: number; name: string; url: string };
@@ -76,7 +77,10 @@ export function FileUpload({
     setUploadError(null);
     setProgress(0);
     try {
-      const uploaded: UploadedFile = await contentApi.upload(file, setProgress);
+      const uploaded: UploadedFile = await versionsApi.upload(
+        file,
+        setProgress,
+      );
       onChange({
         id: uploaded.id,
         name: uploaded.original_name,

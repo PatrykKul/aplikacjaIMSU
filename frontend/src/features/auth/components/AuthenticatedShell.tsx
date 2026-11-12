@@ -6,22 +6,19 @@ import type { ReactNode } from "react";
 import { AppShell, type NavItem } from "@/shared/layout/AppShell";
 
 import { useCurrentUser, useLogout } from "../hooks";
-import { roleLabels } from "../roles";
+import { isUnapprovedTeacher, roleLabels } from "../roles";
 import type { UserRole } from "../types";
 
 const navByRole: Record<UserRole, NavItem[]> = {
   student: [
     { href: "/courses", label: "Kursy" },
-    { href: "/classes", label: "Moje klasy" },
+    { href: "/progress", label: "Moje postępy" },
     { href: "/profile", label: "Mój styl" },
   ],
-  teacher: [
-    { href: "/teach", label: "Moje kursy" },
-    { href: "/teach/classes", label: "Klasy" },
-  ],
+  teacher: [{ href: "/teach", label: "Moje kursy" }],
   admin: [
-    { href: "/courses", label: "Kursy" },
     { href: "/admin/users", label: "Użytkownicy" },
+    { href: "/courses", label: "Kursy" },
   ],
 };
 
@@ -34,7 +31,8 @@ export function AuthenticatedShell({ children }: { children: ReactNode }) {
     return null; // AuthGuard above guarantees a user
   }
 
-  const nav: NavItem[] = navByRole[user.role];
+  // A teacher waiting for approval has nothing to open yet
+  const nav: NavItem[] = isUnapprovedTeacher(user) ? [] : navByRole[user.role];
 
   return (
     <AppShell

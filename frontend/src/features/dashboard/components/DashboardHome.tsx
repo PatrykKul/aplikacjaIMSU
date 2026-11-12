@@ -2,15 +2,19 @@
 
 import {
   BookOpenIcon,
+  ChartLineIcon,
   type LucideIcon,
   SlidersHorizontalIcon,
   UserCogIcon,
-  UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { useCurrentUser } from "@/features/auth/hooks";
+import { isUnapprovedTeacher, PENDING_PATH } from "@/features/auth/roles";
 import type { UserRole } from "@/features/auth/types";
+import { PageSpinner } from "@/shared/layout/page-states";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
 
 type RoleCard = {
@@ -20,25 +24,25 @@ type RoleCard = {
   icon: LucideIcon;
 };
 
-// The same order as the navigation of the role
+// The same order as the navigation of the role (AuthenticatedShell)
 const roleCards: Record<UserRole, RoleCard[]> = {
   student: [
     {
       href: "/courses",
       title: "Kursy",
-      description: "Wybierz kurs i ucz się lekcja po lekcji.",
+      description: "Zapisz się na kurs i ucz się lekcja po lekcji.",
       icon: BookOpenIcon,
     },
     {
-      href: "/classes",
-      title: "Moje klasy",
-      description: "Kursy od Twoich nauczycieli i kontakt z nimi.",
-      icon: UsersIcon,
+      href: "/progress",
+      title: "Moje postępy",
+      description: "Wyniki lekcji, zmiany Twoich procentów i dziennik decyzji.",
+      icon: ChartLineIcon,
     },
     {
       href: "/profile",
       title: "Mój styl",
-      description: "Zobacz swój styl uczenia się i jak zmienia się po quizach.",
+      description: "Twój styl uczenia się i to, co mówią o nim wyniki quizów.",
       icon: SlidersHorizontalIcon,
     },
   ],
@@ -46,36 +50,41 @@ const roleCards: Record<UserRole, RoleCard[]> = {
     {
       href: "/teach",
       title: "Moje kursy",
-      description: "Twórz kursy i lekcje.",
+      description:
+        "Twórz lekcje w trzech wersjach, przyjmuj uczniów i sprawdzaj, która forma działa.",
       icon: BookOpenIcon,
-    },
-    {
-      href: "/teach/classes",
-      title: "Klasy",
-      description: "Dodawaj uczniów do klas i przypisuj im swoje kursy.",
-      icon: UsersIcon,
     },
   ],
   admin: [
     {
-      href: "/courses",
-      title: "Kursy nauczycieli",
-      description: "Przeglądaj kursy wszystkich nauczycieli.",
-      icon: BookOpenIcon,
-    },
-    {
       href: "/admin/users",
       title: "Użytkownicy",
-      description: "Dodawaj nauczycieli i uczniów, edytuj i blokuj konta.",
+      description:
+        "Zatwierdzaj nauczycieli, dodawaj konta, edytuj je i blokuj.",
       icon: UserCogIcon,
+    },
+    {
+      href: "/courses",
+      title: "Kursy",
+      description: "Przeglądaj kursy wszystkich nauczycieli.",
+      icon: BookOpenIcon,
     },
   ],
 };
 
 export function DashboardHome() {
+  const router = useRouter();
   const { data: user } = useCurrentUser();
-  if (!user) {
-    return null;
+  const mustWait = !!user && isUnapprovedTeacher(user);
+
+  useEffect(() => {
+    if (mustWait) {
+      router.replace(PENDING_PATH);
+    }
+  }, [mustWait, router]);
+
+  if (!user || mustWait) {
+    return <PageSpinner />;
   }
 
   const firstName = user.display_name.split(" ")[0];
