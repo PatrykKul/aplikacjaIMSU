@@ -7,9 +7,10 @@ and a pool of 8 single-choice questions with explanations. Files live in `assets
 (`generate_assets.py` draws PNG and PDF, `generate_audio.py` records MP3 from `Audio.script`).
 
 The seed builds courses from these objects through the services: `block_payload` turns a block
-into the API shape of `app/modules/content/blocks.py`, `Question.payload` into a quiz question.
+into the API shape of `app/modules/content/blocks.py`, `Lesson.quiz` gives the question pool.
 """
 
+import random
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -173,29 +174,25 @@ class Question:
     wrong: tuple[str, ...]
     explanation: str
 
-    @property
-    def correct_index(self) -> int:
-        """Fixed but varied position of the correct answer."""
-        return (sum(map(ord, self.id)) + len(self.text)) % (len(self.wrong) + 1)
-
-    @property
-    def answers(self) -> tuple[str, ...]:
-        index = self.correct_index
+    def answers(self, position: int) -> tuple[str, ...]:
+        """Answers with the correct one at `position` (modulo the number of answers)."""
+        index = position % (len(self.wrong) + 1)
         return (*self.wrong[:index], self.correct, *self.wrong[index:])
 
     def answer_id(self, index: int) -> str:
         return f"{self.id}-{'abcd'[index]}"
 
-    def payload(self) -> dict[str, Any]:
+    def payload(self, position: int) -> dict[str, Any]:
         """Question in the API shape of `assessment/schemas.py` (`QuizQuestion`)."""
+        answers = self.answers(position)
         return {
             "id": self.id,
             "text": self.text,
             "answers": [
                 {"id": self.answer_id(index), "text": answer}
-                for index, answer in enumerate(self.answers)
+                for index, answer in enumerate(answers)
             ],
-            "correct_answer_id": self.answer_id(self.correct_index),
+            "correct_answer_id": self.answer_id(answers.index(self.correct)),
             "explanation": self.explanation,
         }
 
@@ -207,6 +204,16 @@ class Lesson:
     conclusions: dict[str, Any]
     versions: Mapping[Form, tuple[Block, ...]]
     questions: tuple[Question, ...]
+
+    def quiz(self) -> list[dict[str, Any]]:
+        """Question pool in the API shape. Correct answers are spread evenly over the positions
+        (each used equally often), shuffled with a fixed seed so the seed gives the same pool."""
+        positions = [index % 4 for index in range(len(self.questions))]
+        random.Random(self.title).shuffle(positions)
+        return [
+            question.payload(position)
+            for question, position in zip(self.questions, positions, strict=True)
+        ]
 
 
 @dataclass(frozen=True)
@@ -2382,4 +2389,996 @@ ENGLISH = Course(
 )
 
 
-COURSES: tuple[Course, ...] = (MATH, ENGLISH)
+# =================================================================================================
+# Programowanie: pętle w Pythonie
+# =================================================================================================
+
+PYTHON = Course(
+    code="p",
+    title="Programowanie: pętle w Pythonie",
+    description=(
+        "Pętle w Pythonie dla początkujących (klasy 6–8): pętla for po listach i napisach, funkcja range(), "
+        "pętla while oraz instrukcje break i continue. Każdą lekcję przerobisz ze schematami i kodem, "
+        "z nagraniem albo przez samodzielne pisanie i uruchamianie programów z karty zadań. "
+        "Przyda się dowolny edytor Pythona, np. IDLE. Quiz po lekcji otwiera następną."
+    ),
+    introduction=doc(
+        heading("O kursie"),
+        paragraph(
+            "Pętla pozwala powtórzyć instrukcje wiele razy bez przepisywania kodu. Dzięki niej program wypisze "
+            "tabliczkę mnożenia, policzy sumę stu liczb albo będzie pytał o hasło, dopóki nie wpiszesz poprawnego."
+        ),
+        paragraph(
+            "Kurs ma cztery lekcje: pętla for, funkcja range(), pętla while oraz break i continue. "
+            "Po każdej lekcji rozwiązujesz quiz z 5 pytań – ",
+            ("zaliczenie (co najmniej 4 dobre odpowiedzi) otwiera następną lekcję.", True),
+        ),
+        paragraph(
+            "Przygotuj komputer z Pythonem 3 (np. z edytorem IDLE) albo stronę do uruchamiania kodu Pythona w przeglądarce. "
+            "Kod przepisuj samodzielnie – w Pythonie wcięcia mają znaczenie."
+        ),
+    ),
+    summary=doc(
+        heading("Podsumowanie i wnioski"),
+        bullets(
+            "for przechodzi po kolejnych elementach listy, napisu albo range(); zmienna pętli w każdym obrocie przyjmuje następny element.",
+            "range(start, stop, krok) daje liczby od start do stop − 1; range(n) – n liczb od 0.",
+            "while powtarza, dopóki warunek jest prawdziwy – w ciele zmieniaj zmienną z warunku, inaczej pętla nie skończy się sama.",
+            "break kończy pętlę natychmiast, continue pomija resztę bieżącego obrotu; instrukcje należące do pętli rozpoznajemy po wcięciu.",
+        ),
+        paragraph(
+            "Co dalej: połącz pętle z warunkami w małej grze – np. zgadywanie liczby z while True i break."
+        ),
+    ),
+    lessons=(
+        # --- 1. Pętla for -----------------------------------------------------------------------
+        Lesson(
+            title="Pętla for",
+            outline=doc(
+                paragraph(
+                    "Poznasz pętlę for, która powtarza instrukcje dla każdego elementu listy albo napisu. "
+                    "Dowiesz się, jak ją zapisać (dwukropek i wcięcie) i jak policzyć sumę liczb z listy."
+                )
+            ),
+            conclusions=doc(
+                bullets(
+                    "for element in sekwencja: – powtarza wcięte instrukcje dla każdego elementu; zmienna pętli przyjmuje po kolei wszystkie wartości.",
+                    "Ciało pętli to linie z wcięciem (4 spacje) pod linią zakończoną dwukropkiem. Linia bez wcięcia wykona się raz, po pętli.",
+                    'Pętla po napisie przechodzi po literach: for litera in "kot" wypisze k, o, t.',
+                    "Sumowanie: suma = 0 przed pętlą, w pętli suma = suma + liczba (dla [2, 4, 6] wyjdzie 12).",
+                )
+            ),
+            versions={
+                "V": (
+                    Text(
+                        "v-tekst",
+                        doc(
+                            heading("Powtórz dla każdego elementu"),
+                            paragraph(
+                                "Pętla for wykonuje te same instrukcje dla każdego elementu listy albo napisu. Zapis: ",
+                                ("for zmienna in sekwencja:", True),
+                                " – na końcu linii dwukropek, a instrukcje do powtarzania piszemy niżej z wcięciem (4 spacje).",
+                            ),
+                            code(
+                                'owoce = ["jabłko", "gruszka", "śliwka"]',
+                                "for owoc in owoce:",
+                                "    print(owoc)",
+                            ),
+                            paragraph(
+                                'W pierwszym obrocie owoc = "jabłko", w drugim "gruszka", w trzecim "śliwka" – program wypisze trzy linie. '
+                                'Pętla po napisie przechodzi po literach: for litera in "kot": print(litera) wypisze k, o i t, każdą w osobnej linii.'
+                            ),
+                            heading("Wcięcie decyduje"),
+                            paragraph(
+                                "Python rozpoznaje ciało pętli po wcięciu. Linia bez wcięcia pod pętlą wykona się tylko raz – po zakończeniu pętli. "
+                                "Bez dwukropka albo bez wcięcia Python zgłosi błąd."
+                            ),
+                            heading("Suma liczb z listy"),
+                            paragraph(
+                                "Przed pętlą ustaw suma = 0, a w pętli dodawaj kolejne liczby:"
+                            ),
+                            code(
+                                "suma = 0",
+                                "for liczba in [2, 4, 6]:",
+                                "    suma = suma + liczba",
+                                "print(suma)",
+                            ),
+                            paragraph(
+                                "Po kolejnych obrotach suma wynosi 2, 6, 12. Program wypisze 12."
+                            ),
+                        ),
+                    ),
+                    Image(
+                        "v-schemat",
+                        "Jak działa pętla for",
+                        "p1_v_schemat.png",
+                        "Schemat blokowy pętli for: czy jest kolejny element? Tak – zmienna dostaje element i wykonuje się ciało pętli; nie – koniec pętli",
+                    ),
+                    Image(
+                        "v-kod",
+                        "Suma krok po kroku",
+                        "p1_v_kod.png",
+                        "Kod sumujący listę [2, 4, 6] i tabela obrotów: wartość zmiennej liczba i sumy po każdym obrocie, wynik 12",
+                    ),
+                ),
+                "A": (
+                    Text(
+                        "a-opis",
+                        doc(
+                            paragraph(
+                                "Posłuchaj rozmowy o pętli for. Najważniejsze do zapamiętania:"
+                            ),
+                            bullets(
+                                "for zmienna in lista: – dwukropek na końcu, ciało z wcięciem,",
+                                "zmienna pętli po kolei przyjmuje każdy element; pętla po napisie idzie po literach,",
+                                "linia bez wcięcia wykona się raz, po pętli,",
+                                "sumowanie: suma = 0 przed pętlą, suma = suma + liczba w pętli.",
+                            ),
+                            paragraph("Po wysłuchaniu przepisz przykład z owocami i uruchom go."),
+                        ),
+                    ),
+                    Audio(
+                        "a-nagranie",
+                        "Rozmowa: pętla for",
+                        "p1_a_rozmowa.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Marek, wyobraź sobie, że masz wypisać na ekranie sto imion. Pisałbyś sto razy print?",
+                            ),
+                            say("M", "Wolałbym nie."),
+                            say(
+                                "Z",
+                                "Do tego służy pętla. Dziś poznasz pętlę for. Działa tak: dla każdego elementu z listy wykonaj te same instrukcje.",
+                            ),
+                            say("M", "Jak to zapisać?"),
+                            say(
+                                "Z",
+                                "Mamy listę owoce, a w niej: jabłko, gruszka i śliwka. Piszemy: for owoc in owoce, a na końcu dwukropek. W następnej linii, z wcięciem na cztery spacje: print, a w nawiasie owoc.",
+                            ),
+                            say("M", "I co się stanie?"),
+                            say(
+                                "Z",
+                                "W pierwszym obrocie zmienna owoc ma wartość jabłko i program je wypisuje. W drugim obrocie owoc to gruszka, w trzecim śliwka. Elementy się skończyły, więc pętla też.",
+                            ),
+                            say("M", "Czyli trzy elementy, trzy obroty, trzy linie na ekranie."),
+                            say(
+                                "Z",
+                                "Dokładnie. A jeśli zamiast listy dasz napis, na przykład słowo kot w cudzysłowie, pętla przejdzie po literach. Wypisze ka, o i te, każdą w osobnej linii.",
+                            ),
+                            say("M", "Po czym Python poznaje, co jest w środku pętli?"),
+                            say(
+                                "Z",
+                                "Po wcięciu. Wszystkie linie przesunięte w prawo pod linią z dwukropkiem to ciało pętli. Linia bez wcięcia wykona się tylko raz, kiedy pętla się skończy. Bez dwukropka albo bez wcięcia Python zgłosi błąd.",
+                            ),
+                            say("M", "A czy pętla umie coś policzyć?"),
+                            say(
+                                "Z",
+                                "Jasne. Policzmy sumę liczb dwa, cztery i sześć. Przed pętlą piszemy: suma równa się zero. Potem: for liczba in lista, dwukropek, a w środku: suma równa się suma plus liczba.",
+                            ),
+                            say(
+                                "M",
+                                "Prześledzę to. Najpierw suma to zero. Po pierwszym obrocie zero plus dwa, czyli dwa. Potem dwa plus cztery, czyli sześć. Na końcu sześć plus sześć, czyli dwanaście.",
+                            ),
+                            say(
+                                "Z",
+                                "Świetnie. Gdy po pętli, bez wcięcia, napiszesz print suma, program wypisze dwanaście. Tylko raz.",
+                            ),
+                            say(
+                                "M",
+                                "Czyli: dwukropek, wcięcie, a zmienna pętli po kolei bierze każdy element.",
+                            ),
+                            say("Z", "Tak. To najważniejsze zasady pętli for."),
+                        ),
+                        "Rozmowa o zapisie pętli for, wcięciach i sumowaniu liczb z listy.",
+                    ),
+                ),
+                "K": (
+                    Text(
+                        "k-instrukcja",
+                        doc(
+                            paragraph(
+                                "Otwórz edytor Pythona (np. IDLE). Każdy program najpierw przepisz, potem zapisz na kartce, "
+                                "co według Ciebie wypisze, a na końcu uruchom i porównaj."
+                            ),
+                            ordered(
+                                'Wpisz listę: owoce = ["jabłko", "gruszka", "śliwka"].',
+                                "Pod spodem napisz linię pętli z dwukropkiem na końcu: for owoc in owoce:",
+                                "W następnej linii zrób wcięcie (4 spacje albo klawisz Tab) i wpisz print(owoc). Wcięte linie to ciało pętli – wykonują się dla każdego elementu.",
+                                "Zapisz przewidywanie i uruchom program. Każdy owoc pojawi się w osobnej linii: zmienna owoc przyjmuje po kolei wartość każdego elementu.",
+                                'Dopisz na końcu linię bez wcięcia: print("koniec"). Uruchom – słowo koniec pojawi się tylko raz, po pętli.',
+                                "Usuń dwukropek z linii for i uruchom program. Przeczytaj komunikat błędu (SyntaxError), a potem przywróć dwukropek.",
+                                'Napisz pętlę po napisie: for litera in "kot": i w ciele print(litera). Program wypisze k, o, t w osobnych liniach.',
+                                "Policz sumę: suma = 0, potem for liczba in [2, 4, 6]: i w ciele suma = suma + liczba. Po pętli (bez wcięcia) print(suma). Przed uruchomieniem zapisz w tabelce wartość sumy po każdym obrocie: 2, 6, 12.",
+                                WORKSHEET_STEP,
+                            ),
+                        ),
+                    ),
+                    Pdf(
+                        "k-karta",
+                        "Karta zadania: pętla for",
+                        "p1_k_karta.pdf",
+                        "Przewidywanie wyniku, tabela obrotów i własne programy z pętlą for.",
+                    ),
+                ),
+            },
+            questions=(
+                Question(
+                    "q1",
+                    'Co wypisze program: for litera in "kot": print(litera)',
+                    "k, o i t – każdą literę w osobnej linii",
+                    (
+                        "kot – raz, w jednej linii",
+                        "kot kot kot – trzy razy całe słowo",
+                        "nic, bo pętla for działa tylko z listą",
+                    ),
+                    "Pętla po napisie przechodzi po jego znakach. Zmienna litera przyjmuje kolejno k, o, t, a print wypisuje każdą w nowej linii.",
+                ),
+                Question(
+                    "q2",
+                    "Ile razy wykona się print(x) w pętli for x in [4, 8, 15]: print(x)?",
+                    "3 razy",
+                    ("15 razy", "4 razy", "1 raz"),
+                    "Lista ma trzy elementy, więc pętla ma trzy obroty – po jednym na każdy element. Same wartości 4, 8 i 15 nie wpływają na liczbę obrotów.",
+                ),
+                Question(
+                    "q3",
+                    "Który zapis początku pętli jest poprawny?",
+                    "for owoc in owoce:",
+                    ("for owoc in owoce", "for (owoc in owoce):", "for owoc = owoce:"),
+                    "Poprawnie: słowo for, nazwa zmiennej, słowo in, sekwencja i dwukropek na końcu. Bez dwukropka Python zgłosi błąd składni.",
+                ),
+                Question(
+                    "q4",
+                    "Po czym Python rozpoznaje, które instrukcje należą do ciała pętli?",
+                    "po wcięciu pod linią z dwukropkiem",
+                    (
+                        "po nawiasach klamrowych { }",
+                        "po średniku na końcu linii",
+                        "po pustej linii za pętlą",
+                    ),
+                    "W Pythonie ciało pętli to linie z wcięciem (zwykle 4 spacje) pod linią for zakończoną dwukropkiem.",
+                ),
+                Question(
+                    "q5",
+                    "Zmienna suma ma wartość 0. Potem wykonuje się pętla for n in [2, 4, 6]: suma = suma + n. Ile wynosi suma po pętli?",
+                    "12",
+                    ("6", "0", "246"),
+                    "Po kolejnych obrotach: 0 + 2 = 2, 2 + 4 = 6, 6 + 6 = 12.",
+                ),
+                Question(
+                    "q6",
+                    'Program ma pętlę for i in ["a", "b"]: z wciętym print(i), a pod nią linię bez wcięcia print("koniec"). Ile razy pojawi się słowo koniec?',
+                    "1 raz",
+                    ("2 razy", "ani razu", "3 razy"),
+                    "Linia bez wcięcia nie należy do pętli, więc wykona się raz – po zakończeniu pętli.",
+                ),
+                Question(
+                    "q7",
+                    'Jaką wartość ma zmienna owoc w drugim obrocie pętli for owoc in ["jabłko", "gruszka", "śliwka"]?',
+                    "gruszka",
+                    ("jabłko", "śliwka", "cała lista"),
+                    "Zmienna pętli przyjmuje po kolei każdy element: w pierwszym obrocie jabłko, w drugim gruszka, w trzecim śliwka.",
+                ),
+                Question(
+                    "q8",
+                    "Co wypisze for x in [1, 2, 3]: print(x * 2)?",
+                    "2, 4, 6 (każdą liczbę w osobnej linii)",
+                    ("1, 2, 3", "6", "2, 2, 2"),
+                    "W każdym obrocie x to kolejny element, a print wypisuje x · 2: 1 · 2 = 2, 2 · 2 = 4, 3 · 2 = 6.",
+                ),
+            ),
+        ),
+        # --- 2. range() -------------------------------------------------------------------------
+        Lesson(
+            title="range()",
+            outline=doc(
+                paragraph(
+                    "Poznasz funkcję range(), która tworzy ciąg liczb dla pętli for. Nauczysz się powtarzać instrukcje "
+                    "zadaną liczbę razy, liczyć od dowolnej liczby, z krokiem i w dół."
+                )
+            ),
+            conclusions=doc(
+                bullets(
+                    "range(n) daje n liczb: 0, 1, …, n − 1 (range(4) → 0, 1, 2, 3), więc for i in range(n) powtarza n razy.",
+                    "range(start, stop) zaczyna od start i kończy przed stop: range(2, 6) → 2, 3, 4, 5. Liczby od 1 do 10: range(1, 11).",
+                    "Trzecia liczba to krok: range(0, 10, 3) → 0, 3, 6, 9; range(2, 21, 2) – parzyste od 2 do 20.",
+                    "Ujemny krok liczy w dół: range(5, 0, -1) → 5, 4, 3, 2, 1.",
+                )
+            ),
+            versions={
+                "V": (
+                    Text(
+                        "v-tekst",
+                        doc(
+                            heading("range() – ciąg liczb dla pętli"),
+                            paragraph(
+                                "Funkcja range() tworzy ciąg liczb całkowitych. Razem z for pozwala powtórzyć instrukcje określoną liczbę razy: ",
+                                ("for i in range(5):", True),
+                                " wykona ciało 5 razy, a i przyjmie wartości 0, 1, 2, 3, 4.",
+                            ),
+                            table(
+                                ("zapis", "liczby", "zasada"),
+                                ("range(4)", "0, 1, 2, 3", "od 0, 4 liczby, bez 4"),
+                                ("range(2, 6)", "2, 3, 4, 5", "od start do stop − 1"),
+                                ("range(1, 11)", "1, 2, …, 10", "liczby od 1 do 10"),
+                                ("range(0, 10, 3)", "0, 3, 6, 9", "krok 3"),
+                                ("range(2, 21, 2)", "2, 4, …, 20", "parzyste od 2 do 20"),
+                                ("range(5, 0, -1)", "5, 4, 3, 2, 1", "w dół (krok ujemny)"),
+                            ),
+                            paragraph(
+                                (
+                                    "Najważniejsza zasada: liczba stop nigdy nie należy do ciągu.",
+                                    True,
+                                ),
+                                " Dlatego liczby od 1 do 10 to range(1, 11).",
+                            ),
+                            heading("Przykład: suma"),
+                            code(
+                                "suma = 0",
+                                "for i in range(1, 5):",
+                                "    suma = suma + i",
+                                "print(suma)",
+                            ),
+                            paragraph(
+                                "i przyjmuje 1, 2, 3, 4, więc suma = 1 + 2 + 3 + 4 = 10. "
+                                "Aby zobaczyć wszystkie liczby z range naraz, wpisz print(list(range(2, 6)))."
+                            ),
+                        ),
+                    ),
+                    Image(
+                        "v-range",
+                        "Co daje range()",
+                        "p2_v_range.png",
+                        "Osie liczbowe od 0 do 10 z zaznaczonymi liczbami dla range(4), range(2, 6), range(0, 10, 3) i range(5, 0, -1); liczba stop przekreślona",
+                    ),
+                ),
+                "A": (
+                    Text(
+                        "a-opis",
+                        doc(
+                            paragraph(
+                                "Posłuchaj rozmowy o funkcji range(). Najważniejsze do zapamiętania:"
+                            ),
+                            bullets(
+                                "range(n) – n liczb od 0 do n − 1,",
+                                "range(start, stop) – liczba stop nie jest wliczana, więc 1–10 to range(1, 11),",
+                                "trzecia liczba to krok, ujemny krok liczy w dół,",
+                                "suma 1 + 2 + 3 + 4 z range(1, 5) to 10.",
+                            ),
+                        ),
+                    ),
+                    Audio(
+                        "a-nagranie",
+                        "Rozmowa: funkcja range",
+                        "p2_a_rozmowa.mp3",
+                        (
+                            say(
+                                "Z",
+                                "W poprzedniej lekcji pętla for przechodziła po liście. A co, jeśli chcesz coś powtórzyć na przykład pięć razy?",
+                            ),
+                            say("M", "Mogę zrobić listę z pięcioma elementami."),
+                            say(
+                                "Z",
+                                "Możesz, ale wygodniej użyć funkcji rejndż. Piszesz: for i in rejndż, w nawiasie pięć, i dwukropek. Ciało pętli wykona się pięć razy.",
+                            ),
+                            say("M", "A jakie wartości ma wtedy i?"),
+                            say(
+                                "Z",
+                                "Tu jest haczyk. Rejndż od pięciu daje liczby od zera do czterech: zero, jeden, dwa, trzy, cztery. Pięć liczb, ale bez piątki.",
+                            ),
+                            say("M", "Dlaczego bez piątki?"),
+                            say(
+                                "Z",
+                                "Taka jest zasada w Pythonie: liczba końcowa nigdy nie należy do ciągu. Można też podać początek. Rejndż od dwóch do sześciu daje dwa, trzy, cztery i pięć.",
+                            ),
+                            say(
+                                "M",
+                                "Czyli jeśli chcę liczby od jednego do dziesięciu, piszę rejndż od jednego do jedenastu.",
+                            ),
+                            say(
+                                "Z",
+                                "Brawo, właśnie tak. Trzecia liczba w nawiasie to krok. Rejndż od zera do dziesięciu z krokiem trzy daje zero, trzy, sześć i dziewięć.",
+                            ),
+                            say("M", "Dwunastki już nie ma, bo przekracza dziesięć."),
+                            say(
+                                "Z",
+                                "Zgadza się. A jak zapisać liczby parzyste od dwóch do dwudziestu?",
+                            ),
+                            say(
+                                "M",
+                                "Start dwa, krok dwa, a koniec dwadzieścia jeden, żeby dwudziestka się zmieściła.",
+                            ),
+                            say(
+                                "Z",
+                                "Doskonale. Krok może być też ujemny, wtedy liczymy w dół. Rejndż od pięciu do zera z krokiem minus jeden daje pięć, cztery, trzy, dwa, jeden. Zero się nie mieści, bo to liczba końcowa.",
+                            ),
+                            say("M", "Jak odliczanie przed startem rakiety."),
+                            say(
+                                "Z",
+                                "Właśnie. Na koniec policzmy sumę. Suma równa się zero, potem for i in rejndż od jednego do pięciu, a w środku dodajemy i do sumy.",
+                            ),
+                            say(
+                                "M",
+                                "Rejndż od jednego do pięciu to jeden, dwa, trzy i cztery. Razem dziesięć.",
+                            ),
+                            say(
+                                "Z",
+                                "Świetnie. Jeśli chcesz zobaczyć, jakie liczby daje rejndż, wypisz je poleceniem print z funkcją list w środku. Zapamiętaj: koniec zakresu nigdy nie jest wliczany.",
+                            ),
+                        ),
+                        "Rozmowa o tym, jakie liczby daje range() z jednym, dwoma i trzema argumentami.",
+                    ),
+                ),
+                "K": (
+                    Text(
+                        "k-instrukcja",
+                        doc(
+                            paragraph(
+                                "Otwórz edytor Pythona. Najpierw zapisuj przewidywania na kartce, potem uruchamiaj kod."
+                            ),
+                            ordered(
+                                "Wpisz i uruchom: for i in range(5): z wciętym print(i). Policz linie wyniku: 5 liczb, od 0 do 4. Zapisz: range(n) daje n liczb od 0 do n − 1.",
+                                "Zmień na range(2, 6) i uruchom. Wyjdzie 2, 3, 4, 5 – zapisz: koniec (stop) nie jest wliczany.",
+                                "Spróbuj wypisać liczby od 1 do 10. Jeśli wyszło tylko do 9, popraw na range(1, 11).",
+                                "Dodaj krok: range(0, 10, 3). Zanim uruchomisz, zapisz przewidywanie (0, 3, 6, 9).",
+                                "Wypisz liczby parzyste od 2 do 20: range(2, 21, 2).",
+                                "Zrób odliczanie: range(5, 0, -1) – wyjdzie 5, 4, 3, 2, 1. Ujemny krok liczy w dół.",
+                                "Napisz program sumy: suma = 0, for i in range(1, 5): i w ciele suma = suma + i, a po pętli print(suma). Przed uruchomieniem policz na kartce: 1 + 2 + 3 + 4 = 10.",
+                                "Sprawdzaj ciągi poleceniem print(list(range(…))) – pokazuje wszystkie liczby naraz.",
+                                WORKSHEET_STEP,
+                            ),
+                        ),
+                    ),
+                    Pdf(
+                        "k-karta",
+                        "Karta zadania: range()",
+                        "p2_k_karta.pdf",
+                        "Wypisywanie ciągów z range, dobieranie zapisu i własne programy.",
+                    ),
+                ),
+            },
+            questions=(
+                Question(
+                    "q1",
+                    "Jakie liczby daje range(4)?",
+                    "0, 1, 2, 3",
+                    ("1, 2, 3, 4", "0, 1, 2, 3, 4", "tylko 4"),
+                    "range(n) zaczyna od 0 i daje n liczb, kończąc na n − 1. Dla 4: 0, 1, 2, 3 – sama 4 nie jest wliczana.",
+                ),
+                Question(
+                    "q2",
+                    "Jakie liczby daje range(2, 6)?",
+                    "2, 3, 4, 5",
+                    ("2, 3, 4, 5, 6", "3, 4, 5, 6", "2 i 6"),
+                    "Ciąg zaczyna się od start (2) i kończy przed stop (6), więc ostatnia liczba to 5.",
+                ),
+                Question(
+                    "q3",
+                    "Jakie liczby daje range(0, 10, 3)?",
+                    "0, 3, 6, 9",
+                    ("3, 6, 9", "0, 3, 6, 9, 12", "0, 3, 6"),
+                    "Start 0, krok 3: 0, 3, 6, 9. Następna byłaby 12, ale nie jest mniejsza od 10.",
+                ),
+                Question(
+                    "q4",
+                    'Ile razy wypisze się słowo Hej w pętli for i in range(7): print("Hej")?',
+                    "7 razy",
+                    ("6 razy", "8 razy", "ani razu"),
+                    "range(7) daje 7 liczb (0–6), więc pętla ma 7 obrotów.",
+                ),
+                Question(
+                    "q5",
+                    "Którego zapisu użyjesz, żeby pętla przeszła po liczbach od 1 do 10?",
+                    "range(1, 11)",
+                    ("range(1, 10)", "range(10)", "range(0, 10)"),
+                    "Liczba stop nie jest wliczana, więc żeby dostać 10, stop musi wynosić 11. range(1, 10) kończy się na 9, a range(10) daje 0–9.",
+                ),
+                Question(
+                    "q6",
+                    "Jakie liczby daje range(5, 0, -1)?",
+                    "5, 4, 3, 2, 1",
+                    ("5, 4, 3, 2, 1, 0", "0, 1, 2, 3, 4, 5", "żadnych – ciąg jest pusty"),
+                    "Krok −1 liczy w dół od 5. Liczba stop (0) nie jest wliczana, więc ostatnia to 1.",
+                ),
+                Question(
+                    "q7",
+                    "Który zapis da wszystkie liczby parzyste od 2 do 20?",
+                    "range(2, 21, 2)",
+                    ("range(2, 20, 2)", "range(0, 20, 2)", "range(2, 20)"),
+                    "Start 2, krok 2 i stop większy od 20 (21), żeby 20 się zmieściło. range(2, 20, 2) kończy się na 18.",
+                ),
+                Question(
+                    "q8",
+                    "Zmienna suma ma wartość 0. Potem wykonuje się pętla for i in range(1, 5): suma = suma + i. Ile wynosi suma po pętli?",
+                    "10",
+                    ("15", "4", "5"),
+                    "range(1, 5) daje 1, 2, 3, 4, więc suma = 1 + 2 + 3 + 4 = 10. Piątka nie jest wliczana.",
+                ),
+            ),
+        ),
+        # --- 3. Pętla while ---------------------------------------------------------------------
+        Lesson(
+            title="Pętla while",
+            outline=doc(
+                paragraph(
+                    "Poznasz pętlę while, która powtarza instrukcje, dopóki warunek jest prawdziwy. "
+                    "Dowiesz się, jak uniknąć pętli nieskończonej i kiedy while jest lepsza od for."
+                )
+            ),
+            conclusions=doc(
+                bullets(
+                    "while warunek: – przed każdym obrotem Python sprawdza warunek; gdy jest fałszywy, pętla się kończy (czasem już przed pierwszym obrotem).",
+                    "W ciele trzeba zmieniać zmienną z warunku (np. x = x + 1), inaczej powstanie pętla nieskończona.",
+                    "while wybieramy, gdy nie wiemy z góry, ile będzie powtórzeń: pytanie o hasło, podwajanie liczby, aż przekroczy 100.",
+                    "x = 1, potem while x < 4: z wciętymi print(x) i x = x + 1 – wypisze 1, 2, 3.",
+                )
+            ),
+            versions={
+                "V": (
+                    Text(
+                        "v-tekst",
+                        doc(
+                            heading("Powtarzaj, dopóki…"),
+                            paragraph(
+                                "Pętla while powtarza swoje ciało, ",
+                                ("dopóki warunek jest prawdziwy", True),
+                                ". Przed każdym obrotem Python sprawdza warunek: prawdziwy – wykonuje ciało; fałszywy – kończy pętlę i przechodzi dalej.",
+                            ),
+                            code(
+                                "licznik = 1",
+                                "while licznik <= 5:",
+                                "    print(licznik)",
+                                "    licznik = licznik + 1",
+                            ),
+                            paragraph(
+                                "Program wypisze 1, 2, 3, 4, 5. Po piątym obrocie licznik = 6, warunek 6 <= 5 jest fałszywy i pętla się kończy."
+                            ),
+                            heading("Uwaga na pętlę nieskończoną"),
+                            paragraph(
+                                "Jeśli w ciele nie zmienisz zmiennej z warunku, warunek będzie zawsze prawdziwy i pętla nigdy się nie skończy "
+                                "(przerwiesz ją skrótem Ctrl+C). Gdy warunek jest fałszywy od początku (np. x = 10, a potem while x > 10:), "
+                                "ciało nie wykona się ani razu."
+                            ),
+                            heading("while czy for?"),
+                            paragraph(
+                                "for – gdy znasz liczbę powtórzeń albo przechodzisz po liście. while – gdy nie wiesz, ile razy trzeba powtórzyć, "
+                                "np. pytanie o hasło albo podwajanie liczby, aż przekroczy 100:"
+                            ),
+                            code(
+                                "n = 1",
+                                "while n < 100:",
+                                "    n = n * 2",
+                                "print(n)",
+                            ),
+                            paragraph(
+                                "n przyjmuje kolejno 2, 4, 8, 16, 32, 64, 128 – program wypisze 128."
+                            ),
+                        ),
+                    ),
+                    Image(
+                        "v-schemat",
+                        "Jak działa pętla while",
+                        "p3_v_schemat.png",
+                        "Schemat blokowy pętli while: sprawdzenie warunku, przy prawdzie ciało pętli i zmiana zmiennej, powrót do warunku; przy fałszu koniec",
+                    ),
+                    Image(
+                        "v-kod",
+                        "Pętla while krok po kroku",
+                        "p3_v_kod.png",
+                        "Kod z licznikiem od 1 do 5 i tabela: wartość licznika, czy warunek licznik <= 5 jest prawdziwy, co wypisze program",
+                    ),
+                ),
+                "A": (
+                    Text(
+                        "a-opis",
+                        doc(
+                            paragraph(
+                                "Posłuchaj rozmowy o pętli while. Najważniejsze do zapamiętania:"
+                            ),
+                            bullets(
+                                "while powtarza, dopóki warunek jest prawdziwy; warunek jest sprawdzany przed każdym obrotem,",
+                                "w ciele trzeba zmieniać zmienną z warunku – inaczej pętla nieskończona (Ctrl+C),",
+                                "warunek fałszywy od początku – ciało nie wykona się ani razu,",
+                                "while, gdy nie znasz liczby powtórzeń (hasło, podwajanie aż do 128).",
+                            ),
+                        ),
+                    ),
+                    Audio(
+                        "a-nagranie",
+                        "Rozmowa: pętla while",
+                        "p3_a_rozmowa.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Marek, wyobraź sobie, że program ma pytać o hasło, aż użytkownik wpisze poprawne. Ile razy będzie pytał?",
+                            ),
+                            say("M", "Nie wiadomo. Może raz, a może dziesięć razy."),
+                            say(
+                                "Z",
+                                "Właśnie. Gdy nie znamy liczby powtórzeń, używamy pętli łajl. Łajl po angielsku znaczy dopóki. Pętla powtarza instrukcje, dopóki warunek jest prawdziwy.",
+                            ),
+                            say("M", "Jak to wygląda w kodzie?"),
+                            say(
+                                "Z",
+                                "Na przykład tak: licznik równa się jeden. Potem: łajl licznik mniejsze lub równe pięć, dwukropek. W ciele, z wcięciem, piszemy print licznik oraz licznik równa się licznik plus jeden.",
+                            ),
+                            say("M", "Czyli wypisze jeden, dwa, trzy, cztery, pięć?"),
+                            say(
+                                "Z",
+                                "Tak. Przed każdym obrotem Python sprawdza warunek. Po piątym obrocie licznik ma wartość sześć, warunek jest fałszywy i pętla się kończy.",
+                            ),
+                            say("M", "A gdybym zapomniał o linii licznik plus jeden?"),
+                            say(
+                                "Z",
+                                "To bardzo częsty błąd. Licznik zostałby równy jeden, warunek byłby zawsze prawdziwy i program wypisywałby jedynkę bez końca. To pętla nieskończona. Zatrzymasz ją skrótem kontrol ce.",
+                            ),
+                            say("M", "Czyli w ciele zawsze muszę zmienić zmienną z warunku."),
+                            say(
+                                "Z",
+                                "Dokładnie. Jest też odwrotna sytuacja. Jeśli iks równa się dziesięć, a warunek brzmi: łajl iks większe od dziesięciu, to ciało nie wykona się ani razu, bo warunek jest fałszywy od początku.",
+                            ),
+                            say("M", "A kiedy wybrać łajl, a kiedy for?"),
+                            say(
+                                "Z",
+                                "For, gdy wiesz, ile razy powtarzać, albo przechodzisz po liście. Łajl, gdy nie wiesz, na przykład przy haśle. Albo w takiej zagadce: zaczynamy od n równego jeden i podwajamy n, dopóki jest mniejsze od stu. Jaka liczba wyjdzie?",
+                            ),
+                            say(
+                                "M",
+                                "Dwa, cztery, osiem, szesnaście, trzydzieści dwa, sześćdziesiąt cztery… Sześćdziesiąt cztery jest jeszcze mniejsze od stu, więc pętla robi kolejny obrót. Wyjdzie sto dwadzieścia osiem.",
+                            ),
+                            say(
+                                "Z",
+                                "Brawo. Po pętli program wypisze sto dwadzieścia osiem. Zapamiętaj: łajl sprawdza warunek przed każdym obrotem i działa, dopóki ten warunek jest prawdziwy.",
+                            ),
+                        ),
+                        "Rozmowa o działaniu pętli while, pętli nieskończonej i wyborze między while a for.",
+                    ),
+                ),
+                "K": (
+                    Text(
+                        "k-instrukcja",
+                        doc(
+                            paragraph(
+                                "Otwórz edytor Pythona. Przy każdym programie prowadź na kartce tabelkę: wartość zmiennej i czy warunek jest prawdziwy."
+                            ),
+                            ordered(
+                                "Wpisz: licznik = 1, a pod spodem while licznik <= 5: (z dwukropkiem na końcu).",
+                                "W ciele, z wcięciem, wpisz dwie linie: print(licznik) oraz licznik = licznik + 1.",
+                                "Zanim uruchomisz, zrób tabelkę: licznik | czy licznik <= 5? | co wypisze. Wypełniaj ją, aż warunek będzie fałszywy (licznik = 6).",
+                                "Uruchom i porównaj z tabelką: 1, 2, 3, 4, 5. While sprawdza warunek przed każdym obrotem i kończy się, gdy jest fałszywy.",
+                                "Usuń linię licznik = licznik + 1 i uruchom. Program wypisuje 1 bez końca – to pętla nieskończona. Zatrzymaj ją skrótem Ctrl+C i przywróć usuniętą linię.",
+                                "Zmień początek na licznik = 10 i uruchom – nic się nie wypisze, bo warunek jest fałszywy od początku i ciało nie wykona się ani razu.",
+                                "Napisz program z podwajaniem: n = 1, while n < 100: z wciętym n = n * 2, a po pętli print(n). Przewidź wynik na kartce (128) i sprawdź.",
+                                "Zapisz zasadę: for – gdy znasz liczbę powtórzeń, while – gdy jej nie znasz (np. pytanie o hasło).",
+                                WORKSHEET_STEP,
+                            ),
+                        ),
+                    ),
+                    Pdf(
+                        "k-karta",
+                        "Karta zadania: pętla while",
+                        "p3_k_karta.pdf",
+                        "Tabela obrotów, odliczanie, pętla nieskończona i pytanie o hasło.",
+                    ),
+                ),
+            },
+            questions=(
+                Question(
+                    "q1",
+                    "Kiedy pętla while kończy działanie?",
+                    "gdy jej warunek staje się fałszywy",
+                    (
+                        "zawsze po 10 obrotach",
+                        "gdy coś wypisze na ekran",
+                        "nigdy, trzeba ją przerwać ręcznie",
+                    ),
+                    "while sprawdza warunek przed każdym obrotem. Dopóki jest prawdziwy – wykonuje ciało; gdy staje się fałszywy – pętla się kończy.",
+                ),
+                Question(
+                    "q2",
+                    "x = 1, potem pętla while x < 4: z wciętymi liniami print(x) i x = x + 1. Co wypisze program?",
+                    "1, 2, 3",
+                    ("1, 2, 3, 4", "2, 3, 4", "nic"),
+                    "Wypisuje 1, 2, 3. Gdy x = 4, warunek 4 < 4 jest fałszywy, więc 4 już się nie wypisze.",
+                ),
+                Question(
+                    "q3",
+                    "i = 0, potem while i < 5: z wciętym tylko print(i). Co się stanie?",
+                    "pętla nigdy się nie skończy i będzie wypisywać 0",
+                    ("wypisze 0, 1, 2, 3, 4", "Python zgłosi błąd składni", "nic się nie wypisze"),
+                    "W ciele nic nie zmienia i, więc warunek 0 < 5 jest zawsze prawdziwy – to pętla nieskończona. Brakuje linii i = i + 1.",
+                ),
+                Question(
+                    "q4",
+                    "x = 10, potem while x > 10: z wciętym print(x). Ile razy wykona się print?",
+                    "ani razu",
+                    ("raz", "10 razy", "bez końca"),
+                    "Warunek 10 > 10 jest fałszywy już na początku, więc ciało pętli nie wykona się ani razu.",
+                ),
+                Question(
+                    "q5",
+                    "Kiedy lepiej użyć while niż for?",
+                    "gdy nie wiadomo z góry, ile będzie powtórzeń (np. pytanie o hasło)",
+                    (
+                        "gdy przechodzimy po wszystkich elementach listy",
+                        "gdy chcemy powtórzyć coś dokładnie 10 razy",
+                        "zawsze – for jest przestarzałe",
+                    ),
+                    "for pasuje do znanej liczby powtórzeń i przechodzenia po listach, a while – do sytuacji, w których powtarzamy, dopóki coś się nie zmieni.",
+                ),
+                Question(
+                    "q6",
+                    "n = 1, potem while n < 100: z wciętym n = n * 2, a po pętli print(n). Co wypisze program?",
+                    "128",
+                    ("64", "100", "256"),
+                    "n przyjmuje 2, 4, 8, 16, 32, 64. Ponieważ 64 < 100, jest jeszcze jeden obrót: n = 128. Teraz 128 < 100 jest fałszywe i pętla się kończy.",
+                ),
+                Question(
+                    "q7",
+                    'i = 3, potem while i > 0: z wciętymi print(i) i i = i - 1, a po pętli print("Start!"). Co wypisze program?',
+                    "3, 2, 1, Start!",
+                    ("3, 2, 1, 0, Start!", "1, 2, 3, Start!", "Start!, 3, 2, 1"),
+                    'Wypisuje 3, 2, 1. Gdy i = 0, warunek 0 > 0 jest fałszywy, więc pętla się kończy i wykonuje się print("Start!").',
+                ),
+                Question(
+                    "q8",
+                    "k = 0, potem while k < 10: z wciętym k = k + 2. Ile razy wykona się ciało pętli?",
+                    "5 razy",
+                    ("10 razy", "4 razy", "6 razy"),
+                    "k przyjmuje kolejno 0, 2, 4, 6, 8 – pięć obrotów. Po piątym k = 10 i warunek 10 < 10 jest fałszywy.",
+                ),
+            ),
+        ),
+        # --- 4. break i continue ----------------------------------------------------------------
+        Lesson(
+            title="break i continue",
+            outline=doc(
+                paragraph(
+                    "Poznasz dwie instrukcje sterujące pętlą: break, która kończy pętlę od razu, i continue, która pomija resztę "
+                    "bieżącego obrotu. Wykorzystasz je do szukania liczby i pomijania niepotrzebnych elementów."
+                )
+            ),
+            conclusions=doc(
+                bullets(
+                    "break natychmiast kończy całą pętlę; program przechodzi do pierwszej instrukcji po pętli.",
+                    "continue przerywa tylko bieżący obrót i przechodzi do następnego (pętla działa dalej).",
+                    "Obie zwykle stoją w if, np. if n % 2 == 0: continue pomija liczby parzyste (% to reszta z dzielenia: 7 % 2 = 1).",
+                    "while True: z break w środku – pętla działa, aż spełni się warunek wyjścia (np. poprawne hasło).",
+                )
+            ),
+            versions={
+                "V": (
+                    Text(
+                        "v-tekst",
+                        doc(
+                            heading("break – wyjdź z pętli"),
+                            paragraph(
+                                "Instrukcja ",
+                                ("break", True),
+                                " natychmiast kończy całą pętlę. Program przechodzi do pierwszej linii po pętli. "
+                                "Przydaje się przy szukaniu: gdy znajdziesz to, czego szukasz, dalsze obroty są niepotrzebne.",
+                            ),
+                            code(
+                                "for n in [3, 8, -1, 5]:",
+                                "    if n < 0:",
+                                "        break",
+                                "    print(n)",
+                                'print("koniec")',
+                            ),
+                            paragraph(
+                                "Wypisze 3, 8 i koniec. Przy −1 pętla się kończy, więc 5 nie zostanie wypisane, ale linia po pętli wykona się normalnie."
+                            ),
+                            heading("continue – pomiń ten obrót"),
+                            paragraph(
+                                ("continue", True),
+                                " przerywa tylko bieżący obrót: pomija resztę ciała i przechodzi do następnego elementu. "
+                                "Operator % daje resztę z dzielenia (7 % 2 = 1, 6 % 2 = 0), więc n % 2 == 0 oznacza liczbę parzystą.",
+                            ),
+                            code(
+                                "for n in range(1, 7):",
+                                "    if n % 2 == 0:",
+                                "        continue",
+                                "    print(n)",
+                            ),
+                            paragraph("Wypisze 1, 3, 5 – liczby parzyste zostały pominięte."),
+                            heading("while True i break"),
+                            paragraph(
+                                "while True: to pętla, której warunek jest zawsze prawdziwy. Kończy ją dopiero break, "
+                                "np. gdy użytkownik wpisze poprawne hasło:"
+                            ),
+                            code(
+                                "while True:",
+                                '    haslo = input("Hasło: ")',
+                                '    if haslo == "python":',
+                                "        break",
+                                'print("Witaj!")',
+                            ),
+                        ),
+                    ),
+                    Image(
+                        "v-porownanie",
+                        "break i continue obok siebie",
+                        "p4_v_break_continue.png",
+                        "Dwa programy obok siebie: z break wypisuje 3 i 8, z continue wypisuje 1, 3 i 5; strzałki pokazują wyjście z pętli i przejście do następnego obrotu",
+                    ),
+                ),
+                "A": (
+                    Text(
+                        "a-opis",
+                        doc(
+                            paragraph(
+                                "Posłuchaj rozmowy o instrukcjach break i continue. Najważniejsze do zapamiętania:"
+                            ),
+                            bullets(
+                                "break kończy całą pętlę, program działa dalej od linii po pętli,",
+                                "continue pomija resztę bieżącego obrotu, pętla działa dalej,",
+                                "% to reszta z dzielenia: n % 2 == 0 – liczba parzysta,",
+                                "while True: kończy się dopiero przez break.",
+                            ),
+                        ),
+                    ),
+                    Audio(
+                        "a-nagranie",
+                        "Rozmowa: break i continue",
+                        "p4_a_rozmowa.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Dziś poznasz dwie instrukcje, które zmieniają działanie pętli: brejk i kontinju.",
+                            ),
+                            say("M", "Brejk brzmi jak przerwa."),
+                            say(
+                                "Z",
+                                "Bo to jest przerwanie. Brejk natychmiast kończy całą pętlę, a program przechodzi do pierwszej linii po niej. Przykład: pętla przechodzi po liście: trzy, osiem, minus jeden, pięć. W ciele jest warunek: jeśli liczba jest mniejsza od zera, to brejk. W przeciwnym razie wypisz liczbę.",
+                            ),
+                            say(
+                                "M",
+                                "Wypisze trzy i osiem. Przy minus jeden pętla się kończy, więc piątka się nie pojawi.",
+                            ),
+                            say(
+                                "Z", "Doskonale. A jeśli po pętli, bez wcięcia, stoi print koniec?"
+                            ),
+                            say(
+                                "M", "Wykona się, bo brejk kończy tylko pętlę, a nie cały program."
+                            ),
+                            say(
+                                "Z",
+                                "Właśnie. Brejk przydaje się przy szukaniu. Szukasz pierwszej liczby od dwudziestu w górę, która dzieli się przez siedem. Gdy ją znajdziesz, czyli dwadzieścia jeden, przerywasz pętlę.",
+                            ),
+                            say("M", "A kontinju?"),
+                            say(
+                                "Z",
+                                "Kontinju przerywa tylko bieżący obrót. Pomija resztę ciała i od razu przechodzi do następnego elementu. Pętla działa dalej.",
+                            ),
+                            say("M", "Do czego to się przydaje?"),
+                            say(
+                                "Z",
+                                "Na przykład do pomijania liczb parzystych. Potrzebny jest operator procent, który daje resztę z dzielenia. Siedem procent dwa to jeden, a sześć procent dwa to zero. Jeśli reszta z dzielenia przez dwa wynosi zero, liczba jest parzysta.",
+                            ),
+                            say(
+                                "M",
+                                "Czyli: for n in rejndż od jednego do siedmiu. Jeśli n procent dwa równa się zero, to kontinju. Potem print n.",
+                            ),
+                            say("Z", "Co wypisze ten program?"),
+                            say("M", "Jeden, trzy i pięć. Liczby parzyste zostaną pominięte."),
+                            say(
+                                "Z",
+                                "Świetnie. Jest jeszcze jeden ważny wzór: łajl tru. Warunek tru jest zawsze prawdziwy, więc taka pętla sama się nie skończy. Kończymy ją przez brejk, gdy spełni się warunek, na przykład gdy użytkownik wpisze poprawne hasło.",
+                            ),
+                            say("M", "Czyli bez brejk to byłaby pętla nieskończona."),
+                            say(
+                                "Z",
+                                "Tak. Zapamiętaj: brejk kończy całą pętlę, a kontinju pomija tylko bieżący obrót.",
+                            ),
+                        ),
+                        "Rozmowa o tym, jak break i continue zmieniają działanie pętli, oraz o pętli while True.",
+                    ),
+                ),
+                "K": (
+                    Text(
+                        "k-instrukcja",
+                        doc(
+                            paragraph(
+                                "Otwórz edytor Pythona. Przepisuj programy, przewiduj wynik na kartce, potem uruchamiaj."
+                            ),
+                            ordered(
+                                'Wpisz pętlę for n in [3, 8, -1, 5]:, a w jej ciele: if n < 0: z jeszcze głębiej wciętym break, potem (na poziomie if) print(n). Na końcu, bez wcięcia, print("koniec").',
+                                "Przewidź wynik i uruchom: 3, 8, koniec. break kończy całą pętlę natychmiast, ale linia po pętli wykonuje się normalnie.",
+                                "Sprawdź operator reszty z dzielenia: w konsoli wpisz 7 % 2 (wynik 1) i 6 % 2 (wynik 0). n % 2 == 0 oznacza, że n jest parzyste.",
+                                "Napisz: for n in range(1, 7):, w ciele if n % 2 == 0: z wciętym continue, a potem print(n). Uruchom – wyjdzie 1, 3, 5. continue pominęło resztę obrotu dla liczb parzystych, ale pętla działała dalej.",
+                                "Zamień continue na break i uruchom ponownie. Wyjdzie tylko 1 – porównaj: break kończy pętlę, continue pomija jeden obrót.",
+                                "Napisz szukanie: for n in range(20, 40):, w ciele if n % 7 == 0:, a w nim print(n) i break. Wypisze 21 – pierwszą liczbę podzielną przez 7.",
+                                'Napisz pętlę z hasłem: while True:, w ciele haslo = input("Hasło: ") oraz if haslo == "python": z wciętym break. Po pętli print("Witaj!"). Bez break ta pętla nigdy by się nie skończyła.',
+                                WORKSHEET_STEP,
+                            ),
+                        ),
+                    ),
+                    Pdf(
+                        "k-karta",
+                        "Karta zadania: break i continue",
+                        "p4_k_karta.pdf",
+                        "Przewidywanie wyniku, reszta z dzielenia, szukanie i mała gra z while True.",
+                    ),
+                ),
+            },
+            questions=(
+                Question(
+                    "q1",
+                    "Co robi instrukcja break w pętli?",
+                    "natychmiast kończy całą pętlę",
+                    (
+                        "pomija tylko bieżący obrót",
+                        "zatrzymuje cały program",
+                        "zaczyna pętlę od nowa",
+                    ),
+                    "break przerywa pętlę od razu – kolejne obroty już się nie wykonają, a program przechodzi do pierwszej linii po pętli.",
+                ),
+                Question(
+                    "q2",
+                    "Co robi instrukcja continue w pętli?",
+                    "pomija resztę bieżącego obrotu i przechodzi do następnego",
+                    (
+                        "kończy całą pętlę",
+                        "powtarza bieżący obrót jeszcze raz",
+                        "kończy cały program",
+                    ),
+                    "continue nie kończy pętli – tylko przeskakuje resztę ciała w tym obrocie. Pętla działa dalej z kolejnym elementem.",
+                ),
+                Question(
+                    "q3",
+                    "Pętla przechodzi po liście [3, 8, -1, 5]. W każdym obrocie: jeśli n < 0, wykonuje break, a w przeciwnym razie wypisuje n. Co zobaczysz?",
+                    "3 i 8",
+                    ("3, 8 i 5", "3, 8 i -1", "nic"),
+                    "3 i 8 są wypisane. Przy -1 warunek n < 0 jest prawdziwy, więc break kończy pętlę – 5 nie zostanie już sprawdzone ani wypisane.",
+                ),
+                Question(
+                    "q4",
+                    "Pętla for n in range(1, 7): w ciele – jeśli n % 2 == 0, to continue; potem print(n). Co wypisze?",
+                    "1, 3, 5",
+                    ("2, 4, 6", "1, 2, 3, 4, 5, 6", "tylko 1"),
+                    "continue pomija print dla liczb parzystych (reszta z dzielenia przez 2 równa 0). Zostają nieparzyste: 1, 3, 5. Samo 1 wyszłoby, gdyby zamiast continue było break.",
+                ),
+                Question(
+                    "q5",
+                    "Jak kończy się pętla while True:?",
+                    "instrukcją break, gdy spełniony jest warunek wyjścia",
+                    (
+                        "sama, po 100 obrotach",
+                        "instrukcją continue",
+                        "nie da się jej zakończyć w kodzie",
+                    ),
+                    "Warunek True jest zawsze prawdziwy, więc pętla nie skończy się sama. Wychodzi się z niej przez break, np. po wpisaniu poprawnego hasła.",
+                ),
+                Question(
+                    "q6",
+                    "Ile wynosi 7 % 2 w Pythonie?",
+                    "1",
+                    ("3", "3.5", "0"),
+                    "% to reszta z dzielenia: 7 = 3 · 2 + 1, więc reszta wynosi 1. Wynik 3.5 dałoby zwykłe dzielenie 7 / 2.",
+                ),
+                Question(
+                    "q7",
+                    "Pętla for n in range(20, 40): w ciele – jeśli n % 7 == 0, to print(n) i break. Co wypisze?",
+                    "21",
+                    ("28", "20", "21, 28, 35"),
+                    "Pierwsza liczba od 20 podzielna przez 7 to 21. Po jej wypisaniu break kończy pętlę, więc 28 i 35 się nie pojawią.",
+                ),
+                Question(
+                    "q8",
+                    'W pętli wykonało się break. Czy linia print("koniec") umieszczona po pętli (bez wcięcia) się wykona?',
+                    "Tak – break kończy tylko pętlę, program działa dalej.",
+                    (
+                        "Nie – break kończy cały program.",
+                        "Tylko wtedy, gdy break się nie wykonał.",
+                        "Nie – linia po pętli wykonuje się tylko przy continue.",
+                    ),
+                    'break wychodzi wyłącznie z pętli. Program przechodzi do pierwszej linii po niej, więc print("koniec") się wykona.',
+                ),
+            ),
+        ),
+    ),
+)
+
+
+COURSES: tuple[Course, ...] = (MATH, ENGLISH, PYTHON)
