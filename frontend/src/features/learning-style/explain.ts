@@ -145,6 +145,11 @@ export function percentagesText(percentages: Percentages): string {
   return FORMS.map((form) => `${form} ${percentages[form]}%`).join(" · ");
 }
 
+/** "V 9 · A 8 · K 3" (survey points) */
+export function pointsText(points: Percentages): string {
+  return FORMS.map((form) => `${form} ${points[form]}`).join(" · ");
+}
+
 /** "Słuchowe 47% → 57%" */
 export function percentChangeText(
   form: Form,
