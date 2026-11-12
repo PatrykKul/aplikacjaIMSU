@@ -96,6 +96,80 @@ def test_study_states_access(client: TestClient, course, learner, login, teacher
         assert (response.status_code, response.json()) == (403, {"code": "FORBIDDEN"})
 
 
+# --- History points with their events (D62) ------------------------------------------------------
+
+
+def history_events(points: list[dict[str, Any]]) -> list[str]:
+    return [point["event"]["type"] for point in points]
+
+
+def test_history_points_carry_their_events(client: TestClient, course, learner):
+    # Patryk's path: survey -> 2 quizzes in A -> manual V -> back to A (undone)
+    learner(course["id"], survey_styles(6, 10, 4))
+    l1, l2 = first_lessons(course)
+    take_quiz(client, l1, 100)
+    take_quiz(client, l1, 100)  # not counted: no point
+    take_quiz(client, l2, 100)  # praise: an event, but no point
+    client.put("/profile/learning-style", json={"style": "V"})
+    client.put("/profile/learning-style", json={"style": "A"})
+
+    history = client.get("/me/progress").json()["history"]
+
+    assert history_events(history) == [
+        "survey_completed",
+        "quiz_attempt",
+        "quiz_attempt",
+        "manual_style_change",
+        "style_change_reverted",
+    ]
+    quiz = history[1]["event"]
+    assert quiz["lesson"] == {"id": l1, "title": "Lekcja 1", "number": 1}
+    assert quiz["course"] == {"id": course["id"], "title": "Matematyka"}
+    assert (quiz["data"]["form"], quiz["data"]["percent"], quiz["data"]["counted"]) == (
+        "A",
+        100,
+        True,
+    )
+    assert history[2]["event"]["lesson"]["number"] == 2
+    assert history[3]["event"]["data"]["to"] == "V" and history[3]["style"] == "V"
+    assert history[4]["event"]["data"]["trial_id"] is not None
+    assert history[4]["percentages"] == history[3]["percentages"]
+    # the same events as in the journal
+    journal = {entry["id"]: entry for entry in client.get("/me/journal").json()}
+    assert all(point["event"] == journal[point["event"]["id"]] for point in history)
+
+
+def test_history_points_of_tie_choice_and_accepted_proposal(client: TestClient, course, learner):
+    learner(course["id"], survey_styles(8, 8, 4))  # V / A tie
+    client.post("/profile/learning-style/tie-choice", json={"style": "V"})
+    l1, l2 = first_lessons(course)
+    take_quiz(client, l1, 20)
+    set_form(client, l1, "A")
+    proposal = take_quiz(client, l1, 100)["feedback"]["proposal"]
+    client.post(f"/profile/learning-style/proposals/{proposal['id']}/accept")
+
+    history = client.get("/me/progress").json()["history"]
+
+    assert history_events(history) == [
+        "survey_completed",
+        "tie_resolved",
+        "quiz_attempt",
+        "quiz_attempt",
+        "proposal_accepted",
+    ]
+    assert history[0]["style"] is None and history[1]["style"] == "V"
+    assert history[-1]["event"]["data"]["to"] == "A"
+
+
+def test_student_detail_history_has_events(client: TestClient, course, learner, login, teacher):
+    student = learner(course["id"], "V")
+    take_quiz(client, first_lessons(course)[0], 80)
+    login(teacher)
+    detail = client.get(f"/courses/{course['id']}/students/{student.id}").json()
+    assert history_events(detail["history"]) == ["survey_completed", "quiz_attempt"]
+    assert detail["history"][1]["event"]["lesson"]["number"] == 1
+
+
 # --- Course hint (R8) ----------------------------------------------------------------------------
 
 
@@ -177,7 +251,7 @@ def test_journal_newest_first_with_course_and_lesson(client: TestClient, course,
     journal = client.get("/me/journal").json()
     assert [entry["type"] for entry in journal] == ["quiz_attempt", "survey_completed"]
     assert journal[0]["course"] == {"id": course["id"], "title": "Matematyka"}
-    assert journal[0]["lesson"] == {"id": l1, "title": "Lekcja 1"}
+    assert journal[0]["lesson"] == {"id": l1, "title": "Lekcja 1", "number": 1}
     assert journal[1]["course"] is None and journal[1]["lesson"] is None
     assert set(journal[0]) == {"id", "type", "at", "course", "lesson", "data"}
 

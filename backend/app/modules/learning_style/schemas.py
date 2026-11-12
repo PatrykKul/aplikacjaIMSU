@@ -201,10 +201,26 @@ class CourseHint(BaseModel):
 # --- Progress, journal, statistics ---------------------------------------------------------------
 
 
+class RefResponse(BaseModel):
+    id: int
+    title: str
+
+
+class JournalEntry(BaseModel):
+    id: int
+    type: str
+    at: datetime
+    course: RefResponse | None
+    lesson: LessonRefResponse | None  # number among the published lessons (None if not)
+    data: dict[str, Any]
+
+
 class HistoryPointResponse(BaseModel):
     at: datetime
     percentages: Percentages
     style: Form | None
+    # The event that changed the profile or the style (survey, counted quiz, style change)
+    event: JournalEntry | None
 
 
 class CourseProgressResponse(BaseModel):
@@ -237,20 +253,6 @@ class ProgressResponse(BaseModel):
     history: list[HistoryPointResponse]
     courses: list[CourseProgressResponse]
     lessons: list[LessonResultResponse]
-
-
-class RefResponse(BaseModel):
-    id: int
-    title: str
-
-
-class JournalEntry(BaseModel):
-    id: int
-    type: str
-    at: datetime
-    course: RefResponse | None
-    lesson: RefResponse | None
-    data: dict[str, Any]
 
 
 class FormEffectResponse(BaseModel):

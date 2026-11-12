@@ -83,7 +83,7 @@ def test_quiz_attempt_event_with_data(client: TestClient, course, learner):
     draw_id = take_quiz(client, l1, 80)["draw_id"]
     event = last_event(client, "quiz_attempt")
     assert event["course"] == {"id": course["id"], "title": "Matematyka"}
-    assert event["lesson"] == {"id": l1, "title": "Lekcja 1"}
+    assert event["lesson"] == {"id": l1, "title": "Lekcja 1", "number": 1}
     assert event["data"] == {
         "draw_id": draw_id,
         "form": "V",

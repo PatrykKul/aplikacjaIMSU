@@ -795,16 +795,27 @@ def course_hint(db: Session, course_id: int, user: User) -> CourseHint | None:
 
 
 def history(db: Session, user_id: int) -> list[HistoryPointResponse]:
-    rows = db.scalars(
-        select(StyleHistory)
-        .where(StyleHistory.user_id == user_id)
-        .order_by(StyleHistory.created_at, StyleHistory.id)
+    """Profile after every change, each with the event that caused it (D62)."""
+    rows = list(
+        db.scalars(
+            select(StyleHistory)
+            .where(StyleHistory.user_id == user_id)
+            .order_by(StyleHistory.created_at, StyleHistory.id)
+        )
     )
+    event_ids = {row.event_id for row in rows if row.event_id is not None}
+    events = (
+        list(db.scalars(select(DecisionEvent).where(DecisionEvent.id.in_(event_ids))))
+        if event_ids
+        else []
+    )
+    entries = {entry.id: entry for entry in _journal_entries(db, events)}
     return [
         HistoryPointResponse(
             at=row.created_at,
             percentages={"V": row.percent_v, "A": row.percent_a, "K": row.percent_k},
             style=row.style,
+            event=None if row.event_id is None else entries.get(row.event_id),
         )
         for row in rows
     ]
@@ -885,14 +896,18 @@ def _journal_entries(db: Session, events: Sequence[DecisionEvent]) -> list[Journ
     if course_ids:
         query = select(Course.id, Course.title).where(Course.id.in_(course_ids))
         courses = {course_id: title for course_id, title in db.execute(query)}
-    lessons = lesson_titles(db, (e.lesson_id for e in events if e.lesson_id is not None))
+    lessons: dict[int, LessonRefResponse] = {}
+    for lesson_id in {e.lesson_id for e in events if e.lesson_id is not None}:
+        found = db.get(Lesson, lesson_id)
+        if found is not None:
+            lessons[lesson_id] = lesson_ref(found)
     entries = []
     for event in events:
         course = lesson = None
         if event.course_id is not None:
             course = RefResponse(id=event.course_id, title=courses.get(event.course_id, ""))
         if event.lesson_id is not None:
-            lesson = RefResponse(id=event.lesson_id, title=lessons.get(event.lesson_id, ""))
+            lesson = lessons.get(event.lesson_id)
         entries.append(
             JournalEntry(
                 id=event.id,
