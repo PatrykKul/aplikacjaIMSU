@@ -14,6 +14,7 @@ direct SQL moves the students' timestamps back by days, so the charts have a tim
 
 import argparse
 import random
+import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
@@ -538,6 +539,9 @@ def main(
         help="upload the demo MP3 files again from app/demo/assets",
     )
     args = parser.parse_args(argv)
+    # Polish letters and arrows must not crash the seed on a cp1250 console or pipe
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     with session_factory() as db:
         seed(db, reset_students=args.reset_students, refresh_media=args.refresh_demo_media)
     print(f"Gotowe. Hasło wszystkich kont demo: {PASSWORD}")
