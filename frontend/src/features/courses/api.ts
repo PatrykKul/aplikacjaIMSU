@@ -5,7 +5,9 @@ import type {
   CourseCreateInput,
   CourseSummary,
   CourseUpdateInput,
+  Enrollment,
   Lesson,
+  LessonUpdateInput,
 } from "./types";
 
 export const coursesApi = {
@@ -21,11 +23,13 @@ export const coursesApi = {
     api.put<Course>(`/courses/${courseId}/lessons/order`, {
       lesson_ids: lessonIds,
     }),
+  requestEnrollment: (courseId: number) =>
+    api.post<Enrollment>(`/courses/${courseId}/enrollment`),
 };
 
 export const lessonsApi = {
   get: (id: number) => api.get<Lesson>(`/lessons/${id}`),
-  rename: (id: number, title: string) =>
-    api.patch<Lesson>(`/lessons/${id}`, { title }),
+  update: (id: number, data: LessonUpdateInput) =>
+    api.patch<Lesson>(`/lessons/${id}`, data),
   archive: (id: number) => api.delete(`/lessons/${id}`),
 };

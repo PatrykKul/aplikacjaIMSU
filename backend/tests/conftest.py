@@ -140,7 +140,8 @@ def make_course(
                 update(Lesson).where(Lesson.course_id == course["id"]).values(is_published=True)
             )
             db.commit()
-            client.patch(f"/courses/{course['id']}", json={"is_published": True})
+            response = client.patch(f"/courses/{course['id']}", json={"is_published": True})
+            assert response.status_code == 200, "a published course needs published lessons"
         return client.get(f"/courses/{course['id']}").json()
 
     return _make

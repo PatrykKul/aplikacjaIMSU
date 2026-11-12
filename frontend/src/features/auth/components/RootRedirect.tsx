@@ -7,6 +7,7 @@ import { LandingPage } from "@/features/landing/components/LandingPage";
 import { PageSpinner } from "@/shared/layout/page-states";
 
 import { useCurrentUser } from "../hooks";
+import { homePath } from "../roles";
 
 /** "/": the start page for guests, the dashboard for a signed-in user. */
 export function RootRedirect() {
@@ -15,7 +16,7 @@ export function RootRedirect() {
 
   useEffect(() => {
     if (user) {
-      router.replace("/dashboard");
+      router.replace(homePath(user));
     }
   }, [user, router]);
 

@@ -2,6 +2,8 @@ from typing import Annotated, Self
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
+from app.modules.learning_style.schemas import Form, QuizFeedback
+
 MAX_QUESTIONS = 50
 QUIZ_SIZE = 5  # questions drawn for one attempt
 
@@ -55,3 +57,47 @@ class QuizEditResponse(BaseModel):
     """For the author: with correct answers; empty list when the lesson has no quiz yet."""
 
     questions: list[QuizQuestion]
+
+
+# --- Student -------------------------------------------------------------------------------------
+
+
+class StudentQuestionResponse(BaseModel):
+    """A drawn question without the correct answer and the explanation."""
+
+    id: str
+    text: str
+    answers: list[QuizAnswer]
+
+
+class StudentQuizResponse(BaseModel):
+    draw_id: int
+    questions: list[StudentQuestionResponse]
+    pool_size: int
+    form: Form  # lesson form the attempt will be recorded in
+
+
+class AttemptRequest(BaseModel):
+    draw_id: int
+    # question id -> chosen answer id
+    answers: Annotated[dict[str, str], Field(max_length=MAX_QUESTIONS)]
+
+
+class QuestionResultResponse(BaseModel):
+    question_id: str
+    text: str
+    answers: list[QuizAnswer]
+    chosen_answer_id: str
+    correct_answer_id: str
+    correct: bool
+    explanation: str
+
+
+class AttemptResponse(BaseModel):
+    draw_id: int
+    percent: int
+    correct_count: int
+    total: int
+    passed: bool
+    results: list[QuestionResultResponse]
+    feedback: QuizFeedback

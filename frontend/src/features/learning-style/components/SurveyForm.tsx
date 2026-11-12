@@ -1,16 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 
+import { ApiError } from "@/shared/api/client";
 import { PageMessage } from "@/shared/layout/page-states";
 import { cn } from "@/shared/lib/utils";
-import { Button } from "@/shared/ui/button";
+import { Button, buttonVariants } from "@/shared/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { learningStyleError } from "../errors";
-import { useSubmitSurvey, useSurveyQuestions } from "../hooks";
+import {
+  useLearningProfile,
+  useSubmitSurvey,
+  useSurveyQuestions,
+} from "../hooks";
 import type { SurveyAnswer, SurveyQuestion } from "../types";
 
 /**
@@ -25,6 +31,7 @@ function mixAnswers(question: SurveyQuestion): SurveyAnswer[] {
 
 export function SurveyForm() {
   const router = useRouter();
+  const profile = useLearningProfile();
   const questions = useSurveyQuestions();
   const submit = useSubmitSurvey();
   const [chosen, setChosen] = useState<Record<number, number>>({});
@@ -35,7 +42,21 @@ export function SurveyForm() {
     [questions.data],
   );
 
-  if (questions.isPending) {
+  // The survey is filled in once (its percentages are the start of the profile)
+  if (profile.data?.survey_completed && !submit.isSuccess) {
+    return (
+      <PageMessage
+        title="Ankieta jest już wypełniona"
+        description="Ankietę wypełnia się tylko raz – potem procenty zmieniają wyniki quizów. Styl możesz zmienić w zakładce „Mój styl”."
+        action={
+          <Link href="/survey/result" className={cn(buttonVariants())}>
+            Zobacz swój wynik
+          </Link>
+        }
+      />
+    );
+  }
+  if (questions.isPending || profile.isPending) {
     return (
       <div className="flex justify-center py-16">
         <Spinner className="size-6" />
@@ -73,12 +94,35 @@ export function SurveyForm() {
     }
     submit.mutate(
       mixed.map((q) => ({ question_id: q.id, answer_id: chosen[q.id] })),
-      { onSuccess: () => router.push("/survey/result") },
+      {
+        onSuccess: () => router.push("/survey/result"),
+        onError: (error) => {
+          if (
+            error instanceof ApiError &&
+            error.code === "SURVEY_ALREADY_DONE"
+          ) {
+            router.push("/survey/result");
+          }
+        },
+      },
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Ankieta: jak najlepiej się uczysz?
+        </h1>
+        <p className="text-muted-foreground">
+          20 krótkich pytań. Wybierz odpowiedź, która najbardziej do Ciebie
+          pasuje; nie ma złych odpowiedzi. Wynik to procenty trzech form:
+          wzrokowej, słuchowej i kinestetycznej – lekcje dostaniesz w formie z
+          najwyższym procentem. Ankietę wypełnia się raz, potem procenty
+          zmieniają wyniki quizów.
+        </p>
+      </div>
+
       <div className="sticky top-16 z-30 -mx-4 border-b bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
         <div className="flex items-center justify-between text-sm">
           <span>
@@ -166,7 +210,7 @@ export function SurveyForm() {
       )}
       <Button type="submit" size="lg" disabled={submit.isPending}>
         {submit.isPending && <Spinner data-icon="inline-start" />}
-        Zobacz mój styl uczenia się
+        Zobacz wynik
       </Button>
     </form>
   );

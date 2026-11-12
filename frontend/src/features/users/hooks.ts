@@ -33,3 +33,13 @@ export function useUpdateUser() {
     onSuccess: refresh,
   });
 }
+
+/** Admin's decision on a teacher account: `approve` or `reject`. */
+export function useDecideApproval() {
+  const refresh = useRefreshUsers();
+  return useMutation({
+    mutationFn: ({ id, approve }: { id: number; approve: boolean }) =>
+      approve ? usersApi.approve(id) : usersApi.reject(id),
+    onSuccess: refresh,
+  });
+}

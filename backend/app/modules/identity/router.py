@@ -4,7 +4,7 @@ from app.core.config import get_settings
 from app.core.db import DbSession
 from app.modules.identity import service
 from app.modules.identity.dependencies import AdminUser, CurrentUser
-from app.modules.identity.models import User, UserRole
+from app.modules.identity.models import ApprovalStatus, User, UserRole
 from app.modules.identity.schemas import (
     LoginRequest,
     ManagedRole,
@@ -34,7 +34,7 @@ def _set_auth_cookie(response: Response, user: User) -> None:
 
 @auth_router.post("/register", status_code=status.HTTP_201_CREATED)
 def register(data: RegisterRequest, response: Response, db: DbSession) -> UserResponse:
-    user = service.create_account(db, data)
+    user = service.create_account(db, data, self_registered=True)
     _set_auth_cookie(response, user)
     return UserResponse.model_validate(user)
 
@@ -64,8 +64,11 @@ def me(user: CurrentUser) -> UserResponse:
 
 
 @users_router.get("")
-def list_users(role: ManagedRole, db: DbSession, _admin: AdminUser) -> list[UserResponse]:
-    return [UserResponse.model_validate(user) for user in service.list_users(db, UserRole(role))]
+def list_users(
+    role: ManagedRole, db: DbSession, _admin: AdminUser, approval: ApprovalStatus | None = None
+) -> list[UserResponse]:
+    users = service.list_users(db, UserRole(role), approval)
+    return [UserResponse.model_validate(user) for user in users]
 
 
 @users_router.post("", status_code=status.HTTP_201_CREATED)
@@ -78,3 +81,15 @@ def update_user(
     user_id: int, data: UserUpdateRequest, db: DbSession, _admin: AdminUser
 ) -> UserResponse:
     return UserResponse.model_validate(service.update_user(db, user_id=user_id, data=data))
+
+
+@users_router.post("/{user_id}/approve")
+def approve_teacher(user_id: int, db: DbSession, _admin: AdminUser) -> UserResponse:
+    user = service.set_teacher_approval(db, user_id=user_id, status=ApprovalStatus.APPROVED)
+    return UserResponse.model_validate(user)
+
+
+@users_router.post("/{user_id}/reject")
+def reject_teacher(user_id: int, db: DbSession, _admin: AdminUser) -> UserResponse:
+    user = service.set_teacher_approval(db, user_id=user_id, status=ApprovalStatus.REJECTED)
+    return UserResponse.model_validate(user)

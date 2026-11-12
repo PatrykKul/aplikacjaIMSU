@@ -1,0 +1,212 @@
+"use client";
+
+import { CloudOffIcon, SearchXIcon } from "lucide-react";
+import Link from "next/link";
+import type { ReactNode } from "react";
+
+import {
+  proposalEvidenceText,
+  styleName,
+  styleSourceText,
+  trialStatusText,
+} from "@/features/learning-style/explain";
+import type { LearningProfile } from "@/features/learning-style/types";
+import { DecisionJournal } from "@/features/progress/components/DecisionJournal";
+import { FormPercentages } from "@/features/progress/components/FormPercentages";
+import { LessonResultsTable } from "@/features/progress/components/LessonResultsTable";
+import { PercentChart } from "@/features/progress/components/PercentChart";
+import { ApiError } from "@/shared/api/client";
+import { PageMessage } from "@/shared/layout/page-states";
+import { Button } from "@/shared/ui/button";
+import { Spinner } from "@/shared/ui/spinner";
+
+import { useCourseStudent, useTeacherCourse } from "../hooks";
+
+type DetailSectionProps = {
+  id: string;
+  title: string;
+  description?: string;
+  children: ReactNode;
+};
+
+function DetailSection({
+  id,
+  title,
+  description,
+  children,
+}: DetailSectionProps) {
+  return (
+    <section aria-labelledby={id} className="space-y-4">
+      <div className="space-y-1">
+        <h2 id={id} className="text-xl font-semibold">
+          {title}
+        </h2>
+        {description && (
+          <p className="max-w-[65ch] text-muted-foreground">{description}</p>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Style, its source, an open proposal and the trial, in the teacher's words. */
+function ProfileSummary({ profile }: { profile: LearningProfile }) {
+  const lines: { label: string; text: string }[] = [];
+  if (!profile.survey_completed) {
+    lines.push({ label: "Styl", text: "uczeń nie wypełnił jeszcze ankiety" });
+  } else if (!profile.style) {
+    lines.push({
+      label: "Styl",
+      text: "remis w ankiecie – uczeń jeszcze nie wybrał stylu",
+    });
+  } else {
+    const source = styleSourceText(profile.style_source);
+    lines.push({
+      label: "Styl",
+      text: source
+        ? `${styleName(profile.style)}, ${source}`
+        : styleName(profile.style),
+    });
+  }
+  if (profile.open_proposal) {
+    const { kind, to, evidence } = profile.open_proposal;
+    const evidenceText = proposalEvidenceText(evidence);
+    lines.push({
+      label: "Otwarta propozycja",
+      text: `${kind === "revert" ? "powrót do stylu" : "zmiana stylu na"} ${styleName(to)}${evidenceText ? ` – ${evidenceText}` : ""}`,
+    });
+  }
+  if (profile.trial) {
+    lines.push({
+      label: profile.trial.result ? "Ostatni okres próbny" : "Okres próbny",
+      text: `${styleName(profile.trial.from)} → ${styleName(profile.trial.to)}: ${trialStatusText(profile.trial)}`,
+    });
+  }
+
+  return (
+    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[max-content_minmax(0,1fr)]">
+      {lines.map((line) => (
+        <div key={line.label} className="contents">
+          <dt className="text-muted-foreground">{line.label}</dt>
+          <dd>{line.text}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+type StudentDetailPageProps = { courseId: number; studentId: number };
+
+/** What the student sees in "Moje postępy" for this course, plus the journal. */
+export function StudentDetailPage({
+  courseId,
+  studentId,
+}: StudentDetailPageProps) {
+  const course = useTeacherCourse(courseId);
+  const detail = useCourseStudent(courseId, studentId);
+  const panelHref = `/teach/courses/${courseId}/panel`;
+
+  if (course.isPending || detail.isPending) {
+    return (
+      <div className="flex justify-center py-16">
+        <Spinner className="size-6" />
+      </div>
+    );
+  }
+  const error = course.error ?? detail.error;
+  if (error instanceof ApiError && error.status === 404) {
+    return (
+      <PageMessage
+        icon={SearchXIcon}
+        title="Nie znaleziono ucznia"
+        description="Ten uczeń nie jest zapisany na kurs albo kurs został usunięty."
+        action={
+          <Link
+            href={panelHref}
+            className="text-sm font-medium underline underline-offset-4"
+          >
+            Wróć do panelu kursu
+          </Link>
+        }
+      />
+    );
+  }
+  if (error || !course.data || !detail.data) {
+    return (
+      <PageMessage
+        icon={CloudOffIcon}
+        title="Nie udało się wczytać danych ucznia"
+        description="Sprawdź połączenie i spróbuj ponownie."
+        action={
+          <Button
+            onClick={() => {
+              void course.refetch();
+              void detail.refetch();
+            }}
+          >
+            Spróbuj ponownie
+          </Button>
+        }
+      />
+    );
+  }
+
+  const { student, profile, history, lessons, journal } = detail.data;
+
+  return (
+    <div className="space-y-12">
+      <div className="space-y-3">
+        <nav aria-label="Ścieżka" className="text-sm text-muted-foreground">
+          <Link href="/teach" className="hover:text-foreground">
+            Moje kursy
+          </Link>
+          <span aria-hidden="true"> / </span>
+          <Link
+            href={`/teach/courses/${courseId}`}
+            className="hover:text-foreground"
+          >
+            {course.data.title}
+          </Link>
+          <span aria-hidden="true"> / </span>
+          <Link href={panelHref} className="hover:text-foreground">
+            Panel kursu
+          </Link>
+          <span aria-hidden="true"> / </span>
+          <span aria-current="page">{student.display_name}</span>
+        </nav>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {student.display_name}
+          </h1>
+          <p className="text-muted-foreground">{student.email}</p>
+        </div>
+        <ProfileSummary profile={profile} />
+      </div>
+
+      <DetailSection
+        id="student-forms"
+        title="Procenty form"
+        description="Profil ucznia ze wszystkich kursów: start z ankiety, potem +10 / −10 za pierwsze podejście w danej formie w lekcji."
+      >
+        <FormPercentages profile={profile} />
+      </DetailSection>
+
+      <DetailSection id="student-chart" title="Procenty w czasie">
+        <PercentChart history={history} />
+      </DetailSection>
+
+      <DetailSection id="student-lessons" title="Wyniki lekcji w tym kursie">
+        <LessonResultsTable lessons={lessons} />
+      </DetailSection>
+
+      <DetailSection
+        id="student-journal"
+        title="Dziennik decyzji"
+        description="Każda decyzja systemu w tym kursie z liczbami, z których wynika, oraz zmiany stylu i ankieta."
+      >
+        <DecisionJournal entries={journal} showCourse={false} />
+      </DetailSection>
+    </div>
+  );
+}

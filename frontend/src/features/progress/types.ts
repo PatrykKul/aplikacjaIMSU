@@ -1,0 +1,157 @@
+import type { Form } from "@/features/content/types";
+import type {
+  LearningProfile,
+  LessonRef,
+  Percentages,
+  ProposalEvidence,
+  ProposalKind,
+  RetrySuggestion,
+  TrialResult,
+} from "@/features/learning-style/types";
+
+export type { Percentages } from "@/features/learning-style/types";
+
+/** State of the profile after one change (`style_history`). */
+export type HistoryPoint = {
+  at: string;
+  percentages: Percentages;
+  style: Form | null;
+};
+
+export type CourseProgress = {
+  id: number;
+  title: string;
+  passed: number;
+  total: number;
+  next_lesson: LessonRef | null;
+};
+
+export type Attempt = {
+  at: string;
+  form: Form;
+  percent: number;
+  passed: boolean;
+  /** The first attempt in this form in this lesson: it changed the percentages. */
+  counted: boolean;
+};
+
+export type LessonProgress = {
+  course_id: number;
+  course_title: string;
+  lesson_id: number;
+  lesson_title: string;
+  number: number;
+  passed: boolean;
+  attempts: Attempt[];
+};
+
+export type Progress = {
+  history: HistoryPoint[];
+  courses: CourseProgress[];
+  lessons: LessonProgress[];
+};
+
+// --- Decision journal: `data` of each event type (specification, "Dziennik decyzji") ---
+
+export type ClearedLesson = {
+  lesson_id: number;
+  lesson_title: string;
+  form: Form;
+};
+
+export type JournalEvent =
+  | {
+      type: "survey_completed";
+      data: {
+        points: Percentages;
+        percentages: Percentages;
+        style: Form | null;
+        tie_styles: Form[];
+      };
+    }
+  | { type: "tie_resolved"; data: { style: Form; tie_styles: Form[] } }
+  | {
+      type: "quiz_attempt";
+      data: {
+        draw_id: number;
+        form: Form;
+        percent: number;
+        passed: boolean;
+        counted: boolean;
+        percentages_before: Percentages;
+        percentages_after: Percentages;
+        unlocked_lesson: LessonRef | null;
+      };
+    }
+  | { type: "retry_suggestion"; data: RetrySuggestion }
+  | {
+      type: "lesson_form_changed";
+      data: { from: Form; to: Form; source: "manual" | "suggestion" };
+    }
+  | {
+      type: "proposal_created";
+      data: {
+        proposal_id: number;
+        kind: ProposalKind;
+        from: Form;
+        to: Form;
+        evidence: ProposalEvidence;
+      };
+    }
+  | {
+      type: "proposal_accepted";
+      data: {
+        proposal_id: number;
+        kind: ProposalKind;
+        from: Form;
+        to: Form;
+        cleared_lessons: ClearedLesson[];
+      };
+    }
+  | {
+      type: "proposal_rejected" | "proposal_expired";
+      data: { proposal_id: number; kind: ProposalKind; from: Form; to: Form };
+    }
+  | {
+      type: "manual_style_change";
+      data: { from: Form; to: Form; cleared_lessons: ClearedLesson[] };
+    }
+  | {
+      type: "trial_started";
+      data: {
+        trial_id: number;
+        from: Form;
+        to: Form;
+        source: "proposal" | "manual";
+        before_average: number | null;
+      };
+    }
+  | {
+      type: "trial_finished";
+      data: {
+        trial_id: number;
+        from: Form;
+        to: Form;
+        before_average: number | null;
+        after_average: number | null;
+        result: TrialResult;
+      };
+    };
+
+export type JournalEventType = JournalEvent["type"];
+
+export type JournalEntry = JournalEvent & {
+  id: number;
+  at: string;
+  course: { id: number; title: string } | null;
+  lesson: { id: number; title: string } | null;
+};
+
+/** `GET /courses/{id}/students/{student_id}` - the teacher's view of one student. */
+export type StudentDetail = {
+  student: { id: number; display_name: string; email: string };
+  profile: LearningProfile;
+  history: HistoryPoint[];
+  lessons: LessonProgress[];
+  journal: JournalEntry[];
+};

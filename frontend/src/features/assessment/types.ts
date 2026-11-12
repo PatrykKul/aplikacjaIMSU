@@ -3,45 +3,63 @@ import type { QuizFeedback } from "@/features/learning-style/types";
 
 export type QuizAnswer = { id: string; text: string };
 
-/** Question as the author edits it (with the answer key). */
+/** Question of the pool as the author edits it (with the key and the explanation). */
 export type QuizQuestion = {
   id: string;
   text: string;
-  /** Material the question is about; null = common part of the lesson. */
-  form: Form | null;
   answers: QuizAnswer[];
   correct_answer_id: string;
+  explanation: string;
 };
 
-export type QuizContent = { questions: QuizQuestion[] };
+/** The whole pool (`GET /lessons/{id}/quiz/edit`). */
+export type QuizPool = { questions: QuizQuestion[] };
 
-/** Question for a student: no answer key. */
-export type StudentQuestion = Omit<QuizQuestion, "correct_answer_id">;
+/** Kept for the teacher's screens (name from v2). */
+export type QuizContent = QuizPool;
 
-export type StudentQuiz = {
+/** Question for a student: no key, no explanation. */
+export type StudentQuestion = {
+  id: string;
+  text: string;
+  answers: QuizAnswer[];
+};
+
+/** One drawn set of questions (R9); the key stays on the server. */
+export type QuizDraw = {
+  draw_id: number;
   questions: StudentQuestion[];
-  hidden_count: number;
+  pool_size: number;
+  form: Form;
 };
 
 export type QuestionResult = {
   question_id: string;
-  correct: boolean;
+  text: string;
+  answers: QuizAnswer[];
   chosen_answer_id: string;
   correct_answer_id: string;
+  correct: boolean;
+  explanation: string;
 };
 
 export type AttemptResult = {
+  draw_id: number;
   percent: number;
   correct_count: number;
   total: number;
+  passed: boolean;
   results: QuestionResult[];
-  /** Present for students: what the adaptation changed after this quiz. */
-  adaptation: QuizFeedback | null;
+  feedback: QuizFeedback;
 };
 
+/** Limits shared with the backend (`assessment/schemas.py`). */
 export const MIN_ANSWERS = 3;
 export const MAX_ANSWERS = 4;
-export const MAX_QUESTIONS = 20;
+export const MAX_QUESTIONS = 50;
+export const MIN_PUBLISHED_QUESTIONS = 5;
+export const QUIZ_SIZE = 5;
+export const EXPLANATION_MAX = 1000;
 
 /** "1 pytanie", "3 pytania", "5 pytań", "22 pytania". */
 export function questionsLabel(count: number): string {

@@ -1,4 +1,4 @@
-import { DESCRIPTION_MAX, TITLE_MAX } from "@/features/courses/types";
+import { DESCRIPTION_MAX, TITLE_MAX } from "../types";
 
 export const courseTitleRules = {
   validate: (value: string) => value.trim() !== "" || "Wpisz tytuł kursu.",

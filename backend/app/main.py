@@ -9,7 +9,13 @@ from app.modules.authoring.router import authoring_router
 from app.modules.content.router import files_router, lesson_versions_router
 from app.modules.curriculum.router import courses_router, lessons_router
 from app.modules.identity.router import auth_router, users_router
-from app.modules.learning_style.router import survey_router
+from app.modules.learning_style.router import (
+    course_insights_router,
+    me_router,
+    profile_router,
+    study_router,
+    survey_router,
+)
 
 
 def create_app() -> FastAPI:
@@ -31,6 +37,10 @@ def create_app() -> FastAPI:
     app.include_router(lesson_versions_router)
     app.include_router(files_router)
     app.include_router(survey_router)
+    app.include_router(profile_router)
+    app.include_router(study_router)
+    app.include_router(course_insights_router)
+    app.include_router(me_router)
     app.include_router(quiz_router)
     app.include_router(authoring_router)
     return app

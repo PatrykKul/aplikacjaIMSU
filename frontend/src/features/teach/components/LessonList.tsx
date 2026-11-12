@@ -10,9 +10,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { useArchiveLesson, useReorderLessons } from "@/features/courses/hooks";
-import type { Course, LessonSummary } from "@/features/courses/types";
-import { errorMessage } from "@/shared/api/error-messages";
 import { confirmLeave } from "@/shared/hooks/use-unsaved-changes-warning";
 import {
   AlertDialog,
@@ -27,12 +24,20 @@ import {
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 
+import { teachError } from "../errors";
+import {
+  useArchiveLesson,
+  useLessonsReadiness,
+  useReorderLessons,
+} from "../hooks";
+import { issuesSummary } from "../readiness";
+import type { Readiness, TeacherCourse, TeacherLessonSummary } from "../types";
 import { AddLessonForm } from "./AddLessonForm";
 import { RenameLessonDialog } from "./RenameLessonDialog";
 
 /** Ids in a new order: the lesson at `index` swapped with its neighbour. */
 function moved(
-  lessons: LessonSummary[],
+  lessons: TeacherLessonSummary[],
   index: number,
   step: -1 | 1,
 ): number[] {
@@ -41,8 +46,31 @@ function moved(
   return ids;
 }
 
+/** "Opublikowana" / "Szkic – brakuje: wersja K, 2 pytania" (R11). */
+function LessonState({
+  lesson,
+  readiness,
+}: {
+  lesson: TeacherLessonSummary;
+  readiness: Readiness | undefined;
+}) {
+  if (lesson.is_published) {
+    return <span className="font-medium text-foreground">Opublikowana</span>;
+  }
+  if (!readiness) {
+    return <span>Szkic</span>;
+  }
+  return (
+    <span>
+      {readiness.ready
+        ? "Szkic – gotowa do publikacji"
+        : `Szkic – brakuje: ${issuesSummary(readiness.issues)}`}
+    </span>
+  );
+}
+
 type LessonListProps = {
-  course: Course;
+  course: TeacherCourse;
   /** Unsaved changes in the course form: confirm before opening a lesson. */
   dirty: boolean;
 };
@@ -50,13 +78,14 @@ type LessonListProps = {
 export function LessonList({ course, dirty }: LessonListProps) {
   const reorder = useReorderLessons(course.id);
   const archive = useArchiveLesson(course.id);
-  const [renaming, setRenaming] = useState<LessonSummary | null>(null);
-  const [removing, setRemoving] = useState<LessonSummary | null>(null);
+  const [renaming, setRenaming] = useState<TeacherLessonSummary | null>(null);
+  const [removing, setRemoving] = useState<TeacherLessonSummary | null>(null);
   const { lessons } = course;
+  const readiness = useLessonsReadiness(lessons.map((lesson) => lesson.id));
 
   function move(index: number, step: -1 | 1) {
     reorder.mutate(moved(lessons, index, step), {
-      onError: (error) => toast.error(errorMessage(error)),
+      onError: (error) => toast.error(teachError(error)),
     });
   }
 
@@ -74,22 +103,30 @@ export function LessonList({ course, dirty }: LessonListProps) {
           {lessons.map((lesson, index) => (
             <li
               key={lesson.id}
-              className="flex items-center gap-3 py-1 pr-1 pl-4"
+              className="flex items-center gap-3 py-2 pr-1 pl-4"
             >
-              <span className="w-6 shrink-0 text-muted-foreground tabular-nums">
+              <span className="w-6 shrink-0 self-start pt-0.5 text-muted-foreground tabular-nums">
                 {index + 1}.
               </span>
-              <Link
-                href={`/teach/courses/${course.id}/lessons/${lesson.id}`}
-                className="min-w-0 flex-1 truncate font-medium underline-offset-4 hover:underline"
-                onClick={(event) => {
-                  if (!confirmLeave(dirty)) {
-                    event.preventDefault();
-                  }
-                }}
-              >
-                {lesson.title}
-              </Link>
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/teach/courses/${course.id}/lessons/${lesson.id}`}
+                  className="block truncate font-medium underline-offset-4 hover:underline"
+                  onClick={(event) => {
+                    if (!confirmLeave(dirty)) {
+                      event.preventDefault();
+                    }
+                  }}
+                >
+                  {lesson.title}
+                </Link>
+                <p className="truncate text-sm text-muted-foreground">
+                  <LessonState
+                    lesson={lesson}
+                    readiness={readiness[index]?.data}
+                  />
+                </p>
+              </div>
               <div className="flex shrink-0">
                 <Button
                   variant="ghost"
@@ -137,11 +174,7 @@ export function LessonList({ course, dirty }: LessonListProps) {
 
       <AddLessonForm courseId={course.id} />
 
-      <RenameLessonDialog
-        courseId={course.id}
-        lesson={renaming}
-        onClose={() => setRenaming(null)}
-      />
+      <RenameLessonDialog lesson={renaming} onClose={() => setRenaming(null)} />
 
       <AlertDialog
         open={removing !== null}
@@ -155,7 +188,8 @@ export function LessonList({ course, dirty }: LessonListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Usunąć lekcję?</AlertDialogTitle>
             <AlertDialogDescription>
-              Lekcja „{removing?.title}” zniknie z kursu razem z treścią.
+              Lekcja „{removing?.title}” zniknie z kursu razem z trzema wersjami
+              i pulą pytań.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -170,7 +204,7 @@ export function LessonList({ course, dirty }: LessonListProps) {
                     toast.success(`Usunięto lekcję: ${removing.title}.`);
                     setRemoving(null);
                   },
-                  onError: (error) => toast.error(errorMessage(error)),
+                  onError: (error) => toast.error(teachError(error)),
                 })
               }
             >

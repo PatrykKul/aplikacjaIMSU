@@ -3,9 +3,6 @@
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { useRenameLesson } from "@/features/courses/hooks";
-import type { LessonSummary } from "@/features/courses/types";
-import { errorMessage } from "@/shared/api/error-messages";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -19,16 +16,18 @@ import { FormField } from "@/shared/ui/form-field";
 import { Input } from "@/shared/ui/input";
 import { Spinner } from "@/shared/ui/spinner";
 
+import { teachError } from "../errors";
+import { useRenameLesson } from "../hooks";
 import { lessonTitleRules } from "./course-form-rules";
 
+type LessonRef = { id: number; title: string };
+
 type RenameLessonDialogProps = {
-  courseId: number;
-  lesson: LessonSummary | null;
+  lesson: LessonRef | null;
   onClose: () => void;
 };
 
 export function RenameLessonDialog({
-  courseId,
   lesson,
   onClose,
 }: RenameLessonDialogProps) {
@@ -43,26 +42,21 @@ export function RenameLessonDialog({
     >
       <DialogContent>
         {lesson && (
-          <RenameForm
-            key={lesson.id}
-            courseId={courseId}
-            lesson={lesson}
-            onDone={onClose}
-          />
+          <RenameForm key={lesson.id} lesson={lesson} onDone={onClose} />
         )}
       </DialogContent>
     </Dialog>
   );
 }
 
-type RenameFormProps = {
-  courseId: number;
-  lesson: LessonSummary;
+function RenameForm({
+  lesson,
+  onDone,
+}: {
+  lesson: LessonRef;
   onDone: () => void;
-};
-
-function RenameForm({ courseId, lesson, onDone }: RenameFormProps) {
-  const rename = useRenameLesson(courseId);
+}) {
+  const rename = useRenameLesson();
   const {
     register,
     handleSubmit,
@@ -74,13 +68,21 @@ function RenameForm({ courseId, lesson, onDone }: RenameFormProps) {
       { id: lesson.id, title },
       {
         onSuccess: onDone,
-        onError: (error) => toast.error(errorMessage(error)),
+        onError: (error) => toast.error(teachError(error)),
       },
     ),
   );
 
   return (
-    <form onSubmit={onSubmit} noValidate className="grid gap-4">
+    <form
+      onSubmit={(event) => {
+        // Portaled dialog: keep the submit away from any form around it
+        event.stopPropagation();
+        void onSubmit(event);
+      }}
+      noValidate
+      className="grid gap-4"
+    >
       <DialogHeader>
         <DialogTitle>Zmiana nazwy lekcji</DialogTitle>
       </DialogHeader>

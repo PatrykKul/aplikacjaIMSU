@@ -10,9 +10,11 @@ import { Button } from "@/shared/ui/button";
 import { useLearningProfile } from "../hooks";
 
 const SURVEY_PATH = "/survey";
+const RESULT_PATH = "/survey/result";
 
 /**
- * A student who has not filled in the VAK survey is sent to it from every page.
+ * A student passes only with a style: without the survey they are sent to it,
+ * with an unresolved tie to the result page to choose one style.
  * Teachers and admins pass through. Must be placed under AuthGuard.
  */
 export function SurveyGate({ children }: { children: ReactNode }) {
@@ -23,13 +25,21 @@ export function SurveyGate({ children }: { children: ReactNode }) {
   const profile = useLearningProfile(isStudent);
   const onSurvey =
     pathname === SURVEY_PATH || pathname.startsWith(`${SURVEY_PATH}/`);
-  const mustFillIn = isStudent && profile.data?.survey_completed === false;
+
+  let target: string | null = null;
+  if (isStudent && profile.data) {
+    if (!profile.data.survey_completed) {
+      target = SURVEY_PATH;
+    } else if (profile.data.style === null) {
+      target = RESULT_PATH;
+    }
+  }
 
   useEffect(() => {
-    if (mustFillIn && !onSurvey) {
-      router.replace(SURVEY_PATH);
+    if (target && !onSurvey) {
+      router.replace(target);
     }
-  }, [mustFillIn, onSurvey, router]);
+  }, [target, onSurvey, router]);
 
   if (!isStudent || onSurvey) {
     return children;
@@ -45,7 +55,7 @@ export function SurveyGate({ children }: { children: ReactNode }) {
       />
     );
   }
-  if (profile.isPending || mustFillIn) {
+  if (profile.isPending || target) {
     return <PageSpinner />;
   }
   return children;

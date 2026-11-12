@@ -1,22 +1,20 @@
 import { api } from "@/shared/api/client";
 
-import type {
-  AttemptResult,
-  QuizContent,
-  QuizQuestion,
-  StudentQuiz,
-} from "./types";
+import type { AttemptResult, QuizDraw, QuizPool, QuizQuestion } from "./types";
 
 const quizPath = (lessonId: number) => `/lessons/${lessonId}/quiz`;
 
 export const assessmentApi = {
-  quiz: (lessonId: number) => api.get<StudentQuiz>(quizPath(lessonId)),
-  submit: (lessonId: number, answers: Record<string, string>) =>
-    api.post<AttemptResult>(`${quizPath(lessonId)}/attempts`, { answers }),
+  /** The open set of questions or a new draw. */
+  quiz: (lessonId: number) => api.get<QuizDraw>(quizPath(lessonId)),
+  submit: (lessonId: number, drawId: number, answers: Record<string, string>) =>
+    api.post<AttemptResult>(`${quizPath(lessonId)}/attempts`, {
+      draw_id: drawId,
+      answers,
+    }),
 
-  quizForEditing: (lessonId: number) =>
-    api.get<QuizContent>(`${quizPath(lessonId)}/edit`),
+  pool: (lessonId: number) => api.get<QuizPool>(`${quizPath(lessonId)}/edit`),
   save: (lessonId: number, questions: QuizQuestion[]) =>
-    api.put<QuizContent>(quizPath(lessonId), { questions }),
+    api.put<QuizPool>(quizPath(lessonId), { questions }),
   remove: (lessonId: number) => api.delete(quizPath(lessonId)),
 };

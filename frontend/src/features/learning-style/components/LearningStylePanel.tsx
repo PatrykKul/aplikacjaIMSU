@@ -2,163 +2,156 @@
 
 import { ClipboardListIcon, CloudOffIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
+import { toast } from "sonner";
 
 import { FORMS, type Form } from "@/features/content/types";
+import { FormPercentages } from "@/features/progress/components/FormPercentages";
+import { formatDateTime } from "@/features/progress/format";
 import { PageMessage } from "@/shared/layout/page-states";
 import { cn } from "@/shared/lib/utils";
-import { Badge } from "@/shared/ui/badge";
-import { Button, buttonVariants } from "@/shared/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
-import { Checkbox } from "@/shared/ui/checkbox";
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/ui/alert-dialog";
+import { Button, buttonVariants } from "@/shared/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { learningStyleError } from "../errors";
 import {
-  useChangeStyle,
-  useLearningProfile,
-  useRestoreStyle,
-  useSurveyResults,
-} from "../hooks";
-import {
-  SOURCE_LABELS,
+  PASS_THRESHOLD,
+  STEP,
   STYLE_DESCRIPTIONS,
-  STYLE_NAMES,
-  describeStyle,
-  joinStyle,
-  styleLetters,
-} from "../styles";
+  TRIAL_LESSONS,
+  formLabel,
+  lessonsText,
+  pointsText,
+  styleName,
+  styleSourceText,
+} from "../explain";
+import { useChangeStyle, useLearningProfile } from "../hooks";
 import type { LearningProfile } from "../types";
 import { StyleBars } from "./StyleBars";
 import { StyleProposalBanner } from "./StyleProposalBanner";
+import { TrialNote } from "./TrialNote";
 
-const WEIGHT_MAX = 30;
-
+/** Manual change of the style: RadioGroup + confirmation (percentages stay). */
 function ManualStyle({ profile }: { profile: LearningProfile }) {
-  const current = styleLetters(profile.style ?? "");
-  const [picked, setPicked] = useState<Form[]>(current);
+  const [picked, setPicked] = useState<Form | null>(profile.style);
+  const [confirming, setConfirming] = useState(false);
   const change = useChangeStyle();
-  const restore = useRestoreStyle();
-  const unchanged = joinStyle(picked) === profile.style;
+  const unchanged = picked === profile.style;
 
-  function toggle(form: Form) {
-    setPicked((prev) =>
-      prev.includes(form) ? prev.filter((f) => f !== form) : [...prev, form],
-    );
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (picked && !unchanged) {
+      setConfirming(true);
+    }
+  }
+
+  function confirm() {
+    if (!picked) {
+      return;
+    }
+    change.mutate(picked, {
+      onSuccess: () => {
+        setConfirming(false);
+        toast.success(`Twój styl: ${styleName(picked)}`);
+      },
+    });
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Zmień styl</CardTitle>
-        <CardDescription>
-          Zaznacz jeden albo kilka stylów. Wynik ankiety zostaje zapisany, a do
-          stylu z ankiety możesz wrócić w każdej chwili.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-3">
+    <section aria-labelledby="manual-style" className="space-y-4">
+      <div className="space-y-1">
+        <h2 id="manual-style" className="text-xl font-semibold">
+          Zmień styl
+        </h2>
+        <p className="max-w-[65ch] text-muted-foreground">
+          Możesz sam wybrać styl, w którym chcesz się uczyć. Procenty się nie
+          zmienią – zmieniają je tylko wyniki quizów.
+        </p>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <RadioGroup
+          aria-labelledby="manual-style"
+          value={picked}
+          onValueChange={(value) => setPicked(value as Form)}
+          className="sm:grid-cols-3"
+        >
           {FORMS.map((form) => (
             <label
               key={form}
               className={cn(
-                "flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-muted/50",
-                picked.includes(form) && "border-primary bg-primary/5",
+                "flex min-h-control cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 text-sm transition-colors hover:bg-muted/50",
+                picked === form && "border-primary bg-primary/5",
               )}
             >
-              <Checkbox
-                className="mt-0.5"
-                checked={picked.includes(form)}
-                onCheckedChange={() => toggle(form)}
-              />
+              <RadioGroupItem value={form} className="mt-0.5" />
               <span>
-                <span className="font-medium">
-                  {form} · {STYLE_NAMES[form]}
-                </span>
+                <span className="font-medium">{formLabel(form)}</span>
+                {form === profile.style && (
+                  <span className="text-muted-foreground"> · obecny</span>
+                )}
                 <span className="block text-muted-foreground">
                   {STYLE_DESCRIPTIONS[form]}
                 </span>
               </span>
             </label>
           ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            disabled={picked.length === 0 || unchanged || change.isPending}
-            onClick={() => change.mutate(joinStyle(picked))}
-          >
-            Zapisz styl
-          </Button>
-          {profile.style_source !== "survey" && (
-            <Button
-              variant="outline"
-              disabled={restore.isPending}
-              onClick={() =>
-                restore.mutate(undefined, {
-                  onSuccess: (p) => setPicked(styleLetters(p.style ?? "")),
-                })
-              }
-            >
-              Przywróć styl z ankiety
-            </Button>
-          )}
-          <Link
-            href="/survey"
-            className={cn(buttonVariants({ variant: "ghost" }))}
-          >
-            Wypełnij ankietę ponownie
-          </Link>
-        </div>
-        {picked.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Wybierz co najmniej jeden styl.
-          </p>
-        )}
-        {(change.error ?? restore.error) && (
-          <p role="alert" className="text-sm text-destructive">
-            {learningStyleError(change.error ?? restore.error)}
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+        </RadioGroup>
+        <Button type="submit" disabled={!picked || unchanged}>
+          Zmień styl
+        </Button>
+      </form>
 
-function History() {
-  const results = useSurveyResults();
-  if (!results.data || results.data.length === 0) {
-    return null;
-  }
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Historia ankiet</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ul className="divide-y text-sm">
-          {results.data.map((result) => (
-            <li
-              key={result.created_at}
-              className="flex flex-wrap items-center justify-between gap-2 py-2"
-            >
-              <span>{new Date(result.created_at).toLocaleString("pl-PL")}</span>
-              <span className="text-muted-foreground tabular-nums">
-                V {result.points.V} / A {result.points.A} / K {result.points.K}
-              </span>
-              <Badge variant="secondary">
-                {describeStyle(result.dominant_style)}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
+      <AlertDialog
+        open={confirming}
+        onOpenChange={(open) => {
+          if (!change.isPending) {
+            setConfirming(open);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {picked
+                ? `Zmienić styl na ${styleName(picked)}?`
+                : "Zmienić styl?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Procenty się nie zmienią, zmiana trafi do dziennika. Lekcje,
+              których jeszcze nie zaliczyłeś, dostaniesz w nowej formie. Przez{" "}
+              {lessonsText(TRIAL_LESSONS)} potrwa okres próbny – sprawdzimy, czy
+              zmiana pomogła.
+              {profile.open_proposal &&
+                " Otwarta propozycja systemu zostanie zamknięta."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {change.isError && (
+            <p role="alert" className="text-sm text-destructive">
+              {learningStyleError(change.error)}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={change.isPending}>
+              Anuluj
+            </AlertDialogCancel>
+            <Button disabled={change.isPending} onClick={confirm}>
+              {change.isPending && <Spinner data-icon="inline-start" />}
+              Zmień styl
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
   );
 }
 
@@ -186,14 +179,22 @@ export function LearningStylePanel() {
   }
 
   const data = profile.data;
-  if (!data.survey_completed || !data.style || !data.weights) {
+  if (!data.survey_completed || !data.style) {
     return (
       <PageMessage
         icon={ClipboardListIcon}
         title="Nie znamy jeszcze Twojego stylu"
+        description={
+          data.survey_completed
+            ? "Ankieta dała remis – wybierz jeden styl."
+            : "Wypełnij ankietę – to 20 krótkich pytań."
+        }
         action={
-          <Link href="/survey" className={cn(buttonVariants())}>
-            Wypełnij ankietę
+          <Link
+            href={data.survey_completed ? "/survey/result" : "/survey"}
+            className={cn(buttonVariants())}
+          >
+            {data.survey_completed ? "Wybierz styl" : "Wypełnij ankietę"}
           </Link>
         }
       />
@@ -201,54 +202,73 @@ export function LearningStylePanel() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Mój styl uczenia się
-      </h1>
+    <div className="space-y-10">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Mój styl uczenia się
+        </h1>
+        <p className="text-lg">
+          Twój styl:{" "}
+          <strong className="font-semibold">{styleName(data.style)}</strong>
+          {data.style_source && (
+            <span className="text-muted-foreground">
+              {" "}
+              – {styleSourceText(data.style_source)}
+            </span>
+          )}
+        </p>
+        <p className="max-w-[65ch] text-muted-foreground">
+          {STYLE_DESCRIPTIONS[data.style]} Lekcje dostajesz w tej formie, chyba
+          że dla danej lekcji wybierzesz inną.
+        </p>
+      </div>
 
-      {data.proposal && <StyleProposalBanner proposal={data.proposal} />}
+      {data.open_proposal && (
+        <StyleProposalBanner proposal={data.open_proposal} />
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardDescription>Aktualny styl</CardDescription>
-          <CardTitle className="flex flex-wrap items-center gap-2 text-xl">
-            {describeStyle(data.style)}
-            {data.style_source && (
-              <Badge variant="outline">
-                {SOURCE_LABELS[data.style_source]}
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm">
-            <span className="font-medium">Dlaczego: </span>
-            {data.explanation}
+      {data.trial && <TrialNote trial={data.trial} showRule />}
+
+      <section aria-labelledby="form-percentages" className="space-y-3">
+        <div className="space-y-1">
+          <h2 id="form-percentages" className="text-xl font-semibold">
+            Procenty form
+          </h2>
+          <p className="max-w-[65ch] text-muted-foreground">
+            Start z ankiety, potem tylko wyniki quizów: pierwsze podejście w
+            danej formie w lekcji to +{STEP} punktów za zaliczenie (od{" "}
+            {PASS_THRESHOLD}%) albo −{STEP} za niezaliczenie. Forma jest
+            potwierdzona wynikami, gdy zaliczyłeś w niej co najmniej jeden quiz.
           </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Jak system Cię widzi</CardTitle>
-          <CardDescription>
-            Wagi stylów startują od punktów z ankiety. Po każdym quizie styl, w
-            którym się uczysz, dostaje +1 za zaliczenie (od 70%) albo −1 za
-            niezaliczenie. Gdy inny styl wyjdzie na prowadzenie, system
-            zaproponuje zmianę, ale decyzja należy do Ciebie.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <StyleBars
-            values={data.weights}
-            max={WEIGHT_MAX}
-            label="Wagi stylów"
-          />
-        </CardContent>
-      </Card>
+        </div>
+        <FormPercentages profile={data} />
+        <Link
+          href="/progress"
+          className="inline-block text-sm font-medium underline underline-offset-4"
+        >
+          Wykres i dziennik decyzji w „Moich postępach”
+        </Link>
+      </section>
 
       <ManualStyle key={data.style} profile={data} />
-      <History />
+
+      {data.survey && (
+        <section aria-labelledby="survey-result" className="space-y-3">
+          <div className="space-y-1">
+            <h2 id="survey-result" className="text-xl font-semibold">
+              Wynik ankiety
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Wypełniona {formatDateTime(data.survey.created_at)} · punkty:{" "}
+              {pointsText(data.survey.points)}
+            </p>
+          </div>
+          <StyleBars
+            values={data.survey.percentages}
+            label="Procenty form z ankiety"
+          />
+        </section>
+      )}
     </div>
   );
 }

@@ -3,16 +3,20 @@
 import { BookOpenIcon, CloudOffIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 
-import { useCourses } from "@/features/courses/hooks";
 import { PageMessage } from "@/shared/layout/page-states";
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 
+import { useTeacherCourseDetails, useTeacherCourses } from "../hooks";
 import { NewCourseDialog } from "./NewCourseDialog";
 import { TeacherCourseCard } from "./TeacherCourseCard";
 
 export function TeacherCoursesPage() {
-  const { data: courses, isPending, error, refetch } = useCourses();
+  const { data: courses, isPending, error, refetch } = useTeacherCourses();
+  // The list has no published-lesson count, so each card reads its course
+  const details = useTeacherCourseDetails(
+    courses?.map((course) => course.id) ?? [],
+  );
   const [creating, setCreating] = useState(false);
 
   const newCourseButton = (
@@ -50,9 +54,9 @@ export function TeacherCoursesPage() {
   } else {
     content = (
       <ul role="list" className="grid gap-4 sm:grid-cols-2">
-        {courses.map((course) => (
+        {courses.map((course, index) => (
           <li key={course.id}>
-            <TeacherCourseCard course={course} />
+            <TeacherCourseCard course={course} details={details[index]?.data} />
           </li>
         ))}
       </ul>

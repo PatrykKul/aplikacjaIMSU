@@ -1,6 +1,5 @@
 import { KIND_INFO } from "@/features/content/attachment-kinds";
 import type { Attachment } from "@/features/content/types";
-import { FormBadge } from "@/features/content/components/FormBadge";
 import { apiUrl } from "@/shared/api/client";
 
 /** What the attachment points to: file name, address or the reader's text. */
@@ -42,17 +41,9 @@ export function AttachmentSummary({ attachment }: { attachment: Attachment }) {
         <p className="line-clamp-2 text-sm break-words text-muted-foreground">
           {source(attachment)}
         </p>
-        <ul
-          role="list"
-          aria-label="Formy"
-          className="flex flex-wrap gap-1 pt-1"
-        >
-          {attachment.forms.map((form) => (
-            <li key={form}>
-              <FormBadge form={form} />
-            </li>
-          ))}
-        </ul>
+        {attachment.description && (
+          <p className="line-clamp-2 text-sm">{attachment.description}</p>
+        )}
       </div>
     </div>
   );
