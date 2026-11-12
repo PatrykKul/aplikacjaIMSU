@@ -17,7 +17,7 @@ from sqlalchemy.sql.functions import Function
 from app.core.errors import AppError
 from app.modules.content import service as content
 from app.modules.curriculum import service as curriculum
-from app.modules.curriculum.models import Course, Enrollment, EnrollmentStatus, Lesson
+from app.modules.curriculum.models import Course, Lesson
 from app.modules.identity import service as identity
 from app.modules.identity.models import User, UserRole
 from app.modules.learning_style import rules, stats
@@ -815,10 +815,7 @@ def journal(db: Session, user: User) -> list[JournalEntry]:
 
 
 def _pending_requests(db: Session, course_id: int) -> int:
-    query = select(func.count()).where(
-        Enrollment.course_id == course_id, Enrollment.status == EnrollmentStatus.PENDING
-    )
-    return db.scalar(query) or 0
+    return curriculum.pending_request_count(db, course_id)
 
 
 def _profiles(db: Session, user_ids: Collection[int]) -> dict[int, LearningProfile]:

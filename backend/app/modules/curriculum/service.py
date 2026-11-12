@@ -558,3 +558,11 @@ def lesson_number(lesson: Lesson) -> int | None:
     """1-based position among the published lessons (None for an unpublished lesson)."""
     ids = [item.id for item in published_lessons(lesson.course)]
     return ids.index(lesson.id) + 1 if lesson.id in ids else None
+
+
+def pending_request_count(db: Session, course_id: int) -> int:
+    """For other modules: number of enrollment requests waiting for the author."""
+    query = select(func.count()).where(
+        Enrollment.course_id == course_id, Enrollment.status == EnrollmentStatus.PENDING
+    )
+    return db.scalar(query) or 0
