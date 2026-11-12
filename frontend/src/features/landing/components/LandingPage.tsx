@@ -23,21 +23,21 @@ const formCards: FormCard[] = [
   {
     letter: "V",
     title: "Wzrokowo",
-    description: "Obrazy, wykresy, schematy i filmy.",
+    description: "Tekst ze schematami, wykresami i obrazami.",
     icon: EyeIcon,
     tone: "bg-form-v-soft text-form-v-foreground",
   },
   {
     letter: "A",
     title: "Słuchowo",
-    description: "Nagrania, wyjaśnienia i tekst czytany przez lektora.",
+    description: "Nagranie z objaśnieniem albo rozmową i krótki opis.",
     icon: HeadphonesIcon,
     tone: "bg-form-a-soft text-form-a-foreground",
   },
   {
     letter: "K",
     title: "Przez działanie",
-    description: "Ćwiczenia, przykłady i próby.",
+    description: "Zadanie krok po kroku z kartą do wykonania.",
     icon: HandIcon,
     tone: "bg-form-k-soft text-form-k-foreground",
   },
@@ -47,17 +47,17 @@ const steps = [
   {
     title: "Ankieta",
     description:
-      "20 krótkich pytań pokazuje, czy jesteś wzrokowcem, słuchowcem czy kinestetykiem – albo trochę każdym.",
+      "20 krótkich pytań daje Twój profil V / A / K w procentach. Styl na start to forma z najwyższym wynikiem.",
   },
   {
     title: "Lekcja pod Twój styl",
     description:
-      "Materiały w Twoim stylu są rozwinięte, pozostałe zwinięte – możesz je otworzyć. System zawsze mówi, dlaczego coś widzisz.",
+      "Każda lekcja ma tę samą treść w trzech formach. Dostajesz formę swojego stylu, a inną możesz wybrać jednym kliknięciem.",
   },
   {
-    title: "Quiz i propozycja",
+    title: "Quiz i decyzja z danych",
     description:
-      "Wyniki quizów zmieniają wagi stylów. Gdy inna forma wyraźnie prowadzi, system proponuje zmianę – przyjmujesz ją albo zostajesz przy swoim.",
+      "Wynik zmienia procent formy, w której się uczyłeś. Gdy w innej formie idzie Ci lepiej, system pokazuje liczby i proponuje zmianę – decydujesz Ty.",
   },
 ];
 
@@ -185,9 +185,9 @@ export function LandingPage() {
               Uczysz innych?
             </h2>
             <p className="max-w-[60ch]">
-              Twórz kursy z tekstem, wzorami, obrazami, nagraniami i filmami.
-              Oznacz materiały jako V, A lub K, dodaj quiz i przypisz kurs
-              swojej klasie.
+              Twórz kursy, w których każda lekcja ma trzy wersje: V, A i K, oraz
+              pulę pytań z wyjaśnieniami. Przyjmuj uczniów na kurs i sprawdzaj,
+              która forma działa w Twoim kursie najlepiej.
             </p>
           </div>
           <Link
