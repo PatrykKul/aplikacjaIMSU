@@ -31,7 +31,7 @@ Wspólne: `id` (`[A-Za-z0-9_-]{1,40}`, unikalny w wersji), `type`. Do 200 blokó
 | `pdf` | `file_id` |
 | `link` | `url` (tylko `https`) |
 
-Załącznik **nie ma pola `forms`** — formę wyznacza wersja (D42). Walidacja: unikalne `id`; dokładnie jedno źródło wideo / nagrania; `file_id` = plik autora kursu o rodzaju zgodnym z typem (`400 FILE_NOT_FOUND`, `400 FILE_KIND_MISMATCH`). Nieznane pola (np. odesłane `file_url`) są ignorowane. W odpowiedzi pola tylko do wyświetlania: `file_url`, `file_name`, `youtube_id`.
+Załącznik **nie ma pola `forms`** — formę wyznacza wersja (D42). Walidacja: unikalne `id`; dokładnie jedno źródło wideo; `file_id` = plik o rodzaju zgodnym z typem (`400 FILE_KIND_MISMATCH`) należący do **autora kursu albo już użyty w którejś wersji tej lekcji** (D56: po zmianie właściciela nowy autor zachowuje załączniki poprzedniego; inaczej `400 FILE_NOT_FOUND`). Nieznane pola (np. odesłane `file_url`) są ignorowane. W odpowiedzi pola tylko do wyświetlania: `file_url`, `file_name`, `youtube_id`.
 
 ## R11 — gotowość wersji (`readiness.py`, czysta funkcja `version_issues(form, blocks)`)
 
@@ -71,7 +71,7 @@ Uczeń nie ma dostępu do `versions` (404) — swoją wersję dostaje przez `GET
 ## Testy
 `backend/tests/content/`:
 - `test_blocks.py`: `youtube_id()` dla znanych i obcych adresów.
-- `test_versions.py`: nowa lekcja ma trzy puste wersje, zapis każdej wersji osobno, zapis zastępuje wersję, załącznik bez `forms`, serwis (`get_version`, `version_issues`), błędne bloki i nieznana forma → 422, plik innego nauczyciela i niezgodny rodzaj → 400, opublikowana lekcja: zapis z nowym brakiem → 409, kompletny zapis przechodzi; wersje tylko dla autora, odrzucony nauczyciel → 403, bez logowania → 401.
+- `test_versions.py`: nowa lekcja ma trzy puste wersje, zapis każdej wersji osobno, zapis zastępuje wersję, załącznik bez `forms`, serwis (`get_version`, `version_issues`), błędne bloki i nieznana forma → 422, plik innego nauczyciela i niezgodny rodzaj → 400, po zmianie właściciela zapis z plikami poprzedniego autora użytymi w lekcji (także przeniesionymi do innej wersji) przechodzi, a nieużyty plik poprzedniego autora → 400, opublikowana lekcja: zapis z nowym brakiem → 409, kompletny zapis przechodzi; wersje tylko dla autora, odrzucony nauczyciel → 403, bez logowania → 401.
 - `test_readiness.py`: każdy kod R11 dla V / A / K (komplet i braki).
 - `test_files.py`: dozwolone pliki, inne typy, za duży (bez śladu na dysku), pusty, brak pola, tylko nauczyciel, pobieranie `inline`, Range dla wideo, logowanie, nieistniejący.
 

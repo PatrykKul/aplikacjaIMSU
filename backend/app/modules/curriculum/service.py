@@ -9,6 +9,7 @@ from app.core.errors import AppError
 from app.modules.curriculum import progress, readiness
 from app.modules.curriculum.models import (
     Course,
+    CourseOwnerChange,
     Enrollment,
     EnrollmentStatus,
     Lesson,
@@ -233,6 +234,33 @@ def update_course(db: Session, course_id: int, user: User, data: CourseUpdateReq
         course.summary = data.summary
     if data.is_published is not None:
         course.is_published = data.is_published
+    db.commit()
+    db.refresh(course)
+    return course
+
+
+def change_owner(db: Session, course_id: int, admin: User, owner_id: int) -> Course:
+    """The admin moves a course to another approved teacher (D56); every change is logged.
+
+    Enrollments, completions and results stay with the course. The same owner: no change.
+    """
+    if admin.role != UserRole.ADMIN:
+        raise AppError(403, "FORBIDDEN")
+    course = db.get(Course, course_id)
+    if course is None:
+        raise AppError(404, "COURSE_NOT_FOUND")
+    owner = identity.get_approved_teacher(db, owner_id)
+    if owner.id == course.owner_id:
+        return course
+    db.add(
+        CourseOwnerChange(
+            course_id=course.id,
+            from_owner_id=course.owner_id,
+            to_owner_id=owner.id,
+            changed_by_id=admin.id,
+        )
+    )
+    course.owner_id = owner.id
     db.commit()
     db.refresh(course)
     return course

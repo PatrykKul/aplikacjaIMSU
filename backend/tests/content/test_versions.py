@@ -131,6 +131,62 @@ def test_file_must_belong_to_course_owner(
         assert response.json() == {"code": "FILE_NOT_FOUND"}
 
 
+def test_new_owner_keeps_files_used_in_the_lesson(
+    client: TestClient,
+    db: Session,
+    login: Login,
+    lesson_id: int,
+    other_teacher: User,
+    upload: Upload,
+) -> None:
+    # D56: the course moves to another teacher; the previous author's files stay usable
+    image = upload("wykres.png")
+    unused = upload("inny.png")
+    _put(client, lesson_id, "V", [text_block(), attachment("image", "a1", file_id=image["id"])])
+    lesson = db.get(Lesson, lesson_id)
+    assert lesson is not None
+    lesson.course.owner_id = other_teacher.id
+    db.commit()
+    login(other_teacher)
+    own = upload("nowy.png")
+
+    kept = _put(
+        client,
+        lesson_id,
+        "V",
+        [
+            text_block(),
+            attachment("image", "a1", file_id=image["id"]),
+            attachment("image", "a2", file_id=own["id"]),
+        ],
+    )
+    moved = _put(client, lesson_id, "K", [attachment("image", "a1", file_id=image["id"])])
+    foreign = _put(client, lesson_id, "V", [attachment("image", "a1", file_id=unused["id"])])
+
+    assert kept.status_code == 200
+    assert moved.status_code == 200  # used in another version of the same lesson
+    assert foreign.status_code == 400
+    assert foreign.json() == {"code": "FILE_NOT_FOUND"}
+
+
+def test_file_used_in_another_lesson_is_not_enough(
+    client: TestClient,
+    make_course: MakeCourse,
+    teacher: User,
+    other_teacher: User,
+    upload: Upload,
+) -> None:
+    course = make_course(teacher, lessons=("A",))
+    image = upload("wykres.png")
+    _put(client, course["lessons"][0]["id"], "V", [attachment("image", "a1", file_id=image["id"])])
+    other_lesson = make_course(other_teacher, lessons=("B",))["lessons"][0]["id"]
+
+    response = _put(client, other_lesson, "V", [attachment("image", "a1", file_id=image["id"])])
+
+    assert response.status_code == 400
+    assert response.json() == {"code": "FILE_NOT_FOUND"}
+
+
 def test_file_must_match_attachment_kind(
     client: TestClient, lesson_id: int, upload: Upload
 ) -> None:

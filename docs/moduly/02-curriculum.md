@@ -1,14 +1,14 @@
 # Moduł `curriculum`
 
-Kursy i lekcje (autor, publikacja kursu, zarys i wnioski lekcji), zapisy na kurs, kolejność lekcji z blokadą, widoczność. Decyzje: D11, D26, D46, D48, D49 (część lekcji), D52 (panel kursu — dane z `learning_style`).
+Kursy i lekcje (autor, publikacja kursu, zarys i wnioski lekcji), zapisy na kurs, kolejność lekcji z blokadą, widoczność, zmiana właściciela przez administratora. Decyzje: D11, D26, D46, D48, D49 (część lekcji), D52 (panel kursu — dane z `learning_style`), D56 (zmiana właściciela), D61 (`PATCH`).
 
 ## Odpowiedzialność
 - Kurs: tytuł, opis, wstęp i „Podsumowanie i wnioski” (dokumenty TipTap), **autor**, prywatny / opublikowany, archiwizacja.
 - Lekcja: tytuł, kolejność, **zarys** i **wnioski** (TipTap; wspólne dla trzech wersji), `is_published`, archiwizacja. Treść wersji V / A / K jest w `content`, pula pytań w `assessment`, publikacja lekcji w `authoring`.
 - **Zapisy** (D46): uczeń prosi o zapis, autor przyjmuje albo odrzuca.
 - **Kolejność** (R10, D48): lekcja n+1 dostępna po zaliczeniu quizu lekcji n; zaliczenia w `lesson_completions`.
-- Interfejs dla innych modułów (`service.py`): `get_visible_course`, `get_owned_course`, `get_visible_lesson` (bez reguł nauki), `get_owned_lesson`, `get_study_lesson(db, lesson_id, user)` (uczeń: przyjęty + opublikowana + odblokowana; autor i admin — każda widoczna), `mark_lesson_passed(db, user_id, lesson_id) -> UnlockedLesson | None` (bez `commit`), `is_accepted`, `accepted_student_ids`, `course_progress`, `passed_lesson_ids`, `published_lessons`, `active_lessons`, `lesson_number`, `lesson_issues(lesson)` (R11), `set_lesson_published` (dla `authoring`), `pending_request_count`, `list_courses`.
-- Dane uczniów i autorów (imię, e-mail) bierze z `identity.service.get_users`, bez złączeń z `users`. Nie zależy od `content`, `learning_style` ani `assessment` — zaliczenie zapisuje `learning_style.hooks` przez `mark_lesson_passed`.
+- Interfejs dla innych modułów (`service.py`): `get_visible_course`, `get_owned_course`, `get_visible_lesson` (bez reguł nauki), `get_owned_lesson`, `get_study_lesson(db, lesson_id, user)` (uczeń: przyjęty + opublikowana + odblokowana; autor i admin — każda widoczna), `mark_lesson_passed(db, user_id, lesson_id) -> UnlockedLesson | None` (bez `commit`), `is_accepted`, `accepted_student_ids`, `course_progress`, `passed_lesson_ids`, `published_lessons`, `active_lessons`, `lesson_number`, `lesson_issues(lesson)` (R11), `set_lesson_published` (dla `authoring`), `pending_request_count`, `list_courses`, `change_owner(db, course_id, admin, owner_id) -> Course` (też seed).
+- Dane uczniów i autorów (imię, e-mail) bierze z `identity.service.get_users`, nowego właściciela sprawdza `identity.service.get_approved_teacher`, bez złączeń z `users`. Nie zależy od `content`, `learning_style` ani `assessment` — zaliczenie zapisuje `learning_style.hooks` przez `mark_lesson_passed`.
 
 ## Model danych
 
@@ -40,6 +40,11 @@ Uczeń: lekcja opublikowana (inaczej 404) → zapis `accepted` (inaczej `403 ENR
 - Przykład: 4 lekcje, zaliczone 1 i 2 → `passed, passed, available, locked (najpierw lekcja 3)`. Nauczyciel przesuwa lekcję 4 na początek → nowa pierwsza jest `available`, zaliczone zostają `passed`.
 - `mark_lesson_passed`: `INSERT … ON CONFLICT DO NOTHING` w `lesson_completions`; zwraca następną opublikowaną lekcję, gdy właśnie stała się dostępna (do `QuizFeedback.unlocked_lesson`).
 
+### Zmiana właściciela (D56, `change_owner`)
+- Tylko administrator (inni `403 FORBIDDEN`). Kurs musi istnieć (`404 COURSE_NOT_FOUND`; zarchiwizowany też można przepiąć). Nowy właściciel: użytkownik o roli nauczyciela (`404 USER_NOT_FOUND` — brak konta albo inna rola), zatwierdzony (`409 TEACHER_NOT_APPROVED` przy `pending` / `rejected`).
+- Ten sam właściciel → bez zmian i bez wpisu. Inaczej `owner_id` = nowy i wiersz w `course_owner_changes` (kurs, z kogo, na kogo, kto, kiedy) w tej samej transakcji.
+- Zapisy, zaliczenia, wyniki i statystyki zostają (należą do kursu i uczniów, nie do autora). Poprzedni właściciel traci kurs z `/teach` (cudzy kurs → 404), nowy widzi go od razu, katalog pokazuje nowego autora. Pliki poprzedniego autora użyte w lekcjach zostają w lekcjach (`moduly/03-content.md`, reguła plików).
+
 ### Zapisy
 - `request_enrollment`: kurs musi być widoczny dla ucznia; brak wiersza → `pending` (201); `pending` → bez zmian (200); `rejected` → znów `pending` (nowe `requested_at`, `decided_at = null`); `accepted` → `409 ALREADY_ENROLLED`.
 - `decide_enrollment`: autor ustawia `accepted` / `rejected` (powtórka bez zmian); może zmienić decyzję — także odrzucić przyjętego (traci dostęp do treści, wyniki zostają).
@@ -64,6 +69,7 @@ Uczeń: lekcja opublikowana (inaczej 404) → zapis `accepted` (inaczej `403 ENR
 | `GET /lessons/{id}` | widzący; uczeń: przyjęty + opublikowana + odblokowana | `LessonResponse` | 404, 403 `ENROLLMENT_REQUIRED`, 403 `LESSON_LOCKED` + `required_lesson` |
 | `PATCH /lessons/{id}` | autor | `title?`, `outline?`, `conclusions?` | 404, 409 `PUBLISHED_LESSON_INCOMPLETE` + `issues`, 422 |
 | `DELETE /lessons/{id}` | autor | archiwizacja, 204 | 404, 409 `LAST_PUBLISHED_LESSON` |
+| `PUT /courses/{id}/owner` | admin | `{owner_id}` → `CourseResponse` (widok admina); ten sam właściciel → 200 bez zmian | 403 `FORBIDDEN`, 404 `COURSE_NOT_FOUND` / `USER_NOT_FOUND`, 409 `TEACHER_NOT_APPROVED`, 422 |
 | `POST /courses/{id}/enrollment` | uczeń | prośba o zapis → 201 `EnrollmentResponse` (`pending`); powtórka przy `pending` → 200 | 404, 409 `ALREADY_ENROLLED`, 403 `FORBIDDEN` (inne role) |
 | `GET /courses/{id}/enrollments?status=` | autor | `[{student: {id, display_name, email}, status, requested_at, decided_at}]`, od najstarszej prośby | 404, 422 |
 | `POST /courses/{id}/enrollments/{student_id}/accept` / `reject` | autor | decyzja → `EnrollmentResponse` | 404 `ENROLLMENT_NOT_FOUND` / `COURSE_NOT_FOUND` |
@@ -96,6 +102,7 @@ Statystyki kursu i szczegóły ucznia (`/courses/{id}/stats`, `/courses/{id}/stu
 - `test_courses.py`: tworzenie i walidacja, role, lista (nauczyciel — swoje, uczeń — opublikowane, admin — wszystkie z zarchiwizowanymi, kolejność), widoczność strony kursu, edycja częściowa, publikacja i wycofanie, kurs bez opublikowanej lekcji → 409, archiwizacja.
 - `test_lessons.py`: dodawanie na końcu, kolejność (zła lista → 400, zarchiwizowane pominięte), sąsiedzi, widoczność za kursem, zmiana nazwy, archiwizacja, tylko autor.
 - `test_lesson_fields.py`: zarys i wnioski (częściowa zmiana, `null` czyści szkic, zarys na stronie kursu), opublikowana lekcja nie traci zarysu / wniosków, ale można ją edytować, ostatnia opublikowana lekcja nie do archiwizacji, odrzucony nauczyciel traci dostęp do własnego kursu.
+- `test_owner.py`: zmiana właściciela (wpis w `course_owner_changes`, nowy autor w liście i katalogu, poprzedni traci dostęp, zapisy i stany lekcji zostają), ten sam właściciel bez wpisu, kurs zarchiwizowany, tylko admin, nieistniejący kurs, uczeń / admin / brak konta → `USER_NOT_FOUND`, nauczyciel `pending` / `rejected` → 409, walidacja.
 - `test_enrollments.py`: prośba, powtórka, ponowna po odrzuceniu, przyjęty nie prosi ponownie, kurs prywatny / zarchiwizowany / nieistniejący → 404, tylko uczeń, lista próśb (kolejność, filtr), przyjęcie, zmiana decyzji, tylko autor, prośby kursu zarchiwizowanego ukryte, dostęp przyjętego po wycofaniu publikacji.
 - `test_lesson_access.py`: uczeń widzi tylko opublikowane lekcje z numeracją wśród nich, stany lekcji, `ENROLLMENT_REQUIRED`, `LESSON_LOCKED` z wymaganą lekcją, odblokowanie po zaliczeniu, ostatnia lekcja, zaliczona zostaje otwarta po zmianie kolejności, podgląd autora i admina.
 - `test_progress.py`, `test_readiness.py`: czyste funkcje R10 i R11 (część lekcji).
@@ -107,4 +114,4 @@ Statystyki kursu i szczegóły ucznia (`/courses/{id}/stats`, `/courses/{id}/stu
 - Nauczyciel: nowa lekcja (szkic, niewidoczna dla ucznia), zmiana kolejności, próba wycofania publikacji kursu bez opublikowanych lekcji.
 
 ## Ograniczenia
-Brak moderacji kursów przez administratora (O6), powiadomień o prośbach i anulowania własnej prośby; jeden autor kursu (bez współautorów); `null` w `PATCH /courses/{id}` nie czyści wstępu ani podsumowania (pusty dokument TipTap — tak).
+Brak moderacji kursów przez administratora (O6; jest tylko zmiana właściciela), historia zmian właściciela tylko w bazie (bez widoku), powiadomień o prośbach i anulowania własnej prośby; jeden autor kursu (bez współautorów); `null` w `PATCH /courses/{id}` nie czyści wstępu ani podsumowania (pusty dokument TipTap — tak).
