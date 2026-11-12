@@ -276,5 +276,17 @@
     & .inline-math-error {
       @apply font-mono text-destructive;
     }
+    /* D59: code in a line and code blocks; a long line scrolls inside the block */
+    & :not(pre) > code {
+      @apply rounded-sm bg-muted px-1 py-0.5 font-mono text-[0.9em];
+    }
+    & pre {
+      @apply mb-3 max-w-full overflow-x-auto rounded-md border bg-muted/60 px-4 py-3 font-mono text-[0.9375rem] leading-relaxed;
+      tab-size: 4;
+    }
+    & pre code {
+      @apply font-mono;
+      white-space: pre;
+    }
   }
 }

@@ -5,6 +5,8 @@ import {
   BetweenHorizontalEndIcon,
   BetweenVerticalEndIcon,
   BoldIcon,
+  CodeIcon,
+  CodeXmlIcon,
   Heading2Icon,
   Heading3Icon,
   ItalicIcon,
@@ -82,6 +84,8 @@ export function RichTextToolbar({
       bulletList: e.isActive("bulletList"),
       orderedList: e.isActive("orderedList"),
       link: e.isActive("link"),
+      code: e.isActive("code"),
+      codeBlock: e.isActive("codeBlock"),
       table: e.isActive("table"),
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
@@ -147,6 +151,18 @@ export function RichTextToolbar({
         onClick={onLink}
       />
       <ToolbarButton label="Wzór" icon={SigmaIcon} onClick={onMath} />
+      <ToolbarButton
+        label="Kod"
+        icon={CodeIcon}
+        active={state.code}
+        onClick={() => chain().toggleCode().run()}
+      />
+      <ToolbarButton
+        label="Blok kodu"
+        icon={CodeXmlIcon}
+        active={state.codeBlock}
+        onClick={() => chain().toggleCodeBlock().run()}
+      />
       <Separator />
       {state.table ? (
         <>

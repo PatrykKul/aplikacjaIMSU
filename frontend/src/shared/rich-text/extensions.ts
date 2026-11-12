@@ -57,8 +57,8 @@ export function richTextExtensions({
     StarterKit.configure({
       heading: { levels: [2, 3] },
       blockquote: false,
-      code: false,
-      codeBlock: false,
+      // D59: inline code and code blocks (monospace, no highlighting)
+      codeBlock: { enableTabIndentation: true, tabSize: 4 },
       horizontalRule: false,
       strike: false,
       link: {
