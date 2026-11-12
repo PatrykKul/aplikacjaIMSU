@@ -5,26 +5,36 @@
 - **Kod po angielsku**: nazwy plików, modułów, klas, funkcji, zmiennych, tabel, kolumn, endpointów, typów TypeScript, komentarzy i docstringów.
 - **API w całości po angielsku**, łącznie z komunikatami błędów i wszystkimi tekstami w odpowiedziach.
 - **Po polsku**: wyłącznie teksty interfejsu w frontendzie, dokumentacja w `docs/`, treść kursów.
-- Backend nie zwraca gotowych zdań dla użytkownika (wyjątek: uzasadnienia i propozycje w `learning_style`, D3). Zwraca **kody i parametry** (np. błąd `{"code": "SURVEY_REQUIRED"}`, uzasadnienie `{"reason": "retry_other_form", "score": 45, "threshold": 70}`), a frontend tłumaczy je na polski tekst. Teksty z treści kursu (komunikaty, wyjaśnienia) są danymi, nie komunikatami systemu.
+- Backend nie zwraca gotowych zdań dla użytkownika (bez wyjątków od v3, D45). Zwraca **kody i parametry** (np. błąd `{"code": "LESSON_LOCKED", "required_lesson": {...}}`, sugestia `{"failed": {...}, "suggested": {"form": "A", "reason": "survey", ...}}`), a frontend składa polski tekst — zdania decyzji w jednym miejscu: `features/learning-style/explain.ts`. Teksty z treści kursu (wyjaśnienia pytań) są danymi, nie komunikatami systemu.
 - Pojęcia domenowe — stały słownik (nie tłumaczyć różnie w różnych miejscach):
 
 | Polski | W kodzie |
 |---|---|
 | kurs / lekcja | course / lesson |
-| opis / wstęp kursu | description / introduction |
+| opis / wstęp / podsumowanie i wnioski kursu | description / introduction / summary |
+| zarys / wnioski lekcji | outline / conclusions |
 | autor kursu | owner |
 | kurs prywatny / opublikowany | private / published (`is_published`) |
-| klasa / uczeń klasy / kurs przypisany klasie | classroom / classroom student / classroom course (`class` jest zarezerwowane w Pythonie) |
+| prośba o zapis / zapis na kurs | enrollment (`pending` / `accepted` / `rejected`) |
+| zatwierdzenie konta nauczyciela | approval (`approval_status`) |
+| zaliczenie lekcji / blokada | lesson completion / lesson lock |
+| gotowość / publikacja lekcji | readiness / publication |
 | blok lekcji: tekst / załącznik | block: text / attachment |
 | typ załącznika | attachment kind |
-| forma: wzrokowa / słuchowa / kinestetyczna | form: `V` / `A` / `K` (załącznik ma zbiór `forms`) |
+| forma: wzrokowa / słuchowa / kinestetyczna | form: `V` / `A` / `K` |
+| wersja lekcji (V / A / K) | lesson version (`lesson_contents.form`) |
+| forma lekcji (wybór „przerób w innej formie”) | lesson form (`lesson_forms`) |
 | plik | file |
-| quiz / pytanie / odpowiedź / podejście | quiz / question / answer / quiz attempt |
+| quiz / pula pytań / pytanie / wyjaśnienie | quiz / question pool / question / explanation |
+| wylosowany zestaw (podejście) / wynik | draw (`quiz_draws`) / quiz result (`quiz_results`, `counted`) |
 | ankieta / pytanie ankiety / wynik ankiety | survey / survey question / survey result |
-| profil, styl, źródło stylu, wagi | learning profile, style, style source, weights |
-| styl efektywny lekcji | effective style |
-| rozwinięcie zwiniętego materiału | material opening |
-| propozycja zmiany stylu | style proposal |
+| profil, styl, źródło stylu, procenty | learning profile, style, style source, percentages |
+| forma potwierdzona wynikami / tylko z ankiety | confirmed form |
+| sugestia „przerób w formie X” | retry suggestion |
+| propozycja zmiany stylu / powrotu | style proposal (`switch` / `revert`) |
+| okres próbny | style trial |
+| podpowiedź z kursu | course hint |
+| dziennik decyzji / zdarzenie | decision log / decision event |
 | uzasadnienie („dlaczego to widzisz”) | explanation / why |
 | uczeń / nauczyciel / administrator | student / teacher / admin |
 

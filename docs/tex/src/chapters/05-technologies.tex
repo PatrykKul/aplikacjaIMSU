@@ -1,6 +1,7 @@
 \section{Technologie}
 
 \subsection{Architektura}
+\label{sec:architecture}
 
 System jest aplikacją internetową złożoną z trzech części: klienta działającego w przeglądarce, serwera udostępniającego REST API oraz bazy danych. Serwer to \textbf{modularny monolit} -- jedna aplikacja podzielona na moduły domenowe, które korzystają ze siebie wyłącznie przez publiczne funkcje serwisów:
 
@@ -9,16 +10,25 @@ System jest aplikacją internetową złożoną z trzech części: klienta dział
 \begin{tabular}{|l|p{10cm}|}
 \hline
 \textbf{Moduł} & \textbf{Odpowiedzialność} \\ \hline
-\texttt{identity} & konta, role, logowanie, sesja, administracja kont \\ \hline
-\texttt{curriculum} & kursy, lekcje, publikacja, klasy i widoczność kursów \\ \hline
-\texttt{content} & bloki lekcji (tekst, załączniki z formami V/A/K), pliki \\ \hline
-\texttt{learning\_style} & ankieta VAK, profil ucznia, personalizacja lekcji, adaptacja wag \\ \hline
-\texttt{assessment} & quiz lekcji, ocenianie odpowiedzi, edytor quizu \\ \hline
+\texttt{core} & konfiguracja, sesja bazy danych, format błędów (\texttt{AppError}: kod i parametry) \\ \hline
+\texttt{identity} & konta, role, logowanie, sesja, administracja kont, zatwierdzanie nauczycieli \\ \hline
+\texttt{curriculum} & kursy, lekcje (zarys, wnioski), zapisy na kurs, zaliczenia i blokada kolejności (R10) \\ \hline
+\texttt{content} & trzy wersje lekcji (bloki tekstu i załączniki), pliki, braki wersji (R11) \\ \hline
+\texttt{learning\_style} & ankieta, profil procentowy, reguły R1--R8 (\texttt{rules.py}), wersja lekcji dla ucznia, propozycje, okres próbny, dziennik decyzji, statystyki \\ \hline
+\texttt{assessment} & pula pytań, losowanie zestawu (R9), ocenianie, wywołanie \texttt{record\_quiz\_result} \\ \hline
+\texttt{authoring} & gotowość lekcji (zbiera braki z trzech modułów) i publikacja lekcji \\ \hline
 \end{tabular}
 \caption{Moduły serwera}
 \end{table}
 
-Reguły personalizacji, adaptacji i oceniania są czystymi funkcjami, niezależnymi od frameworka i bazy danych. Wynik quizu trafia do modelu ucznia tylko przez jedną funkcję modułu \texttt{learning\_style}, a klient nie ma możliwości samodzielnego zgłoszenia wyniku.
+Zależności między modułami są jednokierunkowe:
+\begin{center}
+\small\ttfamily
+core $\leftarrow$ identity $\leftarrow$ curriculum $\leftarrow$ content $\leftarrow$ learning\_style $\leftarrow$ assessment $\leftarrow$ authoring
+\end{center}
+Moduł może importować tylko moduły po swojej lewej stronie. Odblokowanie lekcji należy do \texttt{curriculum} (\texttt{lesson\_completions}), więc \texttt{learning\_style} po zaliczeniu wywołuje \texttt{curriculum.service.mark\_lesson\_passed} bez zależności ,,w górę''. \texttt{authoring} jest na końcu łańcucha, bo do decyzji o publikacji potrzebuje braków z \texttt{curriculum}, \texttt{content} i \texttt{assessment}.
+
+Reguły adaptacji, losowania, blokady i gotowości są czystymi funkcjami, niezależnymi od frameworka i bazy danych. Wynik quizu trafia do modelu ucznia tylko przez \texttt{learning\_style.hooks.record\_quiz\_result}, a klient nie ma możliwości samodzielnego zgłoszenia wyniku.
 
 \subsection{Technologie oprogramowania}
 
@@ -28,9 +38,10 @@ Reguły personalizacji, adaptacji i oceniania są czystymi funkcjami, niezależn
     \item \textbf{TypeScript} -- typowany JavaScript
     \item \textbf{Tailwind CSS 4} i \textbf{shadcn/ui} (Base UI) -- style i komponenty interfejsu
     \item \textbf{TanStack Query} -- pobieranie i buforowanie danych z serwera
-    \item \textbf{TipTap} -- edytor tekstu lekcji (formatowanie, tabele, wklejanie z Worda)
+    \item \textbf{TipTap} -- edytor tekstu lekcji, zarysów i wniosków (formatowanie, tabele, wklejanie z Worda)
     \item \textbf{KaTeX} -- wyświetlanie wzorów matematycznych
-    \item \textbf{React Hook Form}, \textbf{react-dropzone}, \textbf{Lucide} -- formularze, wgrywanie plików, ikony
+    \item \textbf{React Hook Form}, \textbf{react-dropzone}, \textbf{Lucide}, \textbf{Sonner} -- formularze, wgrywanie plików, ikony, komunikaty
+    \item Wykres procentów form w czasie -- własny komponent SVG (bez biblioteki wykresów), z tabelą tych samych danych
 \end{itemize}
 
 \textbf{Serwer:}
@@ -44,7 +55,7 @@ Reguły personalizacji, adaptacji i oceniania są czystymi funkcjami, niezależn
 
 \textbf{Baza danych:}
 \begin{itemize}[leftmargin=*]
-    \item \textbf{PostgreSQL 17} uruchamiany w kontenerze \textbf{Docker} (Docker Compose); kolumny \textbf{JSONB} dla treści lekcji i quizów
+    \item \textbf{PostgreSQL 17} uruchamiany w kontenerze \textbf{Docker} (Docker Compose); kolumny \textbf{JSONB} dla bloków lekcji, puli pytań, zestawów i danych dziennika
     \item Pliki wgrane przez nauczycieli przechowywane na dysku serwera, poza repozytorium
 \end{itemize}
 
@@ -53,6 +64,7 @@ Reguły personalizacji, adaptacji i oceniania są czystymi funkcjami, niezależn
     \item \textbf{Git} i \textbf{GitHub} -- kontrola wersji
     \item \textbf{pytest} -- testy serwera; \textbf{Ruff} -- lint i formatowanie kodu Python
     \item \textbf{ESLint} i \textbf{Prettier} -- lint i formatowanie kodu klienta
+    \item \textbf{Playwright} -- przejście scenariusza pokazu w przeglądarce (skrypt \nolinkurl{frontend/e2e/demo-tour.mjs}, uruchamiany ręcznie)
     \item \textbf{npm} i \textbf{pip} -- menedżery pakietów
 \end{itemize}
 
@@ -60,11 +72,11 @@ Reguły personalizacji, adaptacji i oceniania są czystymi funkcjami, niezależn
 
 \begin{itemize}[leftmargin=*]
     \item Sesja jako token JWT w ciasteczku \texttt{HttpOnly} (niedostępnym z JavaScriptu), \texttt{SameSite=Lax}
-    \item Rola i aktywność konta odczytywane z bazy przy każdym żądaniu -- blokada konta działa natychmiast
+    \item Rola, aktywność i zatwierdzenie konta odczytywane z bazy przy każdym żądaniu -- blokada konta działa natychmiast, a niezatwierdzony nauczyciel dostaje \texttt{403 TEACHER\_NOT\_APPROVED}
     \item Hasła haszowane algorytmem bcrypt
-    \item Uprawnienia sprawdzane na serwerze; zasób niedostępny dla użytkownika zwraca 404, bez zdradzania jego istnienia
+    \item Uprawnienia sprawdzane na serwerze; zasób niedostępny dla użytkownika zwraca 404, bez zdradzania jego istnienia; treść lekcji i quiz tylko dla ucznia przyjętego na kurs i z odblokowaną lekcją
     \item Wgrywane pliki: biała lista rozszerzeń (bez SVG i HTML), limit 50 MB, losowe nazwy na dysku
-    \item Ankieta i quiz wysyłane do klienta bez klucza odpowiedzi; punkty i wynik liczy serwer
+    \item Ankieta i quiz wysyłane do klienta bez klucza odpowiedzi; zestaw pytań zapisany na serwerze, punkty i wynik liczy serwer
     \item CORS tylko dla adresu klienta, sekrety wyłącznie w plikach \texttt{.env} poza repozytorium
 \end{itemize}
 
@@ -75,5 +87,6 @@ Wszystkie wykorzystane technologie są dostępne na licencjach otwartych, pozwal
 \begin{itemize}[leftmargin=*]
     \item Next.js, React, Tailwind CSS, shadcn/ui, TanStack Query, TipTap, KaTeX -- MIT License
     \item FastAPI, SQLAlchemy, Alembic, Pydantic, pytest -- MIT License
+    \item Playwright -- Apache License 2.0
     \item PostgreSQL -- PostgreSQL License (podobna do MIT)
 \end{itemize}

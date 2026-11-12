@@ -1,0 +1,40 @@
+% Use case diagram (plain TikZ)
+\begin{tikzpicture}[font=\footnotesize]
+    % System boundary
+    \draw[sysbox] (2.2,0.95) rectangle (13.1,-11.5);
+    \node[anchor=north, font=\small\bfseries] at (7.65,0.9) {System IMSU};
+
+    % Student side
+    \node[usecase] (uc1) at (4.75,-0.35) {UC-01 Rejestracja};
+    \node[usecase] (uc2) at (4.75,-1.65) {UC-02 Logowanie};
+    \node[usecase] (uc3) at (4.75,-2.95) {UC-03 Ankieta VAK\\(raz, remis $\to$ wybór)};
+    \node[usecase] (uc4) at (4.75,-4.25) {UC-04 Katalog\\i prośba o zapis};
+    \node[usecase] (uc5) at (4.75,-5.55) {UC-05 Nauka\\z lekcji};
+    \node[usecase] (uc6) at (4.75,-6.85) {UC-06 Quiz z puli};
+    \node[usecase, fill=black!6] (ad) at (4.75,-8.4) {Adaptacja profilu\\(reguły R2--R7)};
+    \node[usecase] (uc7) at (4.75,-9.7) {UC-07 Zarządzanie\\stylem};
+    \node[usecase] (uc8) at (4.75,-10.95) {UC-08 Moje postępy};
+
+    % Teacher and administrator side
+    \node[usecase] (uc9)  at (10.55,-0.95) {UC-09 Edycja kursu};
+    \node[usecase] (uc10) at (10.55,-2.25) {UC-10 Edycja lekcji\\(3 wersje, pula)};
+    \node[usecase] (uc11) at (10.55,-3.55) {UC-11 Przyjmowanie\\próśb o zapis};
+    \node[usecase] (uc12) at (10.55,-4.85) {UC-12 Panel kursu\\i szczegóły ucznia};
+    \node[usecase] (uc13) at (10.55,-8.4) {UC-13 Zatwierdzanie\\nauczycieli};
+    \node[usecase] (uc14) at (10.55,-9.7) {UC-14 Zarządzanie\\kontami};
+
+    % Actors
+    \umlactor{guest}{0.75,-1.2}{Gość}
+    \umlactor{student}{0.75,-6.6}{Uczeń}
+    \umlactor{teacher}{14.45,-3.1}{Nauczyciel}
+    \umlactor{admin}{14.45,-9.25}{Administrator}
+
+    % Associations
+    \foreach \uc in {uc1,uc2} \draw (guest r) -- (\uc.west);
+    \foreach \uc in {uc3,uc4,uc5,uc6,uc7,uc8} \draw (student r) -- (\uc.west);
+    \foreach \uc in {uc9,uc10,uc11,uc12} \draw (teacher l) -- (\uc.east);
+    \foreach \uc in {uc13,uc14} \draw (admin l) -- (\uc.east);
+
+    % Include
+    \draw[dep] (uc6.south) -- node[right, font=\scriptsize] {«include»} (ad.north);
+\end{tikzpicture}

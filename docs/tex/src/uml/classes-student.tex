@@ -1,0 +1,133 @@
+% Class diagram 3: student model and decision log (learning_style)
+\begin{tikzpicture}[font=\scriptsize]
+    % Top row
+    \begin{class}[text width=3.45cm]{SurveyResult}{0,0}
+        \attr{id : int}
+        \attr{user\_id : int}
+        \attr{points\_v : int}
+        \attr{points\_a : int}
+        \attr{points\_k : int}
+        \attr{dominant\_style : str}
+        \attr{created\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=3.45cm]{LearningProfile}{4.05,0}
+        \attr{user\_id : int \{PK\}}
+        \attr{style : V | A | K ?}
+        \attr{style\_source : str}
+        \attr{percent\_v : int}
+        \attr{percent\_a : int}
+        \attr{percent\_k : int}
+        \attr{updated\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=3.45cm]{StyleHistory}{8.1,0}
+        \attr{id : int}
+        \attr{user\_id : int}
+        \attr{percent\_v : int}
+        \attr{percent\_a : int}
+        \attr{percent\_k : int}
+        \attr{style : V | A | K ?}
+        \attr{event\_id : int?}
+        \attr{created\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=3.45cm]{DecisionEvent}{12.15,0}
+        \attr{id : int}
+        \attr{user\_id : int}
+        \attr{type : str}
+        \attr{course\_id : int?}
+        \attr{lesson\_id : int?}
+        \attr{data : JSON}
+        \attr{created\_at : datetime}
+    \end{class}
+
+    % The student: every class above and below refers to it
+    \node[draw, fill=white, minimum height=0.6cm, text width=15.5cm, align=center,
+          font=\scriptsize\bfseries] (User) at (6.075,-4.25) {User};
+
+    % Bottom row
+    \begin{class}[text width=3.45cm]{QuizResult}{0,-5.25}
+        \attr{id : int}
+        \attr{user\_id : int}
+        \attr{course\_id : int}
+        \attr{lesson\_id : int}
+        \attr{draw\_id : int?}
+        \attr{form : V | A | K}
+        \attr{percent : int}
+        \attr{passed : bool}
+        \attr{counted : bool}
+        \attr{created\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=3.45cm]{LessonForm}{4.05,-5.25}
+        \attr{user\_id : int \{PK\}}
+        \attr{lesson\_id : int \{PK\}}
+        \attr{form : V | A | K}
+        \attr{updated\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=3.6cm]{StyleProposal}{8.1,-5.25}
+        \attr{id : int}
+        \attr{user\_id : int}
+        \attr{kind : str}
+        \attr{from\_style : str}
+        \attr{to\_style : str}
+        \attr{evidence : JSON}
+        \attr{status : str}
+        \attr{counted\_at\_decision : int?}
+        \attr{created\_at : datetime}
+        \attr{decided\_at : datetime?}
+    \end{class}
+
+    \begin{class}[text width=3.45cm]{StyleTrial}{12.15,-5.25}
+        \attr{id : int}
+        \attr{user\_id : int}
+        \attr{from\_style : str}
+        \attr{to\_style : str}
+        \attr{source : str}
+        \attr{before\_average : int?}
+        \attr{after\_average : int?}
+        \attr{result : str?}
+        \attr{started\_at : datetime}
+        \attr{finished\_at : datetime?}
+    \end{class}
+
+    % Survey catalogue
+    \begin{class}[text width=3.45cm]{SurveyQuestion}{0,-10.1}
+        \attr{id : int}
+        \attr{text : str}
+        \attr{position : int}
+        \attr{is\_active : bool}
+    \end{class}
+
+    \begin{class}[text width=3.45cm]{SurveyAnswer}{5.4,-10.1}
+        \attr{id : int}
+        \attr{question\_id : int}
+        \attr{text : str}
+        \attr{style : V | A | K}
+        \attr{position : int}
+    \end{class}
+
+    % Associations with User
+    \foreach \cls/\m in {SurveyResult/*, LearningProfile/0..1, StyleHistory/*, DecisionEvent/*} {
+        \draw (\cls.south) -- (\cls.south |- User.north);
+        \node[mult, below right] at (\cls.south) {\m};
+        \node[mult, above right] at (\cls.south |- User.north) {1};
+    }
+    \foreach \cls in {QuizResult, LessonForm, StyleProposal, StyleTrial} {
+        \draw (\cls.north) -- (\cls.north |- User.south);
+        \node[mult, above right] at (\cls.north) {*};
+        \node[mult, below right] at (\cls.north |- User.south) {1};
+    }
+
+    % StyleHistory ..> DecisionEvent (event_id)
+    \coordinate (r1) at (0,-1.0);
+    \draw[dep] (StyleHistory.east |- r1) -- (DecisionEvent.west |- r1);
+
+    % SurveyQuestion - SurveyAnswer
+    \coordinate (r2) at (0,-11.0);
+    \draw[comp] (SurveyQuestion.east |- r2) -- (SurveyAnswer.west |- r2);
+    \node[mult, below right] at ($(SurveyQuestion.east |- r2)+(0.25,0)$) {1};
+    \node[mult, below left] at (SurveyAnswer.west |- r2) {3};
+\end{tikzpicture}

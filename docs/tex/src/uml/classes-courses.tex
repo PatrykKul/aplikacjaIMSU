@@ -1,0 +1,84 @@
+% Class diagram 1: accounts, courses, enrollments (identity, curriculum)
+\begin{tikzpicture}[font=\scriptsize]
+    \begin{class}[text width=4.5cm]{User}{0,0}
+        \attr{id : int}
+        \attr{email : str}
+        \attr{password\_hash : str}
+        \attr{display\_name : str}
+        \attr{role : UserRole}
+        \attr{approval\_status : ApprovalStatus}
+        \attr{is\_active : bool}
+        \attr{created\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=3.7cm]{Enrollment}{5.6,0}
+        \attr{id : int}
+        \attr{course\_id : int}
+        \attr{student\_id : int}
+        \attr{status : EnrollmentStatus}
+        \attr{requested\_at : datetime}
+        \attr{decided\_at : datetime?}
+    \end{class}
+
+    \begin{class}[text width=3.7cm]{Course}{10.95,0}
+        \attr{id : int}
+        \attr{owner\_id : int}
+        \attr{title : str}
+        \attr{description : str}
+        \attr{introduction : JSON?}
+        \attr{summary : JSON?}
+        \attr{is\_published : bool}
+        \attr{is\_archived : bool}
+        \attr{created\_at : datetime}
+        \attr{updated\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=3.7cm]{LessonCompletion}{5.6,-5.7}
+        \attr{user\_id : int}
+        \attr{lesson\_id : int}
+        \attr{passed\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=3.7cm]{Lesson}{10.95,-5.7}
+        \attr{id : int}
+        \attr{course\_id : int}
+        \attr{title : str}
+        \attr{position : int}
+        \attr{outline : JSON?}
+        \attr{conclusions : JSON?}
+        \attr{is\_published : bool}
+        \attr{is\_archived : bool}
+        \attr{created\_at : datetime}
+        \attr{updated\_at : datetime}
+    \end{class}
+
+    % User - Enrollment - Course (student)
+    \coordinate (r1) at (0,-1.3);
+    \draw (User.east |- r1) -- node[rolelabel, below] {uczeń} (Enrollment.west |- r1);
+    \node[mult, above right] at (User.east |- r1) {1};
+    \node[mult, above left] at (Enrollment.west |- r1) {*};
+    \draw (Enrollment.east |- r1) -- (Course.west |- r1);
+    \node[mult, above right] at (Enrollment.east |- r1) {*};
+    \node[mult, above left] at (Course.west |- r1) {1};
+
+    % User - Course (owner)
+    \draw (User.north) -- ++(0,0.45) -| node[rolelabel, above, pos=0.25] {autor (owner\_id)} (Course.north);
+    \node[mult, above right] at (User.north) {1};
+    \node[mult, above right] at (Course.north) {*};
+
+    % Course - Lesson (composition)
+    \draw[comp] (Course.south) -- (Lesson.north);
+    \node[mult, right=1.5mm] at ($(Course.south)+(0,-0.25)$) {1};
+    \node[mult, above right] at (Lesson.north) {*};
+
+    % LessonCompletion - Lesson
+    \coordinate (r2) at (0,-6.6);
+    \draw (LessonCompletion.east |- r2) -- (Lesson.west |- r2);
+    \node[mult, above right] at (LessonCompletion.east |- r2) {*};
+    \node[mult, above left] at (Lesson.west |- r2) {1};
+
+    % User - LessonCompletion
+    \draw (User.south) |- node[rolelabel, above, pos=0.75] {zaliczenia} (LessonCompletion.west);
+    \node[mult, below right] at (User.south) {1};
+    \node[mult, below left] at (LessonCompletion.west) {*};
+\end{tikzpicture}

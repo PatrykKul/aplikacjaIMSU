@@ -14,6 +14,45 @@
 \usepackage{fontawesome5}
 \usepackage{longtable}
 \usepackage{booktabs}
+\usepackage{amsmath}
+% Long code names (with _ and /) may break at line ends
+\DeclareRobustCommand{\_}{\textunderscore\allowbreak}
+\setlength{\emergencystretch}{2em}
+\lstset{basicstyle=\ttfamily\small, columns=fullflexible, breaklines=true}
+
+% UML diagrams drawn in LaTeX (TikZ, pgf-umlcd, pgf-umlsd)
+\usepackage{tikz}
+\usetikzlibrary{positioning,calc,shapes.geometric,arrows.meta,babel}
+\usepackage[simplified]{pgf-umlcd}
+\usepackage[underline=false]{pgf-umlsd}
+\renewcommand{\umldrawcolor}{black}
+\renewcommand{\umlfillcolor}{white}
+\renewcommand{\umltextcolor}{black}
+\tikzset{
+    umlcd style class/.append style={align=left, inner sep=3pt},
+    every picture/.append style={execute at begin picture={\hbadness=10000}},
+    usecase/.style={ellipse, draw, minimum width=4.6cm, minimum height=1.05cm,
+        align=center, inner sep=1.5pt, font=\footnotesize},
+    sysbox/.style={draw, rectangle, inner sep=0pt},
+    mult/.style={font=\scriptsize, inner sep=1.5pt},
+    rolelabel/.style={font=\scriptsize\itshape, inner sep=1.5pt},
+    dep/.style={dashed, -{Straight Barb[length=2mm]}},
+    comp/.style={{Diamond[fill=black,length=3mm,width=2mm]}-},
+}
+% One class attribute per line, never broken
+\newcommand{\attr}[1]{\attribute{\mbox{#1}}}
+% Stick figure of a UML actor: \umlactor{name}{position}{label};
+% lines start at the hands: (name r) and (name l)
+\newcommand{\umlactor}[3]{%
+    \begin{scope}[shift={(#2)}]
+        \draw (0,0.62) circle (0.17);
+        \draw (0,0.45) -- (0,-0.05) (-0.3,0.27) -- (0.3,0.27)
+              (0,-0.05) -- (-0.22,-0.45) (0,-0.05) -- (0.22,-0.45);
+        \node[below, font=\footnotesize, align=center] at (0,-0.45) {#3};
+        \coordinate (#1 r) at (0.3,0.27);
+        \coordinate (#1 l) at (-0.3,0.27);
+    \end{scope}%
+}
 
 \geometry{
     a4paper,

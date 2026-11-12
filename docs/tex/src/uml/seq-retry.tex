@@ -1,0 +1,33 @@
+% Sequence diagram 2: failed quiz -> suggestion -> the lesson in another form (R2, R5, R9)
+\begin{sequencediagram}
+    \scriptsize
+    \def\unitfactor{0.72}
+    \newthread{k}{Uczeń (klient)}
+    \newinst[2.6]{as}{\texttt{assessment}}
+    \newinst[1.9]{ls}{\texttt{learning\_style}}
+    \newinst[3.1]{db}{Baza danych}
+
+    \begin{call}{k}{\texttt{GET /lessons/\{id\}/quiz}}{as}{5 z 8 pytań}
+    \end{call}
+
+    \begin{call}{k}{\texttt{POST .../quiz/attempts}}{as}{40\%, wyjaśnienia}
+        \begin{callself}{as}{ocena: 2 z 5}{}
+        \end{callself}
+        \begin{call}{as}{\texttt{record\_quiz\_result}}{ls}{\texttt{QuizFeedback}}
+            \begin{callself}{ls}{R2: V 45 $\to$ 35, A 47, K 18}{}
+            \end{callself}
+            \begin{callself}{ls}{R5: sugestia A (ankieta 40\%)}{}
+            \end{callself}
+            \begin{call}{ls}{wynik, profil, zdarzenia}{db}{commit}
+            \end{call}
+        \end{call}
+    \end{call}
+
+    \begin{call}{k}{\texttt{PUT .../study/form} (A)}{ls}{wersja A lekcji}
+        \begin{call}{ls}{wybór formy, zdarzenie}{db}{commit}
+        \end{call}
+    \end{call}
+
+    \begin{call}{k}{\texttt{GET /lessons/\{id\}/quiz}}{as}{nowy zestaw (R9)}
+    \end{call}
+\end{sequencediagram}

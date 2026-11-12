@@ -2,7 +2,7 @@
 
 ## Etapy
 
-Termin: **koniec listopada 2026**. Daty orientacyjne. Koncepcja: `02-koncepcja.md`. Plan zmieniony 10.11: etap 4 kolegi (styl uczenia się i quizy) zastąpił dawne etapy 5–8, a dostęp do kursów przybrał formę klas. Tabela jest jedynym zapisem historii etapów w dokumentacji; opis wyników — w `moduly/`, szczegóły — w historii gita.
+Termin: **koniec listopada 2026**. Daty orientacyjne. Koncepcja: `02-koncepcja.md`. Plan zmieniony 10.11: etap 4 kolegi (styl uczenia się i quizy) zastąpił dawne etapy 5–8, a dostęp do kursów przybrał formę klas. 12.11: etap 9 (v3) przebudował adaptację, zastąpił klasy zapisami na kurs i wyprzedził etap 8. Tabela jest jedynym zapisem historii etapów w dokumentacji; opis wyników — w `moduly/`, szczegóły — w historii gita.
 
 | # | Etap | Zakres | Moduły | Plan | Status |
 |---|---|---|---|---|---|
@@ -14,9 +14,10 @@ Termin: **koniec listopada 2026**. Daty orientacyjne. Koncepcja: `02-koncepcja.m
 | 5 | Poprawki stylu i quizów | poprawki po przeglądzie etapu 4; materiały innych stylów **zwinięte** zamiast ukrytych, zapis rozwinięć i styl efektywny w adaptacji i quizie; kontrolki shadcn | `learning_style`, `assessment`, frontend | 10–12.11 | **zrobione** 10.11 |
 | 6 | Klasy i dostęp do kursów | klasy nauczyciela (uczniowie z wyszukiwaniem po e-mailu, przypisane kursy), dostęp ucznia do kursów swoich klas, katalog kursów opublikowanych, „Moje klasy” ucznia, klasa demo; administrator bez klas (O6 odroczona) | `curriculum`, `identity`, `demo`, frontend | 13–18.11 | **zrobione** 11.11 |
 | 7 | Wygląd | paleta (indygo, informacja zwrotna, kolory form V / A / K), ikony stanów pustych i błędów, logo, strona startowa, dashboard i ścieżka kursu, kafelki ról na `RadioGroup` | frontend | 19–22.11 | **zrobione** 11.11 |
-| 8 | Dokumentacja i pokaz | dokumentacja do oddania, kopia danych demo, scenariusz prezentacji | docs | 23–27.11 | **następny** |
+| 9 | **v3: przebudowa adaptacji** | jeden styl naraz i profil procentowy; lekcja w trzech wersjach V / A / K z pulą pytań; reguły R1–R11 (sugestia „przerób w formie X”, propozycja zmiany stylu tylko dla formy potwierdzonej, okres próbny, podpowiedź z kursu, blokada kolejności, gotowość lekcji); dziennik decyzji; statystyki ucznia i panel kursu; zapisy na kurs zamiast klas; zatwierdzanie nauczycieli; nowe dane demo 3 × 4 lekcje i scenariusz pokazu | wszystkie, nowy `authoring`, frontend, `demo` | 12.11 | **zrobione** 12.11 (gałąź `feat/v3-adaptacja`, czeka na merge) |
+| 8 | Dokumentacja i pokaz | dokumentacja do oddania, kopia danych demo, scenariusz prezentacji (dokumentacja i scenariusz zaktualizowane w etapie 9) | docs | 23–27.11 | **następny** |
 | — | Zapas | poprawki | | 28–30.11 | |
-| 9 | Opcjonalne (O3, O5) | baza pytań z losowaniem, panel nauczyciela ze stylami uczniów, powtórka w innym stylu, test końcowy, mentor | | jeśli starczy czasu | — |
+| 10 | Opcjonalne (O3) | test końcowy kursu, mentor, powtórki (baza pytań, panel nauczyciela i powtórka w innej formie — zrobione w etapie 9) | | jeśli starczy czasu | — |
 
 Minimum na zaliczenie: etapy 0–6 i 8.
 

@@ -4,20 +4,22 @@
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\linewidth]{images/use-cases.png}
+    \input{uml/use-cases}
     \caption{Diagram przypadków użycia systemu}
 \end{figure}
+
+Wariant ,,Adaptacja profilu'' nie ma własnego aktora: wykonuje go serwer przy każdym wysłaniu quizu (reguły R2--R7, rozdział~\ref{sec:rules}).
 
 \subsection{Opisy tekstowe aktorów}
 
 \begin{itemize}[leftmargin=*]
     \item \textbf{Gość} -- osoba niezalogowana. Widzi stronę startową z opisem systemu, może założyć konto (jako uczeń albo nauczyciel) lub zalogować się.
 
-    \item \textbf{Uczeń} -- zalogowany użytkownik, który się uczy. Przed rozpoczęciem nauki musi wypełnić ankietę VAK. Ma dostęp do kursów opublikowanych oraz kursów przypisanych do jego klas, uczy się z lekcji dopasowanych do swojego stylu, rozwiązuje quizy i zarządza swoim stylem uczenia się.
+    \item \textbf{Uczeń} -- zalogowany użytkownik, który się uczy. Przed rozpoczęciem nauki wypełnia raz ankietę VAK (przy remisie wybiera jeden styl). Prosi o zapis na kursy z katalogu, uczy się z lekcji w formie swojego stylu, rozwiązuje quizy, decyduje o propozycjach zmiany stylu i ogląda swoje postępy oraz dziennik decyzji.
 
-    \item \textbf{Nauczyciel} -- tworzy i edytuje własne kursy, lekcje, materiały i quizy, publikuje kursy oraz prowadzi klasy, do których dodaje uczniów i przypisuje kursy.
+    \item \textbf{Nauczyciel} -- tworzy kursy i lekcje (trzy wersje, pula pytań), publikuje je, przyjmuje prośby o zapis i śledzi wyniki uczniów w panelu kursu. Konto nauczyciela założone przez rejestrację \textbf{wymaga zatwierdzenia} przez administratora; do tego czasu nauczyciel widzi tylko ekran ,,Konto czeka na zatwierdzenie'', a serwer odrzuca jego żądania kodem \texttt{403 TEACHER\_NOT\_APPROVED}.
 
-    \item \textbf{Administrator} -- zarządza kontami nauczycieli i uczniów: tworzy je, edytuje i blokuje. Konto administratora tworzy się poleceniem w konsoli, nie przez rejestrację.
+    \item \textbf{Administrator} -- zatwierdza albo odrzuca konta nauczycieli oraz zarządza kontami nauczycieli i uczniów: tworzy je, edytuje i blokuje. Konto administratora tworzy się poleceniem w konsoli, nie przez rejestrację.
 \end{itemize}
 
 \subsection{Opisy tekstowe wariantów użycia}
@@ -32,7 +34,7 @@
     \item Gość klika ,,Załóż konto'' na stronie startowej
     \item Gość wybiera rolę (Uczeń / Nauczyciel), podaje imię, e-mail i hasło (min. 8 znaków)
     \item System sprawdza dane i unikalność adresu e-mail
-    \item System tworzy konto, rozpoczyna sesję i przekierowuje do panelu użytkownika
+    \item System tworzy konto i rozpoczyna sesję; konto ucznia jest od razu aktywne, konto nauczyciela dostaje stan \texttt{pending} (czeka na zatwierdzenie, UC-13)
 \end{enumerate}
 
 \subsubsection{Logowanie}
@@ -44,163 +46,205 @@
 \begin{enumerate}[leftmargin=*]
     \item Gość klika ,,Zaloguj się'' i podaje e-mail oraz hasło
     \item System weryfikuje dane oraz to, czy konto nie jest zablokowane
-    \item System zapisuje sesję w ciasteczku i przekierowuje do panelu użytkownika
+    \item System zapisuje sesję w ciasteczku i przekierowuje do panelu użytkownika; uczeń bez ankiety trafia na ankietę, nauczyciel niezatwierdzony -- na ekran oczekiwania (albo odrzucenia)
 \end{enumerate}
 
 \subsubsection{Wypełnienie ankiety VAK}
 \textbf{Numer:} UC-03 \quad \textbf{Aktor:} Uczeń
 
-\textbf{Krótki opis:} Ankieta wyznacza styl uczenia się ucznia i startowe wagi form V, A, K. Uczeń bez ankiety jest na nią kierowany z każdej strony systemu.
+\textbf{Krótki opis:} Ankieta wyznacza jeden styl ucznia i startowy profil procentowy V / A / K (reguła R1). Ankietę wypełnia się raz -- potem procenty zmieniają tylko wyniki quizów.
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
-    \item System przekierowuje ucznia bez ankiety na stronę ankiety
-    \item Uczeń odpowiada na 20 pytań (każda odpowiedź odpowiada jednej formie)
-    \item System zlicza punkty V, A, K i wyznacza styl (forma lub formy z największą liczbą punktów)
-    \item System zapisuje wynik oraz profil ucznia i wyświetla styl z punktami na wykresie
+    \item System przekierowuje ucznia bez ankiety na stronę ankiety (kursy i lekcje zwracają \texttt{403 SURVEY\_REQUIRED})
+    \item Uczeń odpowiada na 20 pytań (każda odpowiedź odpowiada jednej formie; klient nie zna przypisania)
+    \item Serwer zlicza punkty, zamienia je na procenty (np. A 11 / V 6 / K 3 $\to$ A 55 / V 30 / K 15) i wyznacza styl -- formę z największą liczbą punktów
+    \item System pokazuje procenty na paskach i styl
 \end{enumerate}
 
-\subsubsection{Przeglądanie kursów i klas}
+\textbf{Przepływ alternatywny -- remis:} kilka form ma tyle samo punktów; profil zostaje zapisany bez stylu, a uczeń wybiera jeden z remisujących stylów (,,Wybieram ten styl''). Do tego wyboru kursy są niedostępne. Ponowne wysłanie ankiety zwraca \texttt{409 SURVEY\_ALREADY\_DONE}.
+
+\subsubsection{Katalog kursów i prośba o zapis}
 \textbf{Numer:} UC-04 \quad \textbf{Aktor:} Uczeń
 
-\textbf{Krótki opis:} Uczeń przegląda katalog kursów opublikowanych oraz swoje klasy z przypisanymi kursami.
+\textbf{Krótki opis:} Uczeń przegląda katalog kursów opublikowanych i prosi o zapis; treść kursu jest dostępna po przyjęciu prośby przez nauczyciela.
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
-    \item Uczeń wybiera ,,Kursy'' -- system wyświetla kursy opublikowane
-    \item Uczeń wybiera ,,Moje klasy'' -- system wyświetla klasy ucznia z nauczycielem i liczbą kursów
-    \item Uczeń otwiera kurs -- system wyświetla wstęp i listę lekcji
+    \item Uczeń wybiera ,,Kursy'' -- system wyświetla sekcję ,,Moje kursy'' (przyjęte, z postępem ,,2 z 4 lekcji'') i ,,Katalog'' (tytuł, opis, nauczyciel, liczba lekcji)
+    \item Uczeń klika ,,Zapisz się'' -- system zapisuje prośbę (\texttt{pending}) i pokazuje ,,Prośba wysłana -- czeka na nauczyciela''
+    \item Po przyjęciu prośby (UC-11) kurs przechodzi do ,,Moich kursów''; strona kursu pokazuje wstęp, ponumerowane lekcje z zarysami i stanem (zaliczona, dostępna, zablokowana) oraz podsumowanie
 \end{enumerate}
+
+\textbf{Przepływ alternatywny:} prośba odrzucona -- system pokazuje ,,Prośba odrzucona'' i przycisk ,,Poproś ponownie''. Uczeń przyjęty, który nie ma jeszcze wyników w kursie, widzi podpowiedź z wyników innych uczniów (reguła R8), np. ,,W tym kursie najlepiej wypada forma słuchowa (średnio 86\%, 3 uczniów)''.
 
 \subsubsection{Nauka z lekcji}
 \textbf{Numer:} UC-05 \quad \textbf{Aktor:} Uczeń
 
-\textbf{Krótki opis:} Uczeń otwiera lekcję podaną według swojego stylu i w razie potrzeby rozwija materiały innych stylów.
+\textbf{Krótki opis:} Uczeń otwiera lekcję w wersji odpowiadającej jego stylowi i w razie potrzeby przerabia ją w innej formie.
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
-    \item Uczeń otwiera lekcję z listy lekcji kursu
-    \item System wyświetla bloki w kolejności nauczyciela; załączniki form spoza stylu ucznia są zwinięte
-    \item System wyświetla uzasadnienie ,,dlaczego to widzisz'' i liczbę zwiniętych materiałów
-    \item Uczeń może kliknąć ,,Pokaż materiał'' -- system rozwija materiał i zapamiętuje jego formy w stylu efektywnym lekcji
+    \item Uczeń otwiera dostępną lekcję kursu, na który jest przyjęty
+    \item System wyświetla zarys, pasek ,,Przerabiasz tę lekcję w formie: Wzrokowej (V)'', wersję lekcji w tej formie, wnioski i sekcję ,,Sprawdź się''
+    \item Uczeń może wybrać ,,Przerób tę lekcję w innej formie'' -- system zapisuje wybór formy tylko dla tej lekcji, pokazuje inną wersję i zapisuje zdarzenie w dzienniku; styl ucznia się nie zmienia
 \end{enumerate}
 
-\subsubsection{Rozwiązanie quizu}
+\textbf{Przepływ alternatywny -- blokada kolejności:} lekcja $n+1$ jest dostępna dopiero po zaliczeniu quizu lekcji $n$ (reguła R10). Otwarcie zablokowanej lekcji kończy się kodem \texttt{403 LESSON\_LOCKED} z numerem wymaganej lekcji, a klient pokazuje kłódkę i link ,,Najpierw zalicz lekcję $n$''.
+
+\subsubsection{Rozwiązanie quizu z puli}
 \textbf{Numer:} UC-06 \quad \textbf{Aktor:} Uczeń
 
-\textbf{Krótki opis:} Uczeń rozwiązuje quiz na końcu lekcji; system ocenia wynik i aktualizuje wagi stylu ($<<$include$>>$ Aktualizacja wag stylu).
+\textbf{Krótki opis:} Uczeń rozwiązuje 5 pytań wylosowanych z puli lekcji; serwer ocenia odpowiedzi i aktualizuje model ucznia ($<<$include$>>$ Adaptacja profilu).
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
-    \item System wyświetla pytania wspólne i pytania o materiały form stylu efektywnego
-    \item Uczeń zaznacza odpowiedzi i klika ,,Sprawdź odpowiedzi''
-    \item System ocenia odpowiedzi; wynik co najmniej 70\% oznacza zaliczenie
-    \item System aktualizuje wagi form (pierwszy sukces i pierwsza porażka w lekcji)
-    \item System wyświetla poprawne odpowiedzi, wynik i informację o zmianie wag
+    \item Serwer losuje 5 pytań z puli (przy powtórce najpierw pytania spoza poprzedniego zestawu -- R9) i zapisuje zestaw; klient dostaje pytania bez klucza
+    \item Uczeń zaznacza odpowiedzi i klika ,,Sprawdź''
+    \item Serwer ocenia odpowiedzi wobec zapisanego zestawu; wynik co najmniej 70\% (4 z 5) oznacza zaliczenie
+    \item Serwer wykonuje kroki adaptacji (R2--R7): zmiana procentów, odblokowanie następnej lekcji, pochwała, sugestia, okres próbny, propozycja
+    \item System wyświetla wynik, przy każdym pytaniu wybraną i poprawną odpowiedź z \textbf{wyjaśnieniem} oraz ,,Co to zmieniło'', np. ,,Słuchowe 47\% $\to$ 57\% · Lekcja 4 odblokowana''
 \end{enumerate}
+
+\textbf{Przepływy alternatywne:}
+\begin{itemize}[leftmargin=*]
+    \item Quiz niezaliczony -- ramka sugestii z uzasadnieniem i przyciskiem ,,Przerób tę lekcję w formie X'' (R5) oraz ,,Rozwiąż jeszcze raz'' (nowe losowanie)
+    \item Kolejne podejście w tej samej formie -- ,,To kolejne podejście w tej formie -- procenty bez zmian''; zaliczenie odblokowuje jednak następną lekcję
+    \item Forma potwierdzona wynikami ma wyższy procent niż styl -- baner propozycji zmiany stylu (UC-07)
+\end{itemize}
 
 \subsubsection{Zarządzanie stylem}
 \textbf{Numer:} UC-07 \quad \textbf{Aktor:} Uczeń
 
-\textbf{Krótki opis:} Uczeń przegląda swój styl i wagi, zmienia styl ręcznie lub odpowiada na propozycję zmiany stylu.
+\textbf{Krótki opis:} Uczeń przegląda swój styl i profil, odpowiada na propozycje zmiany stylu i może zmienić styl ręcznie.
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
-    \item Uczeń wybiera ,,Mój styl'' -- system wyświetla styl, jego źródło, wagi i historię ankiet
-    \item Jeśli system ma propozycję, wyświetla baner z uzasadnieniem
-    \item Uczeń klika ,,Przełącz'' (styl zmienia się na proponowany) albo ,,Zostaję przy swoim''
-    \item Uczeń może też ręcznie wybrać styl, wrócić do stylu z ankiety lub wypełnić ankietę ponownie
+    \item Uczeń wybiera ,,Mój styl'' -- system wyświetla aktywny styl i jego źródło, procenty V / A / K z opisem przy każdej formie (,,potwierdzona wynikami (2 lekcje, średnio 88\%)'' albo ,,tylko z ankiety'') i wynik ankiety
+    \item Jeśli jest otwarta propozycja, system pokazuje ją z dowodem, np. ,,Wzrokowe: 3 lekcje, średnio 53\% · Słuchowe: 1 lekcja, średnio 80\%''
+    \item Uczeń klika ,,Przełącz na stałe'' -- styl się zmienia, wybory formy w niezaliczonych lekcjach są czyszczone, zaczyna się \textbf{okres próbny} 2 lekcji (R7); albo ,,Zostaję przy swoim'' -- propozycja tej samej formy wraca najwcześniej po 2 nowych policzonych wynikach
+    \item Po okresie próbnym system pokazuje jego wynik, np. ,,Zmiana pomogła: średnia 40\% $\to$ 90\%''
 \end{enumerate}
 
-\subsubsection{Zarządzanie kursami}
-\textbf{Numer:} UC-08 \quad \textbf{Aktor:} Nauczyciel
+\textbf{Przepływ alternatywny -- ręczna zmiana:} uczeń wybiera inny styl i potwierdza w oknie (,,Procenty się nie zmienią, zmiana trafi do dziennika''). Otwarta propozycja dostaje stan \texttt{superseded}, zaczyna się okres próbny.
 
-\textbf{Krótki opis:} Nauczyciel tworzy i edytuje swoje kursy i lekcje oraz decyduje o publikacji.
+\subsubsection{Moje postępy}
+\textbf{Numer:} UC-08 \quad \textbf{Aktor:} Uczeń
+
+\textbf{Krótki opis:} Uczeń ogląda historię swojego profilu, postęp kursów, wyniki lekcji i dziennik decyzji.
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
-    \item Nauczyciel wybiera ,,Moje kursy'' i klika ,,Nowy kurs''
-    \item Nauczyciel podaje tytuł i opis; system tworzy kurs prywatny
-    \item Nauczyciel uzupełnia wstęp, dodaje lekcje i ustala ich kolejność
-    \item Nauczyciel publikuje kurs -- kurs pojawia się w katalogu uczniów
+    \item Uczeń wybiera ,,Moje postępy''
+    \item System wyświetla wykres procentów V / A / K w czasie (z tabelą tych samych danych), postęp kursów (,,następna: Lekcja 3'') i tabelę wyników lekcji z formą każdego podejścia (pierwsze policzone wyróżnione)
+    \item System wyświetla dziennik decyzji od najnowszej: data, zdanie złożone z kodu i liczb zdarzenia, kurs i lekcja
+\end{enumerate}
+
+\subsubsection{Edycja kursu}
+\textbf{Numer:} UC-09 \quad \textbf{Aktor:} Nauczyciel
+
+\textbf{Krótki opis:} Nauczyciel tworzy i edytuje swoje kursy oraz decyduje o ich publikacji.
+
+\textbf{Główny przepływ zdarzeń:}
+\begin{enumerate}[leftmargin=*]
+    \item Nauczyciel wybiera ,,Moje kursy'' i klika ,,Nowy kurs''; podaje tytuł i opis -- system tworzy kurs prywatny
+    \item Nauczyciel uzupełnia wstęp oraz ,,Podsumowanie i wnioski'', dodaje lekcje i ustala ich kolejność
+    \item Nauczyciel publikuje kurs -- kurs pojawia się w katalogu uczniów; kursu bez opublikowanej lekcji nie da się opublikować (\texttt{409 COURSE\_HAS\_NO\_PUBLISHED\_LESSONS})
 \end{enumerate}
 
 \subsubsection{Edycja lekcji}
-\textbf{Numer:} UC-09 \quad \textbf{Aktor:} Nauczyciel
-
-\textbf{Krótki opis:} Nauczyciel układa treść lekcji z bloków tekstu i załączników oznaczonych formami V, A, K.
-
-\textbf{Główny przepływ zdarzeń:}
-\begin{enumerate}[leftmargin=*]
-    \item Nauczyciel otwiera lekcję w edytorze
-    \item Nauczyciel dodaje blok tekstu (,,+ Tekst'') lub załącznik (,,+ Załącznik'')
-    \item Przy załączniku wybiera typ, wgrywa plik lub podaje adres, wpisuje tytuł i zaznacza formy V/A/K
-    \item Nauczyciel zmienia kolejność bloków i klika ,,Zapisz lekcję''
-    \item System sprawdza poprawność bloków i plików oraz zapisuje lekcję
-\end{enumerate}
-
-\subsubsection{Edycja quizu}
 \textbf{Numer:} UC-10 \quad \textbf{Aktor:} Nauczyciel
 
-\textbf{Krótki opis:} Nauczyciel tworzy quiz na końcu lekcji.
+\textbf{Krótki opis:} Nauczyciel układa lekcję w trzech wersjach, tworzy pulę pytań i publikuje lekcję, gdy jest kompletna.
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
-    \item Nauczyciel w podglądzie lekcji klika ,,Dodaj quiz'' lub ,,Edytuj quiz''
-    \item Nauczyciel dodaje pytania (3--4 odpowiedzi, jedna poprawna) i wskazuje, czy pytanie dotyczy materiału formy V, A lub K
-    \item Nauczyciel klika ,,Zapisz quiz''; system sprawdza i zapisuje quiz
+    \item Nauczyciel otwiera lekcję w edytorze z zakładkami ,,Zarys i wnioski'', ,,Wzrokowa (V)'', ,,Słuchowa (A)'', ,,Kinestetyczna (K)'' i ,,Quiz (pula)''
+    \item W zakładce wersji dodaje bloki tekstu i załączniki (obraz, film, nagranie, PDF, link); edytor podpowiada, co wersja musi zawierać
+    \item W zakładce quizu dodaje pytania (3--4 odpowiedzi, jedna poprawna, wymagane wyjaśnienie); licznik pokazuje ,,8 pytań w puli (min. 5)''
+    \item Panel gotowości pokazuje listę braków (R11); gdy lekcja jest kompletna, nauczyciel klika ,,Opublikuj lekcję''
 \end{enumerate}
 
-\subsubsection{Zarządzanie klasami}
+\textbf{Przepływy alternatywne:} publikacja niekompletnej lekcji -- \texttt{409 LESSON\_NOT\_READY} z listą braków; zapis, który zrobiłby opublikowaną lekcję niekompletną -- \texttt{409 PUBLISHED\_LESSON\_INCOMPLETE}; wycofanie ostatniej opublikowanej lekcji opublikowanego kursu -- \texttt{409 LAST\_PUBLISHED\_LESSON}.
+
+\subsubsection{Przyjmowanie próśb o zapis}
 \textbf{Numer:} UC-11 \quad \textbf{Aktor:} Nauczyciel
 
-\textbf{Krótki opis:} Nauczyciel tworzy klasy, dodaje do nich uczniów i przypisuje kursy (także prywatne).
+\textbf{Krótki opis:} Autor kursu decyduje, którzy uczniowie mają dostęp do treści kursu.
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
-    \item Nauczyciel wybiera ,,Klasy'' i tworzy nową klasę
-    \item Nauczyciel klika ,,Dodaj ucznia'', wpisuje fragment e-maila i dodaje ucznia z wyników wyszukiwania
-    \item Nauczyciel klika ,,Przypisz kurs'' i wybiera swój kurs
-    \item Uczniowie klasy widzą przypisane kursy w ,,Moich klasach''
+    \item Nauczyciel widzi przy kursie liczbę próśb (,,2 prośby o zapis'') i otwiera ,,Panel kursu''
+    \item Sekcja ,,Prośby o zapis'' pokazuje imię, e-mail i datę prośby
+    \item Nauczyciel klika ,,Przyjmij'' albo ,,Odrzuć''; przyjęty uczeń zachowuje dostęp także po wycofaniu publikacji kursu
+\end{enumerate}
+
+\subsubsection{Panel kursu i szczegóły ucznia}
+\textbf{Numer:} UC-12 \quad \textbf{Aktor:} Nauczyciel
+
+\textbf{Krótki opis:} Nauczyciel śledzi wyniki uczniów swojego kursu i uzasadnienia decyzji systemu.
+
+\textbf{Główny przepływ zdarzeń:}
+\begin{enumerate}[leftmargin=*]
+    \item Nauczyciel otwiera ,,Panel kursu''
+    \item System wyświetla tabelę uczniów (styl, procenty, postęp, średnia, ostatnia aktywność, otwarta propozycja), \textbf{skuteczność form} (dla V / A / K: średnia policzonych wyników, liczba wyników, podejść i uczniów) oraz rozkład stylów
+    \item Nauczyciel klika ucznia -- system pokazuje jego profil, wykres procentów, wyniki lekcji tego kursu i dziennik decyzji
+\end{enumerate}
+
+\subsubsection{Zatwierdzanie nauczycieli}
+\textbf{Numer:} UC-13 \quad \textbf{Aktor:} Administrator
+
+\textbf{Krótki opis:} Administrator decyduje, czy konto nauczyciela z rejestracji może tworzyć kursy.
+
+\textbf{Główny przepływ zdarzeń:}
+\begin{enumerate}[leftmargin=*]
+    \item Administrator wybiera ,,Użytkownicy'', zakładkę ,,Nauczyciele'' i filtr ,,Czekające (n)''
+    \item Kolumna ,,Konto'' pokazuje stan tekstem: Zatwierdzone / Czeka na zatwierdzenie / Odrzucone
+    \item Administrator klika ,,Zatwierdź'' albo ,,Odrzuć'' (odrzucenie z potwierdzeniem); zatwierdzony nauczyciel widzi ,,Moje kursy''
 \end{enumerate}
 
 \subsubsection{Zarządzanie kontami}
-\textbf{Numer:} UC-12 \quad \textbf{Aktor:} Administrator
+\textbf{Numer:} UC-14 \quad \textbf{Aktor:} Administrator
 
 \textbf{Krótki opis:} Administrator zarządza kontami nauczycieli i uczniów.
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
     \item Administrator wybiera ,,Użytkownicy'' i zakładkę Nauczyciele lub Uczniowie
-    \item Administrator dodaje konto (imię, e-mail, hasło) lub edytuje istniejące
-    \item Administrator może zablokować konto -- zablokowany użytkownik nie zaloguje się
+    \item Administrator dodaje konto (imię, e-mail, hasło) lub edytuje istniejące; nauczyciel założony przez administratora jest od razu zatwierdzony
+    \item Administrator może zablokować konto -- zablokowany użytkownik nie zaloguje się, a jego sesja przestaje działać przy następnym żądaniu
 \end{enumerate}
 
 \subsection{Przykładowe diagramy sekwencji}
+
+Przykłady 2 i 3 to ścieżka ucznia demonstracyjnego Kuby (\texttt{uczen.demo@imsu.pl}) z kursu ,,Matematyka: funkcja liniowa'', lekcja 3 (rozdział~\ref{sec:rules-example}).
 
 \subsubsection{Przykład 1. Pierwsze logowanie ucznia i ankieta VAK}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\linewidth]{images/seq-survey.png}
+    \input{uml/seq-survey}
+    \caption{Pierwsze logowanie i ankieta z procentami}
 \end{figure}
 
-Uczeń bez wypełnionej ankiety loguje się do systemu. Klient pobiera profil ucznia, a ponieważ ankieta nie została wypełniona, przekierowuje ucznia na stronę ankiety. Pytania przychodzą bez informacji, której formie odpowiada dana odpowiedź -- punkty liczy serwer. Po wysłaniu odpowiedzi serwer wyznacza styl i wagi startowe, zapisuje wynik i profil, a uczeń widzi ekran z wynikiem.
+Uczeń bez ankiety loguje się do systemu. Klient pobiera profil, a ponieważ ankieta nie została wypełniona (\texttt{survey\_completed = false}), przekierowuje ucznia na stronę ankiety. Pytania przychodzą bez informacji, której formie odpowiada dana odpowiedź -- punkty liczy serwer. Funkcja \texttt{survey\_percentages} z \texttt{rules.py} zamienia punkty A 11 / V 6 / K 3 na A 55 / V 30 / K 15, a \texttt{survey\_leaders} wskazuje jedną formę z maksimum punktów, więc styl to A. Serwer zapisuje w jednej transakcji wynik ankiety, profil, pierwszy punkt historii procentów i zdarzenie \texttt{survey\_completed}. Przy remisie profil nie ma stylu, a uczeń wybiera jeden z remisujących stylów (\texttt{POST /profile/learning-style/tie-choice}).
 
-\subsubsection{Przykład 2. Lekcja dopasowana do stylu i rozwinięcie materiału}
+\subsubsection{Przykład 2. Niezaliczony quiz, sugestia i lekcja w innej formie}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\linewidth]{images/seq-lesson.png}
+    \input{uml/seq-retry}
+    \caption{Niezaliczony quiz $\to$ sugestia $\to$ przerobienie lekcji w innej formie}
 \end{figure}
 
-Serwer zwraca wszystkie bloki lekcji wraz z listą załączników do zwinięcia (tych, których żadna forma nie należy do stylu ucznia) oraz uzasadnieniem. Gdy uczeń rozwija zwinięty materiał, serwer zapisuje to zdarzenie, a formy materiału trafiają do stylu efektywnego lekcji. Klient pobiera quiz ponownie -- pojawia się w nim pytanie o materiał nowej formy.
+Kuba (styl V, profil V 45 / A 40 / K 15) dostaje 5 pytań wylosowanych z puli 8 i odpowiada poprawnie na 2. Moduł \texttt{assessment} ocenia zestaw zapisany na serwerze (40\%) i przekazuje wynik do \texttt{learning\_style.hooks.record\_quiz\_result}. To pierwsze podejście w formie V w tej lekcji, więc wynik jest policzony: V spada o 10 punktów, a A i K dzielą resztę proporcjonalnie -- V 35 / A 47 / K 18 (R2). Kuba nie ma zaliczonej formy innej niż V, więc sugestia (R5) wskazuje drugą formę z ankiety: A (40\%). Klient pokazuje wynik z wyjaśnieniami i ramkę sugestii. Po kliknięciu ,,Przerób tę lekcję w formie słuchowej'' serwer zapisuje wybór formy lekcji (\texttt{lesson\_forms}) i zdarzenie \texttt{lesson\_form\_changed}, a następne losowanie daje najpierw pytania spoza poprzedniego zestawu (R9).
 
-\subsubsection{Przykład 3. Rozwiązanie quizu i adaptacja}
+\subsubsection{Przykład 3. Zaliczony quiz, propozycja zmiany stylu i okres próbny}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.85\linewidth]{images/seq-quiz.png}
+    \input{uml/seq-proposal}
+    \caption{Zaliczony quiz $\to$ propozycja zmiany stylu $\to$ okres próbny}
 \end{figure}
 
-Moduł \texttt{assessment} ocenia odpowiedzi wyłącznie po stronie serwera i przekazuje wynik do modułu \texttt{learning\_style} przez jedną funkcję \texttt{record\_quiz\_result}. Moduł stylu sprawdza, czy próba liczy się do wag, zmienia wagi liter stylu efektywnego o $\pm 1$ i sprawdza, czy należy zaproponować zmianę stylu. Uczeń widzi wynik, poprawne odpowiedzi i informację o adaptacji.
+Kuba rozwiązuje quiz lekcji 3 w formie A na 80\%. Pierwsze podejście w formie A w tej lekcji jest policzone: A rośnie o 10 punktów -- V 28 / A 57 / K 15 (R2). Zaliczenie zapisuje \texttt{curriculum.mark\_lesson\_passed} i odblokowuje lekcję 4 (R10). Forma A ma teraz zaliczenie (jest potwierdzona wynikami, R3) i wyższy procent niż styl V (57 wobec 28), więc powstaje propozycja zmiany stylu V $\to$ A z dowodem ,,Wzrokowe: 3 lekcje, średnio 53\% · Słuchowe: 1 lekcja, średnio 80\%'' (R6). Wszystkie zapisy idą jednym \texttt{commit}. Po przyjęciu propozycji styl zmienia się na A, wybory formy w niezaliczonych lekcjach są czyszczone (u Kuby lista jest pusta -- lekcję 3 już zaliczył) i zaczyna się okres próbny ze średnią ,,przed'' 40\% (dwa ostatnie policzone wyniki w V: 40\% i 40\%). Po 2 policzonych wynikach w formie A serwer porównuje średnie (R7).

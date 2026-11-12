@@ -1,65 +1,82 @@
 # Moduł `content`
 
-Bloki lekcji (tekst i załączniki z formami V / A / K) oraz pliki. Decyzje: D12, D13, D23–D25, D27, D28.
+Trzy wersje lekcji (V / A / K) jako listy bloków (tekst, załączniki) oraz pliki. Decyzje: D12, D14, D23–D25, D28, D42, D49 (część wersji).
 
 ## Odpowiedzialność
-- Treść lekcji jako uporządkowana lista **bloków** zapisywana w całości.
+- Treść lekcji w **trzech wersjach**: jedna lista bloków na formę (`V` — tekst ze schematami / filmem, `A` — nagranie + opis, `K` — instrukcja + karta PDF), zapisywana w całości. Zarys i wnioski (wspólne dla wersji) są w `curriculum`.
+- Gotowość wersji do publikacji (R11, `readiness.py`) i ochrona opublikowanej lekcji przed utratą kompletności.
 - Pliki: wgrywanie, przechowywanie na dysku, wydawanie.
-- Dostęp sprawdza przez `curriculum.service.get_visible_lesson` / `get_owned_lesson`. Publiczny interfejs dla innych modułów: `service.get_blocks`, `service.save_blocks`, `service.save_upload`.
+- Dostęp przez `curriculum.service` (`get_visible_lesson`, `get_owned_lesson`). Interfejs dla innych modułów: `get_version(db, lesson_id, form)` (bloki gotowe do pokazania; dostęp sprawdza wołający — `learning_style` dla `/study`), `version_issues(db, lesson_id)` (dla `authoring`), `stored_versions`, `save_upload` (seed).
 
 ## Model danych
 
 | Tabela | Kolumny |
 |---|---|
-| `lesson_contents` | `id`, `lesson_id` (unikalny), `blocks` (JSONB), `updated_at` |
-| `files` | `id`, `owner_id` → `users`, `original_name`, `content_type`, `size`, `storage_name` (losowa, unikalna), `created_at` |
+| `lesson_contents` | `id`, `lesson_id` → `lessons`, `form` (`V` / `A` / `K`, `CHECK`), `blocks` (JSONB), `updated_at`; unikalne (`lesson_id`, `form`) — jeden wiersz na wersję |
+| `files` | `id`, `owner_id` → `users` (indeks), `original_name`, `content_type`, `size`, `storage_name` (losowa, unikalna), `created_at` |
 
-Migracja `908770dc9db3`. Pliki w `UPLOAD_DIR` (poza gitem).
+Migracje `908770dc9db3`, `01324f58656d` (kolumna `form`; istniejące bloki v2 stały się wersją V, z załączników usunięto `forms`). Brak wiersza = wersja pusta. Pliki w `UPLOAD_DIR` (domyślnie `backend/uploads`, poza gitem).
 
-## Bloki (`blocks.py`, dyskryminator `type`)
+## Bloki (`blocks.py`, dyskryminator `type` / `kind`)
 
-Wspólne: `id` (nadawany przez edytor, unikalny w lekcji — odwołują się do niego rozwinięcia materiałów), `type`.
+Wspólne: `id` (`[A-Za-z0-9_-]{1,40}`, unikalny w wersji), `type`. Do 200 bloków w wersji.
 
-| `type` | Pola |
+| `type` / `kind` | Pola |
 |---|---|
 | `text` | `doc` — dokument TipTap (`core/rich_text.py`) |
-| `attachment` | `kind`, `forms` (niepusty podzbiór V / A / K, bez powtórzeń), `title`, `description?` + pola rodzaju |
-
-| `kind` | Pola rodzaju |
-|---|---|
+| `attachment` (wspólne) | `title` (1–120), `description` (≤ 500) |
 | `image` | `file_id`, `alt` |
-| `video` | `file_id` **albo** `youtube_url` (rozpoznawany przez `youtube_id()`) |
-| `audio` | `file_id` **albo** `transcript` (tekst dla lektora przeglądarki) |
+| `video` | `file_id` **albo** `youtube_url` (rozpoznawany przez `youtube_id()`: `watch?v=`, `youtu.be/`, `/embed/`, `/shorts/`) |
+| `audio` | `file_id` **albo** `transcript` (1–5000 znaków, czytany przez lektora przeglądarki) |
 | `pdf` | `file_id` |
-| `link` | `url` (`https`) |
+| `link` | `url` (tylko `https`) |
 
-Walidacja: unikalne `id`; `file_id` = plik autora kursu o rodzaju zgodnym z typem (`FILE_NOT_FOUND`, `FILE_KIND_MISMATCH`); dokładnie jedno źródło wideo / nagrania. W odpowiedzi pola tylko do wyświetlania: `file_url`, `file_name`, `youtube_id`.
+Załącznik **nie ma pola `forms`** — formę wyznacza wersja (D42). Walidacja: unikalne `id`; dokładnie jedno źródło wideo / nagrania; `file_id` = plik autora kursu o rodzaju zgodnym z typem (`400 FILE_NOT_FOUND`, `400 FILE_KIND_MISMATCH`). Nieznane pola (np. odesłane `file_url`) są ignorowane. W odpowiedzi pola tylko do wyświetlania: `file_url`, `file_name`, `youtube_id`.
 
-## Pliki
-- Biała lista rozszerzeń: obrazy (png, jpg, webp, gif), audio (mp3, ogg, wav, m4a), wideo (mp4, webm), PDF; **bez SVG / HTML**; typ z rozszerzenia, nie z nagłówka klienta.
-- Limit 50 MB (`MAX_UPLOAD_BYTES`), zapis kawałkami, pusty plik odrzucany.
-- `GET /files/{id}`: `inline`, `X-Content-Type-Options: nosniff`, obsługa Range (przewijanie wideo); dla każdego zalogowanego (prototyp, D24).
+## R11 — gotowość wersji (`readiness.py`, czysta funkcja `version_issues(form, blocks)`)
+
+| Wersja | Wymaga | Kod braku |
+|---|---|---|
+| każda | co najmniej jeden blok | `VERSION_EMPTY` (wtedy bez kodów szczegółowych) |
+| V | niepusty blok tekstu **i** obraz albo wideo | `V_VISUAL_MISSING` |
+| A | nagranie (plik albo tekst lektora) | `A_AUDIO_MISSING` |
+| A | niepusty blok tekstu (krótki opis) | `A_DESCRIPTION_MISSING` |
+| K | niepusty blok tekstu (instrukcja) | `K_INSTRUCTION_MISSING` |
+| K | PDF (karta zadania) | `K_WORKSHEET_MISSING` |
+
+Braki mają `area` = forma. `PUT /lessons/{id}/versions/{form}` opublikowanej lekcji, który wprowadziłby **nowy** brak w tej wersji (porównanie braków przed i po), → `409 PUBLISHED_LESSON_INCOMPLETE` z `issues`; zapis bez nowego braku przechodzi.
+
+## Pliki (`files.py`)
+- Biała lista rozszerzeń: obrazy (png, jpg, jpeg, webp, gif), audio (mp3, ogg, wav, m4a), wideo (mp4, webm), PDF; **bez SVG / HTML**; typ z rozszerzenia, nie z nagłówka klienta.
+- Limit 50 MB (`MAX_UPLOAD_BYTES`), zapis kawałkami (1 MB), przerwany / za duży / pusty plik usuwany z dysku.
+- `GET /files/{id}`: `inline`, `X-Content-Type-Options: nosniff`, `Cache-Control: private`, obsługa Range (przewijanie wideo); dla każdego zalogowanego (prototyp, D24).
 
 ## API
 
 | Metoda i ścieżka | Kto | Działanie | Błędy |
 |---|---|---|---|
-| `GET /lessons/{id}/blocks` | widzący kurs | `{blocks}` | 404 |
-| `PUT /lessons/{id}/blocks` | autor | zapis całości → `{blocks}` | 422 `VALIDATION_ERROR`, 400 `FILE_NOT_FOUND` / `FILE_KIND_MISMATCH` |
-| `POST /files` | nauczyciel | multipart `file` → `{id, url, original_name, content_type, size}` | 400 `FILE_TYPE_NOT_ALLOWED` / `FILE_EMPTY`, 413 `FILE_TOO_LARGE` |
-| `GET /files/{id}` | zalogowany | treść pliku | 404 `FILE_NOT_FOUND` |
+| `GET /lessons/{id}/versions` | autor, admin | `{"V": {"blocks": […]}, "A": {…}, "K": {…}}` (pusta lista dla wersji bez treści) | 404 `LESSON_NOT_FOUND`, 403 `TEACHER_NOT_APPROVED` |
+| `PUT /lessons/{id}/versions/{form}` | autor | `{blocks}` → `{blocks}` (zastępuje wersję) | 422 `VALIDATION_ERROR` (także nieznana forma), 400 `FILE_NOT_FOUND` / `FILE_KIND_MISMATCH`, 409 `PUBLISHED_LESSON_INCOMPLETE` + `issues`, 404 |
+| `POST /files` | nauczyciel (zatwierdzony) | multipart `file` → `{id, url, original_name, content_type, size, kind}` | 400 `FILE_TYPE_NOT_ALLOWED` / `FILE_EMPTY`, 413 `FILE_TOO_LARGE`, 403 |
+| `GET /files/{id}` | zalogowany | treść pliku | 404 `FILE_NOT_FOUND`, 401 |
+
+Uczeń nie ma dostępu do `versions` (404) — swoją wersję dostaje przez `GET /lessons/{id}/study` (`learning_style`). Endpointy v2 `GET` / `PUT /lessons/{id}/blocks` nie istnieją.
 
 ## Frontend
-- `shared/rich-text/`: `RichTextEditor` (TipTap: H2/H3, pogrubienie, kursywa, podkreślenie, listy, tabela, link, wzór `$…$` i „∑”, cofnij / ponów; wklejanie z Worda bez obrazów), `RichTextView` (tylko odczyt), okna wzoru i linku.
-- `features/teach`: edytor lekcji `/teach/courses/[courseId]/lessons/[lessonId]` — bloki jako karty (w górę / w dół, edytuj, usuń), „+ Tekst” / „+ Załącznik” między blokami i pod listą, „Zapisz lekcję” i „Podgląd” w przyklejonym pasku, ostrzeżenie o niezapisanych zmianach; `AttachmentDialog` (krok 1: typ, krok 2: źródło, tytuł, opis, formy), `FileUpload` (react-dropzone, pasek postępu przez `XMLHttpRequest`), `AttachmentSummary` (miniatura, plakietki form `FormBadge`).
-- `features/content/components/FormBadge.tsx`: plakietka formy w jej kolorze (tinta `form-x-soft` + `form-x-foreground`) z nazwą (`FORM_LABELS`); używają jej `AttachmentSummary` i quiz lekcji.
-- `features/content`: `BlockView`, `AttachmentView` (obraz, wideo z pliku / YouTube, nagranie z pliku / lektor `SpeechReader` `pl-PL`, PDF — przycisk i ramka od `sm`, link), `api.ts`, `hooks.ts` (`useLessonBlocks`, klucz `["lessons", id, "blocks"]`; `useSaveBlocks`).
+- `shared/rich-text/`: `RichTextEditor` (TipTap: H2/H3, pogrubienie, kursywa, podkreślenie, listy, tabela, link, wzór `$…$` i „∑”, cofnij / ponów; wklejanie z Worda bez obrazów), `RichTextView` (tylko odczyt), okna wzoru i linku, `is-empty.ts` (pusty dokument — ta sama reguła co backend).
+- Edytor lekcji `features/teach` (`/teach/courses/[courseId]/lessons/[lessonId]?tab=`, opis zakładek i publikacji w `moduly/07-authoring.md`): zakładki wersji „Wzrokowa (V)”, „Słuchowa (A)”, „Kinestetyczna (K)” z `VersionEditor` — bloki jako karty `BlockCard` (w górę / w dół, edytuj, usuń), `InsertBlockBar` („+ Tekst”, „+ Załącznik” między blokami i pod listą), podpowiedź, co wersja musi zawierać (R11 sprawdzane na żywo na niezapisanych blokach, `teach/readiness.ts`), `SaveBar` (przyklejony pasek zapisu), `SaveErrorAlert` (409 z listą braków); `AttachmentDialog` (krok 1: typ, krok 2: źródło, tytuł, opis — bez form), `FileUpload` (react-dropzone, sprawdzenie typu i rozmiaru przed wysłaniem, pasek postępu przez `XMLHttpRequest`), `AttachmentSummary`; ostrzeżenie o niezapisanych zmianach (`use-unsaved-changes-warning.ts`).
+- `features/content`: `BlockView`, `AttachmentView` (obraz, wideo z pliku / YouTube, nagranie z pliku / lektor `SpeechReader` `pl-PL`, PDF — przycisk i ramka od `sm`, link), `attachment-kinds.ts`, `api.ts`, `hooks.ts` (`useLessonVersions`, klucz `["lessons", id, "versions"]`; zapis wersji ustawia dane w kluczu i unieważnia `["lessons", id, "readiness"]`). `FormBadge.tsx` zostało w katalogu, ale nic go już nie importuje.
+- Podgląd lekcji (`features/courses/LessonPreview`, autor i admin): zarys, przełącznik wersji V / A / K (bloki z klucza edytora — aktualne zaraz po zapisie), wnioski, pula pytań (`QuizPoolPreview`).
 
 ## Testy
-`backend/tests/content/`: blok tekstu, każdy rodzaj załącznika, błędne `forms`, dwa / brak źródeł, plik innego nauczyciela, rodzaj pliku niezgodny z typem, `youtube_id()`, pliki (dozwolone, `.svg`, `.exe`, za duży, pusty, pobranie z typem, Range dla wideo, nieistniejący), dostęp do bloków jak do lekcji.
+`backend/tests/content/`:
+- `test_blocks.py`: `youtube_id()` dla znanych i obcych adresów.
+- `test_versions.py`: nowa lekcja ma trzy puste wersje, zapis każdej wersji osobno, zapis zastępuje wersję, załącznik bez `forms`, serwis (`get_version`, `version_issues`), błędne bloki i nieznana forma → 422, plik innego nauczyciela i niezgodny rodzaj → 400, opublikowana lekcja: zapis z nowym brakiem → 409, kompletny zapis przechodzi; wersje tylko dla autora, odrzucony nauczyciel → 403, bez logowania → 401.
+- `test_readiness.py`: każdy kod R11 dla V / A / K (komplet i braki).
+- `test_files.py`: dozwolone pliki, inne typy, za duży (bez śladu na dysku), pusty, brak pola, tylko nauczyciel, pobieranie `inline`, Range dla wideo, logowanie, nieistniejący.
 
 ## Jak sprawdzić ręcznie
-Edytor lekcji: tekst + każdy typ załącznika (walidacje, `.svg` i plik > 50 MB odrzucone, przeciąganie pliku, YouTube, lektor), wstawienie między bloki, edycja, przesunięcie, zapis i F5 → podgląd; uczeń: odtwarzanie wideo / audio / YouTube, lektor, PDF, link.
+`nauczyciel.demo@imsu.pl`: dowolna lekcja demo → zakładki V / A / K (obraz, MP3, karta PDF) → nowa lekcja: dodanie tekstu i obrazu w V (podpowiedź znika), nagrania jako tekst lektora w A, PDF w K, wstawienie bloku między innymi, przesunięcie, zapis i F5 → „Podgląd” z przełącznikiem wersji. W opublikowanej lekcji usunięcie jedynego PDF z wersji K i zapis → komunikat z brakiem. Uczeń: odtwarzanie MP3, lektor, PDF w ramce.
 
 ## Ograniczenia
-Wgrany, a niezapisany w lekcji plik zostaje na dysku; wklejony tekst z `$…$` nie zamienia się we wzory; wzory i obrazy z Worda się nie przenoszą; przejście przez nawigację `AppShell` z niezapisanymi zmianami nie pyta o potwierdzenie; YouTube wymaga internetu, głos lektora zależy od przeglądarki.
+Wgrany, a niezapisany w lekcji plik zostaje na dysku; wklejony tekst z `$…$` nie zamienia się we wzory; wzory i obrazy z Worda się nie przenoszą; przejście przez nawigację `AppShell` z niezapisanymi zmianami nie pyta o potwierdzenie; YouTube wymaga internetu, głos lektora zależy od przeglądarki; R11 sprawdza obecność elementów, nie to, że trzy wersje uczą tego samego.

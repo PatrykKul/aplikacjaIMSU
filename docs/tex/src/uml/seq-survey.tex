@@ -1,0 +1,37 @@
+% Sequence diagram 1: first login and the VAK survey (R1)
+\begin{sequencediagram}
+    \scriptsize
+    \def\unitfactor{0.72}
+    \newthread{u}{Uczeń}
+    \newinst[1.7]{k}{Klient (Next.js)}
+    \newinst[2.1]{api}{Serwer (FastAPI)}
+    \newinst[1.3]{r}{\texttt{rules.py}}
+    \newinst[0.8]{db}{Baza danych}
+
+    \begin{call}{u}{e-mail, hasło}{k}{ankieta}
+        \begin{call}{k}{\texttt{POST /auth/login}}{api}{200 + ciasteczko}
+        \end{call}
+        \begin{call}{k}{\texttt{GET /profile/learning-style}}{api}{bez ankiety}
+        \end{call}
+        \begin{callself}{k}{przejście na \texttt{/survey}}{}
+        \end{callself}
+        \begin{call}{k}{\texttt{GET /survey/questions}}{api}{20 pytań bez klucza}
+        \end{call}
+    \end{call}
+
+    \begin{call}{u}{20 odpowiedzi}{k}{A 55 / V 30 / K 15}
+        \begin{call}{k}{\texttt{POST /survey/answers}}{api}{profil ucznia}
+            \begin{call}{api}{A 11 / V 6 / K 3}{r}{A 55 / V 30 / K 15}
+            \end{call}
+            \begin{call}{api}{wynik, profil, historia}{db}{commit}
+            \end{call}
+        \end{call}
+    \end{call}
+
+    \begin{sdblock}{alt}{remis punktów, np. V 8 / A 8 / K 4}
+        \begin{call}{u}{wybór stylu}{k}{dostęp do kursów}
+            \begin{call}{k}{\texttt{POST .../tie-choice}}{api}{profil ze stylem}
+            \end{call}
+        \end{call}
+    \end{sdblock}
+\end{sequencediagram}

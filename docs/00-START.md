@@ -1,4 +1,4 @@
-# Start tutaj — projekt IMSU, wersja 2
+# Start tutaj — projekt IMSU, wersja 3
 
 Ten katalog zawiera pełny kontekst projektu dla każdej nowej sesji pracy (człowieka albo agenta AI).
 **Przeczytaj wszystkie dokumenty w podanej kolejności, zanim cokolwiek zmienisz.**
@@ -6,9 +6,9 @@ Ten katalog zawiera pełny kontekst projektu dla każdej nowej sesji pracy (czł
 ## Sytuacja w skrócie
 
 - Projekt zaliczeniowy z przedmiotu *Inteligentne multimedialne systemy uczące* (Informatyka UwB, studia magisterskie, 1 semestr, 2026/27), praca zespołowa (dwie osoby, każda z własnym asystentem AI).
-- Cel: **multimedialny inteligentny system uczący** dla uczniów do 16 lat, wzorowany na przykładowym systemie prowadzącego. **Nauczyciel** tworzy w edytorze kursy: lekcje z blokami tekstu i **załącznikami oznaczonymi V / A / K** oraz quiz lekcji. **Uczeń** po ankiecie VAK ma **styl** i **wagi V / A / K**; system podaje lekcję według stylu (materiały innych stylów zwinięte), po quizie zmienia wagi i **proponuje zmianę stylu** z uzasadnieniem, a decyduje uczeń.
+- Cel: **multimedialny inteligentny system uczący** dla uczniów do 16 lat, wzorowany na przykładowym systemie prowadzącego. **Nauczyciel** (konto zatwierdza administrator) tworzy kursy: każda lekcja ma zarys, **tę samą treść w trzech wersjach** — V (tekst ze schematami), A (nagranie), K (zadanie z kartą PDF) — wnioski i **pulę pytań** z wyjaśnieniami; przyjmuje uczniów, którzy proszą o zapis. **Uczeń** po ankiecie VAK ma **jeden styl** i **profil procentowy V / A / K**; dostaje lekcje w formie stylu, kolejne po zaliczeniu poprzednich. Po quizie system zmienia procent formy, w której uczeń się uczył, przy porażce podpowiada „przerób w formie X”, a gdy inna forma jest lepsza i potwierdzona wynikami — **proponuje zmianę stylu** z liczbami; decyduje uczeń. Każda decyzja trafia do **dziennika**; nauczyciel widzi skuteczność form w swoim kursie.
 - Wymagania pochodzą od prowadzącego (feedback ustny, przykładowy system z filmów i slajdy wykładu — `01-kontekst-i-materialy.md`).
-- Kod: `backend/`, `frontend/`, `docker-compose.yml` na gałęzi `main` (wersja 2, budowana od nowa). Poprzednia wersja („StylNauki”) jest pod tagiem `v1-final`; przejęliśmy z niej logikę ankiety, personalizacji i adaptacji (`moduly/04-learning-style.md`).
+- Kod: `backend/`, `frontend/`, `docker-compose.yml`. Wersja 3 powstała w etapie 9 (12.11) na gałęzi `feat/v3-adaptacja` (przebudowa uzgodniona przez obu autorów). Wersja 1 („StylNauki”) jest pod tagiem `v1-final`.
 
 ## Dokumenty
 
@@ -22,10 +22,15 @@ Ten katalog zawiera pełny kontekst projektu dla każdej nowej sesji pracy (czł
 | `06-konwencje.md` | język, nazewnictwo, testy, commity, dokumentacja |
 | `07-design.md` | design system (warstwy, tokeny, shadcn/ui) i ustalenia wyglądu |
 | `08-praca-biezaca.md` | specyfikacja bieżącej pracy (do akceptacji, potem realizacja) |
-| `moduly/` | aktualny stan każdego modułu, numerowany w kolejności powstawania: `01-identity`, `02-curriculum`, `03-content`, `04-learning-style`, `05-assessment`, `06-demo` (nowy moduł dostaje kolejny numer) |
-| `SCENARIUSZ-POKAZU.md` | scenariusz pokazu na kontach demo i uruchomienie od zera |
+| `moduly/` | aktualny stan każdego modułu, numerowany w kolejności powstawania: `01-identity`, `02-curriculum`, `03-content`, `04-learning-style` (reguły adaptacji R1–R8), `05-assessment`, `06-demo`, `07-authoring` (nowy moduł dostaje kolejny numer) |
+| `SCENARIUSZ-POKAZU.md` | scenariusz pokazu na kontach demo (która reguła, co powiedzieć) i uruchomienie od zera |
+| `RAPORT-v3.md` | raport etapu 9 (v3): co zrobione, jak sprawdzone, ograniczenia, ściąga „jak działa system” |
+| `zrzuty-v3/` | zrzuty ekranów z przejścia pokazu (`frontend/e2e/demo-tour.mjs`) |
+| `tex/` | dokumentacja do oddania (LaTeX, UML) |
 
 ## Podział pracy: AI przygotowuje, autor wprowadza i commituje
+
+**Wyjątek — etap 9 (v3, D54):** kod napisał i zacommitował AI na gałęzi `feat/v3-adaptacja` (pięciu agentów równolegle, integracja i weryfikacja przez AI). Poniższe zasady obowiązują znowu od następnego etapu, chyba że autorzy ustalą inaczej.
 
 - Asystent AI **nie zmienia plików kodu w repozytorium**. Kod przekazuje w rozmowie — w całych plikach albo jako dokładne wskazanie zmiany (plik, miejsce, przed / po). Autor sam wprowadza zmiany, żeby świadomie śledzić każdy krok.
 - AI zmienia **dokumentację `docs/`** (status, praca bieżąca, opisy modułów, decyzje), gdy autor o to poprosi albo gdy wynika to z ustalonego procesu (`05-plan-etapow.md`).
@@ -45,6 +50,7 @@ Ten katalog zawiera pełny kontekst projektu dla każdej nowej sesji pracy (czł
 
 ## Aktualny status
 
-- **Termin: koniec listopada 2026.** Pokaz roboczy: 12.11.2026.
-- Zrobione: etap 0 (szkielet), 1 (konta i role), 2 (administracja kont), 3 (kursy i edytor lekcji), 4 (styl uczenia się i quizy — kolega), 5 (poprawki stylu i quizów: zwijanie materiałów, styl efektywny lekcji, kontrolki shadcn), 6 (klasy i dostęp do kursów), 7 (wygląd: paleta, stany, strona startowa). Testy backendu: 349.
-- **Następny:** etap 8 — dokumentacja i pokaz.
+- **Termin: koniec listopada 2026.**
+- Zrobione: etapy 0–7 (v2) i **etap 9 — v3** (12.11): jeden styl i profil procentowy, lekcje w trzech wersjach z pulą pytań, reguły adaptacji R1–R11 z dziennikiem decyzji, statystyki ucznia i panel kursu, zapisy na kurs (klasy usunięte), zatwierdzanie nauczycieli, nowe dane demo i scenariusz. Testy backendu: 473. Raport: `RAPORT-v3.md`.
+- Gałąź `feat/v3-adaptacja` czeka na merge do `main` (decyzja autora).
+- **Następny:** etap 8 — dokumentacja do oddania i pokaz (scenariusz i LaTeX zaktualizowane w etapie 9).

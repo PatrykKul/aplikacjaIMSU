@@ -1,0 +1,79 @@
+% Class diagram 2: lesson versions, files, quiz pool and drawn sets (content, assessment)
+\begin{tikzpicture}[font=\scriptsize]
+    \begin{class}[text width=2.4cm]{Lesson}{5.4,0}
+    \end{class}
+
+    \begin{class}[text width=3.7cm]{LessonContent}{0,-2.0}
+        \attr{id : int}
+        \attr{lesson\_id : int}
+        \attr{form : V | A | K}
+        \attr{blocks : JSON}
+        \attr{updated\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=3.7cm]{LessonQuiz}{5.4,-2.0}
+        \attr{id : int}
+        \attr{lesson\_id : int}
+        \attr{questions : JSON}
+        \attr{updated\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=3.7cm]{QuizDraw}{10.8,-2.0}
+        \attr{id : int}
+        \attr{user\_id : int}
+        \attr{lesson\_id : int}
+        \attr{question\_ids : JSON}
+        \attr{answers : JSON?}
+        \attr{percent : int?}
+        \attr{created\_at : datetime}
+        \attr{submitted\_at : datetime?}
+    \end{class}
+
+    \begin{class}[text width=3.7cm]{File}{0,-5.1}
+        \attr{id : int}
+        \attr{owner\_id : int}
+        \attr{original\_name : str}
+        \attr{content\_type : str}
+        \attr{size : int}
+        \attr{storage\_name : str}
+        \attr{created\_at : datetime}
+    \end{class}
+
+    \begin{class}[text width=2.4cm]{User}{10.8,-6.25}
+    \end{class}
+
+    % Lesson - LessonContent (three versions)
+    \draw[comp] (Lesson.west) -| (LessonContent.north);
+    \node[mult, below left] at ($(Lesson.west)+(-0.3,0)$) {1};
+    \node[mult, above left] at (LessonContent.north) {0..3};
+    \node[rolelabel, above] at ($(Lesson.west)!0.5!(LessonContent.north |- Lesson.west)$) {wersje V, A, K};
+
+    % Lesson - LessonQuiz (pool)
+    \draw[comp] (Lesson.south) -- (LessonQuiz.north);
+    \node[mult, right=1.5mm] at ($(Lesson.south)+(0,-0.3)$) {1};
+    \node[mult, above right] at (LessonQuiz.north) {0..1};
+    \node[rolelabel, left=1.5mm] at ($(Lesson.south)!0.5!(LessonQuiz.north)$) {pula};
+
+    % Lesson - QuizDraw
+    \draw (Lesson.east) -| (QuizDraw.north);
+    \node[mult, above right] at (Lesson.east) {1};
+    \node[mult, above right] at (QuizDraw.north) {*};
+
+    % QuizDraw ..> LessonQuiz (ids of drawn questions)
+    \coordinate (r1) at (0,-2.9);
+    \draw[dep] (QuizDraw.west |- r1) -- (LessonQuiz.east |- r1);
+    \node[rolelabel, below] at ($(QuizDraw.west |- r1)!0.5!(LessonQuiz.east |- r1)$) {5 z puli};
+
+    % LessonContent ..> File
+    \draw[dep] (LessonContent.south) -- node[rolelabel, right] {bloki: file\_id} (File.north);
+
+    % User - QuizDraw
+    \draw (User.north) -- (QuizDraw.south);
+    \node[mult, above right] at (User.north) {1};
+    \node[mult, below right] at (QuizDraw.south) {*};
+
+    % User - File (owner)
+    \draw (File.east |- User.west) -- node[rolelabel, above] {autor (owner\_id)} (User.west);
+    \node[mult, above right] at (File.east |- User.west) {*};
+    \node[mult, above left] at (User.west) {1};
+\end{tikzpicture}

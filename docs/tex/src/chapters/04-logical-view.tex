@@ -2,122 +2,267 @@
 
 \subsection{Diagram klas}
 
+Diagram klas podzielono na trzy rysunki według modułów serwera. Klasy odpowiadają modelom SQLAlchemy z plików \nolinkurl{backend/app/modules/*/models.py}; typ zakończony znakiem \texttt{?} oznacza wartość opcjonalną (\texttt{null}). Klasa \texttt{User} bez atrybutów na rysunkach~\ref{fig:classes-content} i~\ref{fig:classes-student} to ta sama klasa co na rysunku~\ref{fig:classes-courses}, a \texttt{Lesson} na rysunku~\ref{fig:classes-content} -- ta sama co na rysunku~\ref{fig:classes-courses}. Wszystkie klasy modelu ucznia (rysunek~\ref{fig:classes-student}) odwołują się do ucznia przez \texttt{user\_id}; odwołania do kursu, lekcji i zestawu pytań są zapisane jako atrybuty \texttt{course\_id}, \texttt{lesson\_id} i \texttt{draw\_id}.
+
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{images/classes.png}
-    \caption{Diagram klas (klasy pogrupowane według modułów systemu)}
-    \label{fig:classes}
+    \input{uml/classes-courses}
+    \caption{Diagram klas: konta, kursy, zapisy i zaliczenia (\texttt{identity}, \texttt{curriculum})}
+    \label{fig:classes-courses}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \input{uml/classes-content}
+    \caption{Diagram klas: wersje lekcji, pliki, pula i zestawy pytań (\texttt{content}, \texttt{assessment})}
+    \label{fig:classes-content}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \input{uml/classes-student}
+    \caption{Diagram klas: model ucznia i dziennik decyzji (\texttt{learning\_style})}
+    \label{fig:classes-student}
 \end{figure}
 
 \subsection{Uporządkowany alfabetycznie wykaz klas}
 
-\textbf{Classroom} -- klasa (grupa uczniów) prowadzona przez jednego nauczyciela. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{teacher\_id}, \texttt{name}.
+\textbf{Course} -- kurs nauczyciela: opis w katalogu, wstęp, ,,Podsumowanie i wnioski'' oraz lekcje. Kurs jest prywatny albo opublikowany (opublikować można kurs z co najmniej jedną opublikowaną lekcją); usunięcie oznacza archiwizację. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{owner\_id}, \texttt{title}, \texttt{description}, \texttt{introduction}, \texttt{summary} (dokumenty edytora), \texttt{is\_published}, \texttt{is\_archived}, \texttt{created\_at}, \texttt{updated\_at}.
 
 \vspace{0.5em}
-\textbf{ClassroomCourse} -- przypisanie kursu do klasy; uczniowie klasy widzą przypisany kurs, także prywatny. \\
-\textit{Atrybuty:} \texttt{classroom\_id}, \texttt{course\_id}, \texttt{assigned\_at}.
+\textbf{DecisionEvent} -- wpis dziennika decyzji: typ zdarzenia i dane (liczby), z których decyzja wynika; kurs i lekcja, gdy zdarzenie ich dotyczy. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{type}, \texttt{course\_id}, \texttt{lesson\_id}, \texttt{data} (JSON), \texttt{created\_at}.
 
 \vspace{0.5em}
-\textbf{ClassroomStudent} -- przynależność ucznia do klasy. \\
-\textit{Atrybuty:} \texttt{classroom\_id}, \texttt{student\_id}, \texttt{added\_at}.
+\textbf{Enrollment} -- prośba ucznia o zapis na kurs i decyzja autora: \texttt{pending}, \texttt{accepted} albo \texttt{rejected}; jedna para (kurs, uczeń). \\
+\textit{Atrybuty:} \texttt{id}, \texttt{course\_id}, \texttt{student\_id}, \texttt{status}, \texttt{requested\_at}, \texttt{decided\_at}.
 
 \vspace{0.5em}
-\textbf{Course} -- kurs nauczyciela: opis widoczny w katalogu, wstęp i lista lekcji. Kurs jest prywatny albo opublikowany; usunięcie oznacza archiwizację. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{owner\_id}, \texttt{title}, \texttt{description}, \texttt{introduction} (dokument edytora), \texttt{is\_published}, \texttt{is\_archived}.
+\textbf{File} -- plik wgrany przez nauczyciela (obraz, nagranie, film, PDF), przechowywany na dysku pod losową nazwą; bloki lekcji wskazują go przez \texttt{file\_id}. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{owner\_id}, \texttt{original\_name}, \texttt{content\_type}, \texttt{size}, \texttt{storage\_name}, \texttt{created\_at}.
 
 \vspace{0.5em}
-\textbf{File} -- plik wgrany przez nauczyciela (obraz, nagranie, film, PDF), przechowywany na dysku pod losową nazwą. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{owner\_id}, \texttt{original\_name}, \texttt{content\_type}, \texttt{size}, \texttt{storage\_name}.
+\textbf{LearningProfile} -- profil ucznia: jeden aktywny styl (\texttt{V}, \texttt{A}, \texttt{K}; \texttt{null} = nierozstrzygnięty remis), źródło stylu (\texttt{survey}, \texttt{tie\_choice}, \texttt{manual}, \texttt{proposal}) i procenty form. Ograniczenie w bazie: każdy procent 5--90, suma 100. Brak wiersza oznacza, że uczeń nie wypełnił ankiety. \\
+\textit{Atrybuty:} \texttt{user\_id}, \texttt{style}, \texttt{style\_source}, \texttt{percent\_v}, \texttt{percent\_a}, \texttt{percent\_k}, \texttt{updated\_at}.
 
 \vspace{0.5em}
-\textbf{LearningProfile} -- profil ucznia: aktualny styl (np. \texttt{V}, \texttt{VA}), źródło stylu (ankieta, wybór ręczny, adaptacja), wagi form V, A, K (0--30) oraz odrzucona propozycja zmiany stylu. \\
-\textit{Atrybuty:} \texttt{user\_id}, \texttt{style}, \texttt{style\_source}, \texttt{weight\_v}, \texttt{weight\_a}, \texttt{weight\_k}, \texttt{rejected\_proposal}.
+\textbf{Lesson} -- lekcja kursu w kolejności nauczyciela: zarys, wnioski i stan publikacji. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{course\_id}, \texttt{title}, \texttt{position}, \texttt{outline}, \texttt{conclusions}, \texttt{is\_published}, \texttt{is\_archived}, \texttt{created\_at}, \texttt{updated\_at}.
 
 \vspace{0.5em}
-\textbf{Lesson} -- lekcja kursu w kolejności ustalonej przez nauczyciela. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{course\_id}, \texttt{title}, \texttt{position}, \texttt{is\_archived}.
+\textbf{LessonCompletion} -- pierwsze zaliczenie lekcji przez ucznia; podstawa odblokowania następnej lekcji (R10). \\
+\textit{Atrybuty:} \texttt{user\_id}, \texttt{lesson\_id}, \texttt{passed\_at}.
 
 \vspace{0.5em}
-\textbf{LessonContent} -- treść lekcji jako uporządkowana lista bloków: tekstu oraz załączników z formami V/A/K. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{lesson\_id}, \texttt{blocks} (JSON).
+\textbf{LessonContent} -- jedna wersja lekcji (V, A albo K) jako uporządkowana lista bloków: tekst oraz załączniki (obraz, film, nagranie, PDF, link). Para (\texttt{lesson\_id}, \texttt{form}) jest unikalna. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{lesson\_id}, \texttt{form}, \texttt{blocks} (JSON), \texttt{updated\_at}.
 
 \vspace{0.5em}
-\textbf{LessonQuiz} -- quiz na końcu lekcji: do 20 pytań jednokrotnego wyboru, każde wspólne albo dotyczące materiału formy V, A lub K. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{lesson\_id}, \texttt{questions} (JSON).
+\textbf{LessonForm} -- jawny wybór formy lekcji przez ucznia (,,Przerób tę lekcję w innej formie''); brak wiersza oznacza formę równą aktywnemu stylowi. \\
+\textit{Atrybuty:} \texttt{user\_id}, \texttt{lesson\_id}, \texttt{form}, \texttt{updated\_at}.
 
 \vspace{0.5em}
-\textbf{MaterialOpening} -- zapis pierwszego rozwinięcia zwiniętego materiału przez ucznia; jego formy wchodzą do stylu efektywnego lekcji. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{lesson\_id}, \texttt{block\_id}, \texttt{forms}.
+\textbf{LessonQuiz} -- pula pytań lekcji: 1--50 pytań jednokrotnego wyboru (3--4 odpowiedzi, jedna poprawna, wyjaśnienie 1--1000 znaków); do publikacji lekcji potrzeba co najmniej 5 pytań. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{lesson\_id}, \texttt{questions} (JSON), \texttt{updated\_at}.
 
 \vspace{0.5em}
-\textbf{QuizAttempt} -- podejście ucznia do quizu: wynik w procentach, styl efektywny w chwili podejścia i informacja, czy podejście zmieniło wagi. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{lesson\_id}, \texttt{percent}, \texttt{style}, \texttt{counted\_for\_weights}.
+\textbf{QuizDraw} -- zestaw pytań wylosowany dla jednego podejścia (identyfikatory w kolejności pokazania); ocena tylko wobec tego zestawu. Zestaw bez \texttt{submitted\_at} jest otwarty i wraca po odświeżeniu strony. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{lesson\_id}, \texttt{question\_ids}, \texttt{answers}, \texttt{percent}, \texttt{created\_at}, \texttt{submitted\_at}.
+
+\vspace{0.5em}
+\textbf{QuizResult} -- wynik podejścia w modelu ucznia: forma lekcji w chwili wysłania, procent, zaliczenie i to, czy wynik zmienił procenty (\texttt{counted}). \\
+\textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{course\_id}, \texttt{lesson\_id}, \texttt{draw\_id}, \texttt{form}, \texttt{percent}, \texttt{passed}, \texttt{counted}, \texttt{created\_at}.
+
+\vspace{0.5em}
+\textbf{StyleHistory} -- stan profilu po każdej zmianie (ankieta, policzony wynik, zmiana stylu) z odwołaniem do zdarzenia dziennika; dane wykresu ,,Procenty form w czasie''. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{percent\_v}, \texttt{percent\_a}, \texttt{percent\_k}, \texttt{style}, \texttt{event\_id}, \texttt{created\_at}.
+
+\vspace{0.5em}
+\textbf{StyleProposal} -- propozycja zmiany stylu: \texttt{switch} (na formę potwierdzoną wynikami) albo \texttt{revert} (powrót po nieudanym okresie próbnym), z dowodem w \texttt{evidence}. Stan: \texttt{open}, \texttt{accepted}, \texttt{rejected}, \texttt{expired}, \texttt{superseded}; najwyżej jedna otwarta na ucznia (częściowy indeks unikalny). \\
+\textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{kind}, \texttt{from\_style}, \texttt{to\_style}, \texttt{evidence}, \texttt{status}, \texttt{counted\_at\_decision}, \texttt{created\_at}, \texttt{decided\_at}.
+
+\vspace{0.5em}
+\textbf{StyleTrial} -- okres próbny po zmianie stylu (\texttt{proposal} albo \texttt{manual}): średnia przed i po oraz wynik \texttt{helped}, \texttt{neutral}, \texttt{worse} albo \texttt{no\_baseline}. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{from\_style}, \texttt{to\_style}, \texttt{source}, \texttt{before\_average}, \texttt{after\_average}, \texttt{result}, \texttt{started\_at}, \texttt{finished\_at}.
 
 \vspace{0.5em}
 \textbf{SurveyAnswer} -- odpowiedź na pytanie ankiety, przypisana do jednej formy V, A lub K. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{question\_id}, \texttt{text}, \texttt{style}.
+\textit{Atrybuty:} \texttt{id}, \texttt{question\_id}, \texttt{text}, \texttt{style}, \texttt{position}.
 
 \vspace{0.5em}
 \textbf{SurveyQuestion} -- pytanie ankiety VAK (20 pytań, po 3 odpowiedzi). \\
 \textit{Atrybuty:} \texttt{id}, \texttt{text}, \texttt{position}, \texttt{is\_active}.
 
 \vspace{0.5em}
-\textbf{SurveyResult} -- wynik jednego wypełnienia ankiety (historia wyników). \\
+\textbf{SurveyResult} -- wynik jedynego wypełnienia ankiety; przy remisie \texttt{dominant\_style} zapisuje litery remisu (np. \texttt{VA}). \\
 \textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{points\_v}, \texttt{points\_a}, \texttt{points\_k}, \texttt{dominant\_style}, \texttt{created\_at}.
 
 \vspace{0.5em}
-\textbf{User} -- konto użytkownika z rolą ucznia, nauczyciela albo administratora. Konto można zablokować. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{email}, \texttt{password\_hash}, \texttt{display\_name}, \texttt{role}, \texttt{is\_active}, \texttt{created\_at}.
+\textbf{User} -- konto z rolą \texttt{student}, \texttt{teacher} albo \texttt{admin}. Stan zatwierdzenia (\texttt{approved}, \texttt{pending}, \texttt{rejected}) dotyczy nauczycieli z rejestracji; konto można zablokować. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{email}, \texttt{password\_hash}, \texttt{display\_name}, \texttt{role}, \texttt{approval\_status}, \texttt{is\_active}, \texttt{created\_at}.
 
 \subsection{Model danych}
 
-Baza danych PostgreSQL zawiera 15 tabel odpowiadających klasom z diagramu. Najważniejsze relacje:
+Baza danych PostgreSQL zawiera 19 tabel odpowiadających klasom z diagramu (schemat tworzą migracje Alembic; v3 wprowadza migracja \texttt{01324f58656d\_v3\_adaptation}). Najważniejsze relacje:
 
 \begin{itemize}[leftmargin=*]
-    \item \texttt{users} 1:N \texttt{courses} (autor), 1:N \texttt{classrooms} (nauczyciel), 1:1 \texttt{learning\_profiles}, 1:N \texttt{survey\_results}, \texttt{quiz\_attempts}, \texttt{material\_openings}
-    \item \texttt{courses} 1:N \texttt{lessons}; \texttt{lessons} 1:1 \texttt{lesson\_contents} i \texttt{lesson\_quizzes}
-    \item \texttt{classrooms} N:M \texttt{users} (przez \texttt{classroom\_students}) oraz N:M \texttt{courses} (przez \texttt{classroom\_courses}); usunięcie klasy usuwa tylko powiązania
+    \item \texttt{users} 1:N \texttt{courses} (autor), \texttt{enrollments}, \texttt{lesson\_completions}, \texttt{files}, \texttt{quiz\_draws}; 1:1 \texttt{learning\_profiles}; 1:N \texttt{survey\_results}, \texttt{style\_history}, \texttt{quiz\_results}, \texttt{lesson\_forms}, \texttt{style\_proposals}, \texttt{style\_trials}, \texttt{decision\_events}
+    \item \texttt{courses} 1:N \texttt{lessons}; \texttt{courses} N:M \texttt{users} przez \texttt{enrollments} (unikalna para kurs--uczeń)
+    \item \texttt{lessons} 1:0..3 \texttt{lesson\_contents} (unikalne \texttt{lesson\_id}, \texttt{form}), 1:0..1 \texttt{lesson\_quizzes}, 1:N \texttt{quiz\_draws}
+    \item \texttt{quiz\_results.draw\_id} $\to$ \texttt{quiz\_draws}, \texttt{style\_history.event\_id} $\to$ \texttt{decision\_events} (\texttt{SET NULL}); dane ucznia są usuwane kaskadowo razem z kontem
 \end{itemize}
+
+Klucze obce między modułami istnieją tylko w bazie -- w kodzie moduły korzystają ze siebie przez funkcje serwisów (rozdział~\ref{sec:architecture}).
 
 \subsection{Reguły adaptacji}
+\label{sec:rules}
 
-Mechanizm adaptacji to zbiór reguł zapisanych jako czyste funkcje (bez bazy danych i bez frameworka), dzięki czemu są przewidywalne, wyjaśnialne i pokryte testami. Nie wymagają danych treningowych ani zewnętrznego modelu AI.
-
-\subsubsection{Styl i wagi z ankiety}
-Każda odpowiedź ankiety daje punkt jednej formie. Styl ucznia to forma z największą liczbą punktów; przy remisie styl jest mieszany (np. \texttt{VA}). Wagi startowe V, A, K są równe punktom z ankiety.
-
-\subsubsection{Podanie lekcji}
-Bloki są wyświetlane w kolejności nauczyciela, tekst zawsze. Załącznik, którego żadna forma nie należy do stylu ucznia, jest \textbf{zwinięty w miejscu} -- uczeń widzi, że materiał istnieje, i może go rozwinąć. Nad lekcją system pokazuje uzasadnienie, np. ,,\ldots bo tak wyszło w ankiecie (V 9 / A 8 / K 3)''.
-
-\subsubsection{Styl efektywny lekcji}
-Styl efektywny to styl ucznia uzupełniony o formy materiałów, które uczeń rozwinął w danej lekcji. Od niego zależą pytania quizu (uczeń dostaje pytania wspólne i pytania o materiały form, z których korzystał) oraz to, które wagi zmienia wynik.
-
-\subsubsection{Aktualizacja wag po quizie}
-\begin{itemize}[leftmargin=*]
-    \item Wynik co najmniej 70\% oznacza zaliczenie
-    \item Każda litera stylu efektywnego dostaje $+1$ przy zaliczeniu albo $-1$ przy niezaliczeniu (zakres wag 0--30)
-    \item W danej lekcji liczy się tylko pierwsze zaliczenie i pierwsze niezaliczenie -- kolejne podejścia nie zmieniają wag, więc nie da się ich ,,nabić''
-\end{itemize}
-
-\subsubsection{Propozycja zmiany stylu}
-System proponuje zmianę stylu, gdy jedna forma ma samodzielnie najwyższą wagę (bez remisu) i nie należy do stylu ucznia. Uczeń przyjmuje propozycję albo ją odrzuca -- odrzucona propozycja nie wraca. Styl wybrany ręcznie wyłącza propozycje, a ponowna ankieta ustawia styl i wagi od nowa.
-
-\subsubsection{Przykład}
-Uczeń w ankiecie uzyskał V 9 / A 8 / K 3, więc jego styl to V. Uczy się z materiałów wzrokowych i rozwiązuje quizy w czterech lekcjach:
+Wszystkie reguły adaptacji są czystymi funkcjami w jednym module \nolinkurl{backend/app/modules/learning_style/rules.py} (bez SQLAlchemy i FastAPI): wejściem są proste struktury, wyjściem decyzja z danymi uzasadnienia. Losowanie pytań jest w \nolinkurl{assessment/drawing.py}, blokada lekcji w \nolinkurl{curriculum/progress.py}, a braki do publikacji w plikach \texttt{readiness.py} modułów \texttt{curriculum}, \texttt{content} i \texttt{assessment}. Reguły nie wymagają danych treningowych ani zewnętrznego modelu AI; każda reakcja niesie liczby, z których wynika.
 
 \begin{table}[H]
 \centering
-\begin{tabular}{|l|c|c|c|}
+\small
+\begin{tabular}{|l|c|p{8.2cm}|}
 \hline
-\textbf{Zdarzenie} & \textbf{Wynik} & \textbf{Zmiana} & \textbf{Wagi V / A / K} \\ \hline
-Ankieta & -- & -- & 9 / 8 / 3 \\ \hline
-Quiz w lekcji 1 & 85\% & V $+1$ & 10 / 8 / 3 \\ \hline
-Quiz w lekcji 2 & 55\% & V $-1$ & 9 / 8 / 3 \\ \hline
-Quiz w lekcji 3 & 40\% & V $-1$ & 8 / 8 / 3 \\ \hline
-Quiz w lekcji 4 & 45\% & V $-1$ & 7 / 8 / 3 \\ \hline
+\textbf{Stała} & \textbf{Wartość} & \textbf{Znaczenie} \\ \hline
+\texttt{PASS\_THRESHOLD} & 70 & zaliczenie: wynik $\geq$ 70\% (przy 5 pytaniach: od 4 z 5) \\ \hline
+\texttt{STEP} & 10 & zmiana procentu formy po policzonym wyniku \\ \hline
+\texttt{MIN\_PERCENT} & 5 & minimum każdej formy, więc maksimum 90 \\ \hline
+\texttt{QUIZ\_SIZE} & 5 & pytań na podejście; pula do publikacji $\geq$ 5 \\ \hline
+\texttt{TRIAL\_LESSONS} & 2 & długość okresu próbnego (policzone wyniki) \\ \hline
+\texttt{HELPED\_GAIN} & 10 & wzrost średniej, od którego zmiana ,,pomogła'' \\ \hline
+\texttt{REVERT\_DROP} & 10 & spadek średniej, od którego proponujemy powrót \\ \hline
+\texttt{RENEW\_AFTER} & 2 & nowe policzone wyniki, po których wraca odrzucona propozycja \\ \hline
+\texttt{HINT\_MIN\_STUDENTS} & 2 & minimum uczniów w formie dla podpowiedzi z kursu \\ \hline
 \end{tabular}
-\caption{Zmiana wag ucznia o stylu V}
+\caption{Stałe reguł adaptacji (\texttt{rules.py}); remisy rozstrzyga kolejność V, A, K}
 \end{table}
 
-Po czwartym quizie forma A jest jedynym liderem wag i nie należy do stylu ucznia, więc system wyświetla propozycję: ,,Wagi wskazują na materiały słuchowe -- przełączyć?'' z uzasadnieniem ,,Wagi stylów po quizach: V 7 / A 8 / K 3''.
+\subsubsection{R1. Profil z ankiety}
+\texttt{survey\_percentages(points)}: udział formy to $p_f / \sum p \cdot 100$; forma poniżej 5\% dostaje 5\%, a pozostałe dzielą resztę proporcjonalnie do punktów. Zaokrąglenie \textbf{metodą największych reszt} (podłoga, brakujące jednostki dla największych części ułamkowych), więc suma zawsze wynosi 100. Przykłady: A 11 / V 6 / K 3 $\to$ \textbf{A 55 / V 30 / K 15}; V 9 / A 8 / K 3 $\to$ V 45 / A 40 / K 15; V 20 / A 0 / K 0 $\to$ V 90 / A 5 / K 5.
+
+\texttt{survey\_leaders(points)}: formy z maksimum punktów. Jedna forma -- to jest styl (\texttt{style\_source = survey}). Kilka -- profil bez stylu, uczeń wybiera jeden z remisujących (\texttt{tie\_choice}); do wyboru kursy są niedostępne. Ankietę wypełnia się raz.
+
+\subsubsection{R2. Zmiana procentów po quizie}
+\texttt{apply\_result(percentages, form, passed)}: procent formy lekcji zmienia się o $\pm 10$ (w granicach 5--90), a dwie pozostałe formy dzielą $100 - \textit{nowy}$ proporcjonalnie do swoich poprzednich wartości (forma poniżej 5 dostaje 5); zaokrąglenie jak w R1. Przykłady sprawdzane w testach:
+\begin{itemize}[leftmargin=*]
+    \item V 45 / A 40 / K 15, niezaliczone w V $\to$ \textbf{V 35 / A 47 / K 18} (A $47{,}27 \to 47$, K $17{,}73 \to 18$)
+    \item V 35 / A 47 / K 18, zaliczone w A $\to$ \textbf{V 28 / A 57 / K 15} (V $28{,}40 \to 28$, K $14{,}60 \to 15$)
+    \item V 85 / A 10 / K 5, zaliczone w V $\to$ V 90 / A 5 / K 5 (limit 90 i minimum 5)
+\end{itemize}
+
+\texttt{is\_counted(previous\_forms\_in\_lesson, form)}: procenty zmienia \textbf{tylko pierwsze podejście w danej formie w danej lekcji} (zaliczone albo nie). Kolejne podejścia w tej samej formie są zapisywane (\texttt{counted = false}) i mogą zaliczyć lekcję, ale procentów nie zmieniają -- nie da się ich ,,nabić''.
+
+\subsubsection{R3. Statystyki form ucznia}
+\texttt{form\_stats(results)}: dla każdej formy liczba policzonych wyników (\texttt{lessons}) i ich średnia (\texttt{average}, \texttt{null} bez danych) ze wszystkich kursów ucznia. Forma jest \textbf{potwierdzona wynikami} (\texttt{confirmed}), gdy uczeń ma w niej co najmniej jedno zaliczone podejście (także niepoliczone); inaczej jest ,,tylko z ankiety''.
+
+\subsubsection{R4. Zaliczenie: odblokowanie i pochwała}
+Każde zaliczone podejście zapisuje \texttt{lesson\_completions} (raz) i odblokowuje następną opublikowaną lekcję. \texttt{praise(results)}: gdy bieżący wynik jest zaliczony i policzony, a końcowa seria policzonych zaliczeń w tej samej formie ma co najmniej 2 lekcje, uczeń dostaje pochwałę z danymi, np. ,,3 lekcje z rzędu zaliczone w formie wzrokowej, średnio 87\%'' (80, 100, 80).
+
+\subsubsection{R5. Niezaliczenie: sugestia ,,przerób w formie X''}
+\texttt{retry\_suggestion(...)}: kandydaci to dwie formy różne od formy, w której uczeń przerabiał lekcję.
+\begin{itemize}[leftmargin=*]
+    \item Jeśli któryś kandydat jest potwierdzony (R3), X to potwierdzony kandydat z najwyższym procentem (remis $\to$ wyższa średnia $\to$ V, A, K); powód \texttt{confirmed}, dowód: najlepsze zaliczenie w X (lekcja, wynik)
+    \item W przeciwnym razie X to kandydat z najwyższym procentem \textbf{w ankiecie} (remis $\to$ wyższy bieżący procent $\to$ V, A, K); powód \texttt{survey}, dowód: procent X w ankiecie
+\end{itemize}
+Do sugestii dołączony jest wynik oblanej formy w tym quizie i poprzedni policzony wynik w tej formie w innej lekcji. Przykład (Kuba, lekcja 3): ,,Wzrokowe: ten quiz 40\%, poprzednia lekcja 40\%. Słuchowe były drugie w Twojej ankiecie (40\%), nie mamy jeszcze o nich wyników -- warto sprawdzić''. Sugestia trafia do dziennika przy każdym niezaliczonym podejściu; zmiana formy dotyczy tylko tej lekcji.
+
+\subsubsection{R6. Propozycja zmiany stylu na stałe}
+\texttt{switch\_proposal(style, percentages, stats, rejections, trial\_active)}: system proponuje formę Y różną od stylu, gdy Y jest \textbf{potwierdzona} wynikami i ma \textbf{wyższy procent} niż aktywny styl (kilka kandydatów: najwyższy procent $\to$ wyższa średnia $\to$ V, A, K). Forma ,,tylko z ankiety'' nigdy nie dostaje propozycji. Propozycji nie ma w trakcie okresu próbnego ani dla formy odrzuconej, dopóki od odrzucenia nie przybędą 2 nowe policzone wyniki. Otwarta propozycja, której warunek przestał obowiązywać, wygasa (\texttt{expired}); ręczna zmiana stylu zamyka ją jako \texttt{superseded}. Dowód zawiera liczbę lekcji, średnią i procent obu form, np. ,,Wzrokowe: 3 lekcje, średnio 53\% · Słuchowe: 1 lekcja, średnio 80\%''.
+
+\texttt{forms\_to\_clear(chosen\_forms, passed\_lesson\_ids)}: przy \textbf{każdej} zmianie stylu (przyjęta propozycja \texttt{switch} lub \texttt{revert}, zmiana ręczna) usuwane są jawne wybory formy w lekcjach jeszcze niezaliczonych -- nowy styl obowiązuje wszędzie poza zaliczonymi lekcjami. Lista wyczyszczonych lekcji trafia do danych zdarzenia.
+
+\subsubsection{R7. Okres próbny}
+Zaczyna się przy przyjęciu propozycji \texttt{switch} albo ręcznej zmianie stylu (po przyjęciu propozycji powrotu -- nie, żeby nie było pętli). \texttt{trial\_baseline}: średnia ,,przed'' to średnia z ostatnich co najwyżej 2 policzonych wyników w poprzednim stylu (\texttt{null}, gdy brak). \texttt{trial\_outcome}: po 2 policzonych wynikach w nowym stylu liczona jest średnia ,,po'' i różnica $d = \textit{po} - \textit{przed}$:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|l|p{7.2cm}|}
+\hline
+\textbf{Warunek} & \textbf{Wynik} & \textbf{Reakcja systemu} \\ \hline
+$d \geq +10$ & \texttt{helped} & ,,Zmiana pomogła: średnia 40\% $\to$ 90\%'' \\ \hline
+$-10 < d < +10$ & \texttt{neutral} & ,,Bez wyraźnej różnicy: średnia 60\% $\to$ 65\%'' \\ \hline
+$d \leq -10$ & \texttt{worse} & propozycja powrotu (\texttt{revert}) do poprzedniego stylu, bez wymogu potwierdzenia \\ \hline
+brak ,,przed'' & \texttt{no\_baseline} & ,,Średnia w nowej formie: 85\%'' \\ \hline
+\end{tabular}
+\caption{Wynik okresu próbnego (granice sprawdzane w testach: $+10$, $+9$, $-9$, $-10$)}
+\end{table}
+
+\subsubsection{R8. Podpowiedź z kursu}
+\texttt{course\_hint(course\_results, student\_id)}: tylko dla ucznia \textbf{bez wyniku w kursie}. Policzone wyniki innych uczniów kursu grupowane są po formie; brane są formy z co najmniej 2 uczniami; wygrywa najwyższa średnia (remis $\to$ więcej uczniów $\to$ V, A, K), np. ,,W tym kursie najlepiej wypada forma słuchowa (średnio 86\%, 3 uczniów)''. To tylko informacja -- system niczego nie zmienia.
+
+\subsubsection{R9. Losowanie pytań}
+\texttt{draw\_questions(pool\_ids, last\_ids, k=5, rng)}: najpierw losowo pytania spoza ostatniego wysłanego zestawu, potem uzupełnienie z ostatniego, razem $\min(5, |\textit{pula}|)$. Przy puli 8 powtórka daje 3 nowe pytania i 2 z poprzedniego zestawu. Otwarty (niewysłany) zestaw jest zwracany ponownie, więc odświeżenie strony nie losuje od nowa.
+
+\subsubsection{R10. Blokada lekcji}
+\texttt{lesson\_states(published\_lessons, passed\_ids)}: lekcja jest \texttt{passed}, gdy uczeń ją zaliczył; \texttt{available}, gdy jest pierwsza albo poprzednia opublikowana jest zaliczona; inaczej \texttt{locked} z numerem wymaganej lekcji. Zaliczona lekcja zostaje dostępna także po zmianie kolejności. Serwer sprawdza to przy każdym dostępie ucznia do treści i quizu (\texttt{403 LESSON\_LOCKED}).
+
+\subsubsection{R11. Gotowość lekcji do publikacji}
+Braki zgłaszane kodami: \texttt{OUTLINE\_MISSING}, \texttt{CONCLUSIONS\_MISSING} (\texttt{curriculum}); dla każdej wersji \texttt{VERSION\_EMPTY}, a ponadto V -- \texttt{V\_VISUAL\_MISSING} (tekst i obraz lub film), A -- \texttt{A\_AUDIO\_MISSING} i \texttt{A\_DESCRIPTION\_MISSING} (nagranie i opis), K -- \texttt{K\_INSTRUCTION\_MISSING} i \texttt{K\_WORKSHEET\_MISSING} (instrukcja i karta PDF) (\texttt{content}); \texttt{QUIZ\_TOO\_FEW\_QUESTIONS} z liczbą pytań i minimum 5 (\texttt{assessment}). Opublikowana lekcja nie może stać się niekompletna (\texttt{409 PUBLISHED\_LESSON\_INCOMPLETE}).
+
+\subsubsection{Przykład: ścieżka ucznia z danych demonstracyjnych}
+\label{sec:rules-example}
+
+Kuba (\texttt{uczen.demo@imsu.pl}) uzyskał w ankiecie V 9 / A 8 / K 3, więc jego styl to V, a profil V 45 / A 40 / K 15 (R1). Seed buduje jego historię w kursie ,,Matematyka: funkcja liniowa'' prawdziwymi serwisami (wiersze 1--3); wiersze 4--6 to przebieg pokazu na żywo (scenariusz \nolinkurl{docs/SCENARIUSZ-POKAZU.md}); po pokazie \texttt{-{}-reset-students} przywraca stan z wiersza 3 (rozdział~\ref{sec:setup}).
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|l|c|c|c|c|p{5.4cm}|}
+\hline
+\textbf{Zdarzenie} & \textbf{Forma} & \textbf{Wynik} & \textbf{Policz.} & \textbf{V / A / K} & \textbf{Reakcja systemu} \\ \hline
+Ankieta & -- & -- & -- & 45 / 40 / 15 & styl V \\ \hline
+1. Lekcja 1 & V & 80\% & tak & 55 / 33 / 12 & lekcja 2 odblokowana \\ \hline
+2. Lekcja 2 & V & 40\% & tak & 45 / 40 / 15 & sugestia A (z ankiety) -- zignorowana \\ \hline
+3. Lekcja 2 & V & 80\% & nie & 45 / 40 / 15 & lekcja 3 odblokowana, procenty bez zmian \\ \hline
+4. Lekcja 3 & V & 40\% & tak & 35 / 47 / 18 & sugestia A (ankieta 40\%) \\ \hline
+5. Lekcja 3 & A & 80\% & tak & 28 / 57 / 15 & lekcja 4, propozycja V $\to$ A \\ \hline
+6. Przyjęcie & -- & -- & -- & 28 / 57 / 15 & styl A, okres próbny, ,,przed'' 40\% \\ \hline
+\end{tabular}
+\caption{Ścieżka Kuby: procenty, sugestie i propozycja}
+\end{table}
+
+W wierszu 5 propozycja powstaje, bo A ma zaliczenie (potwierdzona, R3) i procent 57 wyższy niż V 28 (R6). Dowód: V -- 3 policzone lekcje (80, 40, 40), średnio 53\%; A -- 1 lekcja, 80\%. Średnia ,,przed'' okresu próbnego to średnia dwóch ostatnich policzonych wyników w V: (40 + 40) / 2 = 40\%. Jeśli dwie następne lekcje w A dadzą np. 80\% i 100\% (średnia 90\%), $d = +50$ i okres kończy się wynikiem ,,Zmiana pomogła''. Taki przebieg ma w danych demo Marta (\texttt{uczen.zmiana@imsu.pl}): ankieta K 10 / V 7 / A 3 $\to$ K 50 / V 35 / A 15, lekcja 1 w K 40\%, sugestia V, lekcja 1 w V 80\%, przyjęta propozycja V, potem 100\% i 80\% w V -- ,,Zmiana pomogła: średnia 40\% $\to$ 90\%''.
+
+\subsection{Kolejność kroków po quizie}
+
+Moduł \texttt{assessment} ocenia odpowiedzi na serwerze i wywołuje jedną funkcję \texttt{learning\_style.hooks.record\_quiz\_result} -- jedyny punkt styku quizu z modelem ucznia (żaden endpoint nie przyjmuje wyniku od klienta). Funkcja wykonuje kroki w ustalonej kolejności:
+
+\begin{enumerate}[leftmargin=*]
+    \item Forma = forma lekcji w chwili wysłania (\texttt{lesson\_forms} albo aktywny styl).
+    \item \texttt{is\_counted}; zapis \texttt{QuizResult}; jeśli policzony -- \texttt{apply\_result} i nowe procenty profilu (R2).
+    \item Zaliczone: \texttt{curriculum.mark\_lesson\_passed} (odblokowanie następnej lekcji, R10), informacja o ukończeniu kursu, \texttt{praise} (R4). Zdarzenie \texttt{quiz\_attempt} z procentami przed i po; jeśli wynik policzony -- punkt w \texttt{style\_history}.
+    \item Niezaliczone: \texttt{retry\_suggestion} i zdarzenie \texttt{retry\_suggestion} (R5).
+    \item Trwający okres próbny: \texttt{trial\_outcome}; po 2 wynikach zdarzenie \texttt{trial\_finished}, a przy \texttt{worse} -- propozycja powrotu (R7).
+    \item \texttt{switch\_proposal}: wygaszenie nieaktualnej propozycji, utworzenie nowej (R6). Otwarta propozycja powrotu czeka na decyzję ucznia i nie jest zastępowana.
+    \item Jeden \texttt{commit} dla wyniku, profilu i wszystkich decyzji; zwrot \texttt{QuizFeedback} (forma, \texttt{counted}, procenty przed i po, odblokowana lekcja, pochwała, sugestia, propozycja, okres próbny).
+\end{enumerate}
+
+\subsection{Dziennik decyzji}
+
+Każda decyzja systemu zapisuje wiersz \texttt{decision\_events} z typem i danymi. Serwer zwraca \textbf{kody i liczby}, a polskie zdania składa w jednym miejscu klient (\nolinkurl{features/learning-style/explain.ts}) -- tak samo dla ucznia (,,Moje postępy'') i nauczyciela (szczegóły ucznia w panelu kursu).
+
+\begingroup
+\small
+\begin{longtable}{p{4.3cm} p{10.4cm}}
+\toprule
+\textbf{Typ} & \textbf{Dane (\texttt{data})} \\
+\midrule
+\endhead
+\texttt{survey\_completed} & punkty, procenty, styl (\texttt{null} przy remisie), style z remisu \\
+\texttt{tie\_resolved} & wybrany styl, style z remisu \\
+\texttt{quiz\_attempt} & \texttt{draw\_id}, forma, wynik, zaliczenie, \texttt{counted}, procenty przed i po, odblokowana lekcja \\
+\texttt{retry\_suggestion} & oblana forma (wynik, poprzedni wynik w tej formie), sugerowana forma (powód, procent, procent w ankiecie, najlepsze zaliczenie) \\
+\texttt{lesson\_form\_changed} & forma przed i po, źródło (\texttt{manual} / \texttt{suggestion}) \\
+\texttt{proposal\_created} & id, rodzaj, styl z / na, dowód \\
+\texttt{proposal\_accepted} & id, rodzaj, styl z / na, wyczyszczone wybory formy \\
+\texttt{proposal\_rejected}, \texttt{proposal\_expired} & id, rodzaj, styl z / na \\
+\texttt{manual\_style\_change} & styl z / na, wyczyszczone wybory formy, zamknięta propozycja \\
+\texttt{trial\_started} & id okresu, styl z / na, źródło, średnia przed \\
+\texttt{trial\_finished} & id okresu, styl z / na, średnie przed i po, wynik \\
+\bottomrule
+\end{longtable}
+\endgroup
+
+Zdarzenia lekcji i quizu mają \texttt{course\_id} i \texttt{lesson\_id}; ankieta i zmiany stylu są globalne. Przykładowy wpis dziennika Kuby po kroku 4: \texttt{quiz\_attempt} z danymi \texttt{form = V}, \texttt{percent = 40}, \texttt{counted = true}, procenty przed V 45 / A 40 / K 15 i po V 35 / A 47 / K 18.

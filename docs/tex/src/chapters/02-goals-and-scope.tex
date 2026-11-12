@@ -3,31 +3,35 @@
 \subsection{Cele główne}
 
 \begin{itemize}[leftmargin=*]
-    \item Dopasowanie sposobu podania materiału do stylu uczenia się ucznia (VAK)
-    \item Udostępnienie nauczycielowi edytora kursów z materiałami oznaczonymi formą V, A lub K
-    \item Aktualizacja modelu ucznia na podstawie wyników quizów i proponowanie zmiany stylu
-    \item Wyjaśnialność: każda decyzja systemu ma widoczne uzasadnienie (,,dlaczego to widzisz'')
+    \item Nauka w jednym stylu VAK naraz: każda lekcja w trzech wersjach (V / A / K), uczeń dostaje wersję w formie swojego stylu
+    \item Sprawdzanie stylu wynikami: ankieta jest hipotezą startową, a procenty form zmieniają wyniki quizów
+    \item Reakcja na trudności z argumentami z danych: sugestia przerobienia lekcji w innej formie, propozycja zmiany stylu na stałe, okres próbny
+    \item Wyjaśnialność: każda reakcja systemu wynika z reguły w czystej funkcji, niesie liczby i trafia do dziennika decyzji
 \end{itemize}
 
 \subsection{Cele szczegółowe}
 
 \begin{itemize}[leftmargin=*]
-    \item Wyznaczenie stylu ucznia z ankiety VAK jako punktu startowego, z możliwością ręcznej zmiany
-    \item Zachowanie dostępu do wszystkich materiałów -- materiały innych stylów są zwinięte, nie ukryte
-    \item Dobór pytań quizu do materiałów, z których uczeń korzystał
-    \item Ocenianie quizów wyłącznie po stronie serwera, odporne na wielokrotne podejścia
-    \item Udostępnianie kursów uczniom przez katalog kursów opublikowanych oraz przez klasy nauczyciela
+    \item Profil procentowy z ankiety (suma 100, każda forma co najmniej 5\%), ankieta wypełniana raz; przy remisie uczeń sam wybiera jeden styl
+    \item Zmiana procentów tylko po pierwszym podejściu w danej formie w danej lekcji, żeby wyników nie dało się ,,nabić'' powtórkami
+    \item Propozycja zmiany stylu tylko dla formy \textbf{potwierdzonej wynikami} (co najmniej jedno zaliczenie w tej formie); decyzję podejmuje uczeń
+    \item Quiz losowany z puli (5 pytań z co najmniej 5), oceniany wyłącznie na serwerze, z wyjaśnieniem przy każdym pytaniu
+    \item Kolejność lekcji egzekwowana na serwerze: lekcja $n+1$ po zaliczeniu lekcji $n$
+    \item Publikacja lekcji tylko wtedy, gdy ma zarys, wnioski, trzy kompletne wersje i co najmniej 5 pytań w puli
+    \item Statystyki: ,,Moje postępy'' ucznia oraz panel kursu nauczyciela ze skutecznością form
     \item Prosty i czytelny interfejs, przystosowany do młodszych użytkowników
 \end{itemize}
 
 \subsection{Zakres systemu}
 
 \begin{itemize}[leftmargin=*]
-    \item Rejestracja z wyborem roli (uczeń lub nauczyciel), logowanie, sesja
-    \item Administracja kont nauczycieli i uczniów (tworzenie, edycja, blokada)
-    \item Kursy i lekcje: tworzenie, kolejność, publikacja, archiwizacja
-    \item Edytor lekcji: bloki tekstu (formatowanie, tabele, wzory) i załączniki z formami V/A/K
-    \item Quiz lekcji z pytaniami wspólnymi i pytaniami o materiały danej formy
-    \item Ankieta VAK, profil ucznia (styl, wagi, historia), propozycja zmiany stylu
-    \item Klasy nauczyciela: uczniowie i przypisane kursy
+    \item Rejestracja z wyborem roli (uczeń lub nauczyciel), logowanie, sesja; zatwierdzanie kont nauczycieli przez administratora
+    \item Administracja kont nauczycieli i uczniów (tworzenie, edycja, blokada, zatwierdzanie i odrzucanie)
+    \item Kursy: wstęp, podsumowanie i wnioski, lekcje w ustalonej kolejności, publikacja, archiwizacja; zapisy na kurs z akceptacją autora
+    \item Lekcja: zarys, wersje V / A / K (bloki tekstu i załączniki: obraz, film, nagranie, PDF, link), wnioski; gotowość i publikacja
+    \item Quiz lekcji: pula 1--50 pytań jednokrotnego wyboru z wyjaśnieniami, losowanie 5 pytań na podejście
+    \item Model ucznia: ankieta VAK, styl, profil procentowy i jego historia, wyniki quizów, wybory formy lekcji, propozycje zmiany stylu, okresy próbne, dziennik decyzji
+    \item Statystyki ucznia (wykres procentów, postęp kursów, wyniki lekcji) i kursu (uczniowie, skuteczność form, rozkład stylów, szczegóły ucznia)
 \end{itemize}
+
+Poza zakresem: ponowna ankieta, test końcowy kursu, pytania inne niż jednokrotnego wyboru, powiadomienia e-mail, moderacja kursów przez administratora, modele językowe.

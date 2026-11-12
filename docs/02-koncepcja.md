@@ -1,92 +1,99 @@
 # Koncepcja systemu
 
-Źródła: system prowadzącego z filmów, feedback ustny i slajdy wykładu (`01-kontekst-i-materialy.md`; odwołania „§3.x” dotyczą tamtego dokumentu). Ustalenia autorów: listopad 2026; stan po etapie 6 (11.11).
+Źródła: system prowadzącego z filmów, feedback ustny i slajdy wykładu (`01-kontekst-i-materialy.md`; odwołania „§3.x” dotyczą tamtego dokumentu). Ustalenia autorów: listopad 2026; stan po etapie 9 (v3, 12.11). Szczegóły reguł z liczbami: `moduly/04-learning-style.md`.
 
 ## 1. W skrócie
 
-Multimedialny inteligentny system uczący (MITS, §3.1) z **głównym modułem nauczyciela**. Nauczyciel tworzy w edytorze kurs: opis, wstęp i lekcje. Lekcja to **bloki** układane jak w notatniku — tekst (edytor wizualny, wklejanie z Worda, wzory) i **załączniki** (obraz, wideo, nagranie, PDF, link) oznaczone formą **V / A / K** (jedną lub kilkoma) — oraz opcjonalny **quiz** na końcu. Uczeń po rejestracji wypełnia ankietę VAK i dostaje **styl** oraz **wagi V / A / K**. System podaje lekcję według stylu (materiały innych stylów **zwinięte**), dobiera pytania quizu do materiałów, z których uczeń korzystał, po quizie zmienia wagi i przy wyraźnej przewadze innej formy **proponuje zmianę stylu**, a decyduje uczeń. Każda decyzja ma uzasadnienie „dlaczego to widzisz”.
+Multimedialny inteligentny system uczący (MITS, §3.1) z **głównym modułem nauczyciela**. Nauczyciel tworzy kurs z lekcjami; każda lekcja ma tę samą treść w **trzech wersjach** — wzrokowej (V), słuchowej (A) i kinestetycznej (K) — oraz jeden quiz z **puli** pytań. Uczeń po rejestracji wypełnia ankietę VAK raz i dostaje **jeden aktywny styl** oraz **profil procentowy** V / A / K. Każdą lekcję przerabia w jednej formie (domyślnie w swoim stylu), quiz losuje 5 pytań z puli i ocenia serwer. Wynik zmienia procent formy, w której lekcja była przerabiana. Gdy w danej formie uczniowi nie idzie, system **proponuje inną formę z argumentami z danych**, a decyduje uczeń. Każda decyzja trafia do **dziennika** z liczbami, z których wynika; nauczyciel widzi w swoim kursie, która forma działa.
+
+Zasada nadrzędna: **zero decyzji „z niczego”** — każda reakcja systemu pochodzi z reguły w czystej funkcji (`learning_style/rules.py`) i niesie swoje liczby; backend zwraca kody i liczby, zdania składa frontend w jednym miejscu (`explain.ts`, D45).
 
 ## 2. Role i dostęp
 
 | Rola | Co robi |
 |---|---|
-| Uczeń | rejestracja → **ankieta VAK** (wymagana) → kursy (katalog opublikowanych) i „Moje klasy” (kursy klas, także prywatne; nauczyciel z e-mailem) → lekcje i quizy → „Mój styl” (styl, wagi, ręczna zmiana, propozycje, historia ankiet) |
-| Nauczyciel | **moduł główny:** CRUD swoich kursów, lekcji, bloków, załączników (wgrywanie plików) i quizów; publikacja kursu; podgląd lekcji; **klasy** (uczniowie dodawani po e-mailu, przypisane kursy) |
-| Administrator | zarządza **nauczycielami i uczniami**: lista, tworzenie i edycja kont, **blokada** (zamiast usuwania); bez klas i moderacji kursów (O6) |
+| Uczeń | rejestracja → **ankieta VAK** (raz, wymagana; przy remisie wybór jednego z remisujących stylów) → katalog kursów i **prośba o zapis** → po przyjęciu lekcje kolejno (następna po zaliczeniu quizu poprzedniej) → „Moje postępy” (wykres procentów, wyniki, dziennik) i „Mój styl” (styl, procenty, propozycje, okres próbny, ręczna zmiana) |
+| Nauczyciel | **moduł główny:** po **zatwierdzeniu konta przez administratora** — kursy, lekcje z zarysem, trzema wersjami, wnioskami i pulą pytań; publikacja lekcji (gdy kompletna) i kursu; przyjmowanie próśb o zapis; panel kursu (uczniowie, skuteczność form, rozkład stylów) i szczegóły ucznia z dziennikiem |
+| Administrator | **zatwierdza albo odrzuca konta nauczycieli**; zarządza kontami uczniów i nauczycieli (tworzenie, edycja, blokada zamiast usuwania); podgląd wszystkich kursów (odczyt) |
 
-- **Rola wybierana przy rejestracji (uczeń albo nauczyciel) i stała.** Administrator powstaje tylko poleceniem CLI.
-- Nauczyciel widzi i edytuje **tylko swoje kursy**; nie ma współautorów.
-- **Dostęp do kursów (D10, D35):** kurs opublikowany jest dostępny dla wszystkich uczniów (katalog). Nauczyciel tworzy klasy, dodaje do nich istniejących uczniów (wyszukiwanie po e-mailu) i przypisuje klasom swoje kursy — także prywatne, które widzą wtedy tylko uczniowie tych klas. Uczeń widzi swoje klasy (kursy, nauczyciel z e-mailem), bez listy uczestników. Szczegóły: `moduly/02-curriculum.md`.
+- Rola wybierana przy rejestracji (uczeń albo nauczyciel) i stała; administrator tylko z CLI (D8). Nauczyciel z rejestracji czeka na zatwierdzenie (ekran „Konto czeka na zatwierdzenie”), założony przez administratora — od razu zatwierdzony (D47).
+- Nauczyciel widzi i edytuje **tylko swoje kursy**, bez współautorów.
+- **Dostęp do kursów przez zapisy** (D46): uczeń widzi w katalogu kursy opublikowane, prosi o zapis, autor przyjmuje albo odrzuca (odrzucony może poprosić ponownie). Treść lekcji i quiz — tylko po przyjęciu; przyjęty zachowuje dostęp po wycofaniu publikacji kursu. Klas nie ma.
+- **Kolejność lekcji** (D48, R10): lekcja n+1 dostępna po zaliczeniu (≥ 70%) quizu lekcji n; egzekwuje serwer.
 
 ## 3. Struktura kursu (model dziedziny)
 
-**Kurs → lekcje** (kolejność ustala nauczyciel). Meta-model z wykładu (§3.4): Course = kurs, Learning Unit = lekcja, Content = blok tekstu, Multimedia Object / Content Link = załącznik, Exercise / Test = quiz lekcji.
+**Kurs → lekcje** (kolejność ustala nauczyciel). Meta-model z wykładu (§3.4): Course = kurs, Learning Unit = lekcja, Content = wersja lekcji (bloki tekstu), Multimedia Object / Content Link = załącznik, Exercise / Test = quiz lekcji.
 
 | Element | Zawartość |
 |---|---|
-| Kurs | tytuł, **opis** (karta w katalogu), **wstęp** (strona kursu), autor, prywatny / opublikowany, archiwizacja |
-| Lekcja | tytuł, **bloki** w kolejności nauczyciela, opcjonalnie **quiz** |
-| Blok tekstu | dokument edytora wizualnego (TipTap): nagłówki, pogrubienia, listy, tabele, linki, wzory; widzi go każdy |
-| Załącznik | **typ** (obraz, wideo — plik lub YouTube, nagranie — plik lub tekst czytany przez lektora przeglądarki, PDF, link), tytuł, opis, **formy: niepusty podzbiór {V, A, K}** zaznaczany przez nauczyciela |
-| Quiz lekcji | do 20 pytań jednokrotnego wyboru (3–4 odpowiedzi); pytanie **wspólne** albo **o materiale formy V / A / K**; próg zaliczenia 70% |
+| Kurs | tytuł, **opis** (karta w katalogu), **wstęp**, **podsumowanie i wnioski**, autor, prywatny / opublikowany (≥ 1 opublikowana lekcja), archiwizacja |
+| Lekcja | tytuł, **zarys** (2–3 zdania), **trzy wersje V / A / K**, **wnioski**, **pula pytań**, szkic / opublikowana |
+| Wersja V | tekst (edytor wizualny: wklejanie z Worda, wzory) + obraz albo film (schematy, wykresy) |
+| Wersja A | nagranie (plik albo tekst czytany przez lektora przeglądarki) + krótki opis |
+| Wersja K | instrukcja krok po kroku + karta zadania PDF do wykonania |
+| Załącznik | obraz, wideo (plik / YouTube), nagranie, PDF, link; **bez oznaczenia form** — formę wyznacza wersja (D42) |
+| Pula pytań | ≥ 5 (do 50) pytań jednokrotnego wyboru (3–4 odpowiedzi) z **wyjaśnieniem**; podejście = 5 losowych pytań; próg 70% (D43) |
 
-Baza pytań z losowaniem i test końcowy kursu — opcjonalnie później (O5, O3).
+Lekcję publikuje się, gdy ma zarys, wnioski, trzy kompletne wersje i ≥ 5 pytań (R11, D49); opublikowana lekcja nie może stać się niekompletna.
 
 ## 4. Model ucznia
 
 | Składnik (§3.5) | U nas |
 |---|---|
-| IP — preferencje | **styl** (`V`, `VA`, `VAK`…; źródło: ankieta / ręczny / adaptacja) i **wagi V / A / K** (0–30, start = punkty ankiety, korekta po quizach) |
-| S — wyniki | próby quizów: wynik w procentach, styl efektywny w chwili próby, czy zmieniła wagi |
-| obserwacja bierna (Tadeusiewicz) | rozwinięcia zwiniętych materiałów |
-| Z — zaawansowanie | nie modelujemy (prototyp) |
+| IP — preferencje | **aktywny styl** (jeden: V, A albo K; źródło: ankieta / wybór przy remisie / ręczny / propozycja) i **procenty V / A / K** (suma 100, każda 5–90; start z ankiety, korekta po quizach); historia procentów |
+| S — wyniki | wyniki quizów: lekcja, **forma**, w której lekcja była przerabiana, procent, zaliczenie, czy wynik zmienił procenty („policzony”) |
+| statystyki form | dla każdej formy: liczba policzonych lekcji, średnia, **„potwierdzona wynikami”** (co najmniej jedno zaliczenie) albo „tylko z ankiety” |
+| decyzje | propozycje zmiany stylu i decyzje ucznia, okresy próbne, wybory formy lekcji, dziennik decyzji |
+| Z — zaawansowanie | nie modelujemy (prototyp); postęp = zaliczone lekcje kursu |
+
+Uczeń widzi u siebie całość tych danych; autor kursu widzi je dla przyjętych uczniów swojego kursu.
 
 ## 5. Reguły adaptacji (moduł nauczania)
 
-### 5.1 Lekcja podana uczniowi
-- Bloki **w kolejności nauczyciela** (system nie przestawia toku lekcji).
-- Bloki tekstu zawsze widoczne. Załącznik, którego **żadna forma nie należy do stylu** ucznia, jest **zwinięty w miejscu** („Pokaż materiał”); pozostałe rozwinięte.
-- Nad lekcją „dlaczego to widzisz”: styl, jego źródło (ankieta z punktami, wybór ręczny, propozycja systemu), liczba zwiniętych materiałów.
+Wszystkie w czystych funkcjach; stałe: próg 70%, krok 10 pkt, minimum 5%, 5 pytań, okres próbny 2 lekcje, progi ±10 pkt.
 
-### 5.2 Styl efektywny lekcji
-Styl ucznia ∪ formy załączników, które uczeń **rozwinął** w tej lekcji. Rozwinięcie zapisuje się raz. Styl efektywny decyduje o pytaniach quizu i o tym, które wagi zmienia wynik.
+| Reguła | W skrócie |
+|---|---|
+| R1. Profil z ankiety | punkty → procenty (min. 5%, suma 100, największe reszty); styl = forma z największą liczbą punktów, remis → uczeń wybiera (do wyboru bez dostępu do kursów). V 9 / A 8 / K 3 → 45 / 40 / 15, styl V |
+| R2. Zmiana po quizie | tylko **pierwsze podejście w danej formie w danej lekcji**: forma lekcji ±10, pozostałe dzielą różnicę proporcjonalnie. 45 / 40 / 15 + porażka w V → 35 / 47 / 18 |
+| R3. Potwierdzenie formy | forma „potwierdzona wynikami” po co najmniej jednym zaliczeniu w niej (ze wszystkich kursów) |
+| R4. Zaliczenie | odblokowanie następnej lekcji; pochwała za serię ≥ 2 zaliczonych lekcji w tej samej formie („3 lekcje z rzędu… średnio 87%”) |
+| R5. Porażka | sugestia „Przerób tę lekcję w formie X”: X = potwierdzona forma z najwyższym procentem, a bez potwierdzonych — druga forma ankiety; uzasadnienie liczbami („Wzrokowe: ten quiz 40%, poprzednia lekcja 40%. Słuchowe były drugie w Twojej ankiecie (40%)…”) |
+| R6. Propozycja zmiany stylu | tylko dla formy **potwierdzonej** z wyższym procentem niż aktywny styl; dowód „Wzrokowe: 3 lekcje, średnio 53% · Słuchowe: 1 lekcja, średnio 80%”; odrzucona wraca po 2 nowych policzonych wynikach; każda zmiana stylu czyści wybory formy w niezaliczonych lekcjach |
+| R7. Okres próbny | po przyjęciu propozycji albo zmianie ręcznej: 2 lekcje w nowym stylu vs średnia 2 ostatnich w poprzednim — ≥ +10 „pomogła”, ≤ −10 propozycja powrotu, pomiędzy „bez wyraźnej różnicy” |
+| R8. Podpowiedź z kursu | uczeń bez wyników w kursie: forma z najwyższą średnią innych uczniów (min. 2 uczniów) — tylko informacja |
+| R9. Losowanie pytań | 5 z puli, przy powtórce najpierw pytania spoza poprzedniego zestawu; zestaw zapisany na serwerze |
+| R10. Blokada lekcji | lekcja n+1 po zaliczeniu lekcji n; zaliczona zostaje dostępna po zmianie kolejności |
+| R11. Gotowość lekcji | zarys, wnioski, kompletne wersje V / A / K, ≥ 5 pytań — warunek publikacji |
 
-### 5.3 Quiz
-1. Uczeń dostaje pytania wspólne + pytania o materiały form jego stylu efektywnego (pytanie o materiał, którego nie oglądał, byłoby nieuczciwe).
-2. Ocenia serwer; ≥ 70% = zaliczenie. Po podejściu uczeń widzi poprawne odpowiedzi; podejść bez limitu.
+Lekcja podana uczniowi: zarys → wersja w jego formie („Przerabiasz tę lekcję w formie: Słuchowej (A)”, przycisk „Przerób tę lekcję w innej formie”) → wnioski → quiz. Bez mieszania form i bez zwijania materiałów (D42).
 
-### 5.4 Aktualizacja wag
-- Start: wagi = punkty ankiety (zakres 0–30).
-- Wynik quizu: każda litera stylu efektywnego +1 (zaliczenie) / −1 (niezaliczenie).
-- W lekcji liczy się tylko **pierwszy sukces i pierwsza porażka** dla danego stylu efektywnego — kolejne podejścia nie zmieniają wag (bez nabijania).
-- Świadomie bez reguły z v1 „porażka → −1, powtórka w innym stylu, sukces → +1 dla nowego stylu”: przypisuje ona stylowi efekt powtórki (druga próba jest prawie zawsze łatwiejsza), więc wagi przesuwałyby się w stronę stylu „drugiej szansy” — do opisania w dokumentacji.
-
-### 5.5 Propozycja zmiany stylu
-**Propozycja**, gdy jedna forma ma samodzielnie najwyższą wagę i nie należy do stylu ucznia. Uczeń przyjmuje (styl = ta forma, źródło: adaptacja) albo odrzuca (ta propozycja nie wraca do kolejnej ankiety lub przyjęcia); **styl wybrany ręcznie wyłącza propozycje**. Nowa ankieta ustawia styl i wagi od nowa.
-
-### 5.6 Wyjaśnialność
-Uzasadnienia jako zdania z reguł: styl („…bo tak wyszło w ankiecie (V 9 / A 8 / K 3)”), wynik quizu („…quiz w lekcji »…«: 45% – poniżej progu (próg 70%)”), propozycja („Wagi stylów po quizach: V 7 / A 8 / K 3 …”).
-
-### 5.7 Mapowanie na model z wykładu (§3.5)
-Strategia = forma podania (V / A / K). Zamiast W(s, e) = argmax w(s, e) z pełnym silnikiem — reguły powyżej: profil wybiera formę startową, wynik quizu koryguje wagi tych form, z których uczeń faktycznie korzystał, a decyzję o zmianie strategii podejmuje uczeń na podstawie propozycji.
+**Mapowanie na model z wykładu (§3.5):** strategia = forma podania (V / A / K). Zamiast W(s, e) = argmax w(s, e) z pełnym silnikiem — profil procentowy jako wagi strategii, korygowany wynikami tylko tej formy, w której uczeń faktycznie przerabiał lekcję; zmianę strategii proponują reguły R5–R7 na podstawie wyników, a zatwierdza uczeń.
 
 ## 6. Widoki
 
-- **Uczeń:** ankieta i wynik; kursy (katalog) i „Moje klasy” (strona klasy z kursami i kontaktem do nauczyciela); strona kursu (wstęp, lekcje); lekcja w trybie skupienia (bloki, zwinięte materiały, „dlaczego to widzisz”, quiz na końcu z wynikiem i informacją o adaptacji, nawigacja między lekcjami); „Mój styl” (styl, źródło, wagi, propozycja, ręczna zmiana, powrót do ankiety, historia).
-- **Nauczyciel:** „Moje kursy”; edytor kursu (opis, wstęp, publikacja, lekcje z kolejnością); edytor lekcji (bloki: „+ Tekst”, „+ Załącznik”, przesuwanie, usuwanie; okno załącznika: typ, plik / adres / tekst lektora, tytuł, formy V / A / K); edytor quizu; podgląd lekcji; klasy (lista, strona klasy: uczniowie z wyszukiwaniem na żywo, kursy, usuwanie).
-- **Administrator:** nauczyciele i uczniowie (tworzenie, edycja, blokada); podgląd wszystkich kursów (bez klas — O6).
+- **Uczeń:** ankieta i wynik (procenty, wybór przy remisie); „Kursy” (moje kursy z postępem, katalog z prośbą o zapis); strona kursu (wstęp, streszczenie z zarysami i stanem lekcji, podpowiedź z kursu, podsumowanie); lekcja w trybie skupienia (zarys, pasek formy, wersja, wnioski, quiz, wynik z wyjaśnieniami i „Co to zmieniło”, sugestia, propozycja); „Moje postępy” (wykres procentów w czasie z tabelą danych, postęp kursów, wyniki lekcji z formą, dziennik); „Mój styl”.
+- **Nauczyciel:** ekran oczekiwania na zatwierdzenie; „Moje kursy”; edytor kursu (ustawienia, publikacja, lekcje ze stanem gotowości); edytor lekcji z zakładkami „Zarys i wnioski”, „Wzrokowa (V)”, „Słuchowa (A)”, „Kinestetyczna (K)”, „Quiz (pula)” i panelem gotowości; podgląd lekcji (przełącznik wersji, pula z wyjaśnieniami); „Panel kursu” (prośby o zapis, uczniowie, skuteczność form, rozkład stylów); szczegóły ucznia.
+- **Administrator:** użytkownicy (zatwierdzanie nauczycieli, tworzenie, edycja, blokada); podgląd wszystkich kursów.
+
+Statystyki jako tabele i jeden wykres liniowy (własny SVG), bez kolorowych plakietek; kolor formy zawsze z literą i nazwą (`07-design.md`).
 
 ## 7. Wirtualny mentor (opcjonalnie, O3)
-Jedna stała postać, komunikaty z reguł („dlaczego to widzisz”, propozycja zmiany stylu, zachęta po porażce), bez LLM (§3.7).
+Jedna stała postać, komunikaty z reguł (sugestia, propozycja, pochwała), bez LLM (§3.7). Poza zakresem v3.
 
-## 8. Ocena skuteczności
-Scenariusz na kontach demonstracyjnych (`SCENARIUSZ-POKAZU.md`): uczeń bez ankiety (wymuszenie), lekcja pod styl, quiz i zmiana wag, uczeń z historią quizów i propozycją zmiany stylu, nauczyciel z materiałami V/A/K i edytorem quizu. W dokumentacji zastrzeżenie o *meshing* (Pashler i in., 2008): styl z ankiety to punkt startowy, system sprawdza go na wynikach, uczeń może zmienić styl.
+## 8. Ocena skuteczności i zastrzeżenia
+- **Pokaz na kontach demonstracyjnych** (`SCENARIUSZ-POKAZU.md`, D22): wymuszenie ankiety, zatwierdzenie nauczyciela, prośba o zapis i podpowiedź z kursu, ścieżka „porażka → sugestia → inna forma → zaliczenie → propozycja → okres próbny” (Kuba), zakończony okres próbny „Zmiana pomogła: średnia 40% → 90%” (Marta), panel kursu ze skutecznością form (Matematyka: V 60%, A 86%, K 70%).
+- **Skuteczność form w kursie** liczona ze średniej policzonych wyników (pierwsze podejścia w formie), z liczbą wyników, podejść i uczniów — nauczyciel widzi, która wersja lekcji działa w jego kursie.
+- **Zastrzeżenie o stylach uczenia się:** hipoteza *meshing* (lepsze wyniki, gdy forma materiału pasuje do stylu ucznia) nie ma mocnego potwierdzenia empirycznego, a model VAK jest krytykowany (Pashler i in., 2008). System traktuje ankietę wyłącznie jako **hipotezę startową**: procenty zmieniają tylko wyniki, propozycja zmiany wymaga formy potwierdzonej zaliczeniem, decyzję podejmuje uczeń, a okres próbny sprawdza, czy zmiana coś dała. Trzy wersje lekcji są też po prostu różnymi drogami do tej samej treści.
+- **Druga szansa jest łatwiejsza:** po porażce uczeń przerabia lekcję w innej formie, ale zna już część pytań i wyjaśnienia, więc +10 dla formy „drugiej szansy” może zawyżać jej procent. Łagodzą to: inne pytania przy powtórce (R9), liczenie tylko pierwszego podejścia w formie (R2) i wymóg potwierdzenia formy przed propozycją (R6). Efektu nie usuwamy — opisujemy go i omawiamy na pokazie.
+- Prototyp nie ma grupy kontrolnej ani danych z prawdziwych zajęć — ocena dotyczy działania i wyjaśnialności reguł, nie efektu dydaktycznego.
 
 ## 9. Kursy demonstracyjne
-Trzy kursy z seeda (D21): Matematyka: funkcja liniowa, Angielski: Present Perfect, Programowanie: pętle w Pythonie — 7 lekcji z materiałami V / A / K / mieszanymi (obrazy, karty PDF, nagrania MP3, filmy) i quizami.
+Trzy kursy z seeda (D53), każdy po 4 lekcje z kompletnymi wersjami V / A / K (schematy PNG, nagrania MP3 głosem neuronowym, karty PDF) i pulami po 8 pytań: Matematyka: funkcja liniowa, Angielski: Present Perfect, Programowanie: pętle w Pythonie (`moduly/06-demo.md`).
 
 ## 10. Pytania do prowadzącego (otwarte)
 1. Czy ankieta VAK może być autorska (20 pytań z v1)?
-2. Czy reguła propozycji zmiany stylu (samodzielny lider wag) jest w duchu jego systemu?
+2. Czy reguły zmiany formy (sugestia po porażce, propozycja tylko dla formy potwierdzonej wynikami, okres próbny) są w duchu jego systemu?
 3. Czy test końcowy kursu jest oczekiwany?
 4. Forma i dokładny termin oddania.

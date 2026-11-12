@@ -2,29 +2,30 @@
 
 \subsection{Cel i zakres testowania}
 
-Celem testów jest sprawdzenie reguł systemu (personalizacji, adaptacji, oceniania) oraz uprawnień i poprawności wszystkich endpointów serwera. Testy obejmują wszystkie moduły serwera: konta, kursy i klasy, treść lekcji i pliki, model ucznia oraz quizy, a także dane demonstracyjne.
+Celem testów jest sprawdzenie reguł systemu (profil z ankiety, zmiana procentów, sugestie, propozycje, okres próbny, losowanie pytań, blokada lekcji, gotowość do publikacji) oraz uprawnień i poprawności wszystkich endpointów serwera. Testy obejmują wszystkie moduły serwera: konta i zatwierdzanie nauczycieli, kursy, zapisy i blokadę, wersje lekcji i pliki, model ucznia, quizy, publikację lekcji, a także dane demonstracyjne.
 
 \subsection{Strategia testowania}
 
 \begin{center}
-\begin{tabular}{lll}
+\small
+\begin{tabular}{llll}
 \toprule
-\textbf{Poziom} & Jednostkowy & Integracyjny \\
+\textbf{Poziom} & Jednostkowy & Integracyjny & Systemowy \\
 \midrule
-\textbf{Typ} & white-box & black-box HTTP \\
-\textbf{Narzędzie} & pytest & pytest + FastAPI TestClient \\
-\textbf{Zakres} & czyste funkcje reguł & endpointy REST z bazą danych \\
+\textbf{Typ} & white-box & black-box HTTP & black-box UI \\
+\textbf{Narzędzie} & pytest & pytest + TestClient & Playwright (ręcznie) \\
+\textbf{Zakres} & czyste funkcje reguł & endpointy REST z bazą & scenariusz pokazu \\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \bigskip
 
-\textbf{Testy jednostkowe} sprawdzają czyste funkcje (punktacja ankiety, zwijanie materiałów, styl efektywny, aktualizacja wag, propozycja stylu, ocenianie quizu) -- bez bazy danych i bez frameworka.
+\textbf{Testy jednostkowe} sprawdzają czyste funkcje bez bazy danych i bez frameworka: reguły R1--R8 (\nolinkurl{learning_style/rules.py}, każda reguła z liczbami ze specyfikacji, także własności ,,suma = 100 i każda forma $\geq$ 5'' dla siatki profili), losowanie R9 (\nolinkurl{assessment/drawing.py}, deterministyczne dzięki wstrzykiwanemu \texttt{rng}), ocenianie, blokadę R10 (\nolinkurl{curriculum/progress.py}), gotowość R11 (\texttt{readiness.py}), punktację ankiety, statystyki kursu i hasła.
 
-\textbf{Testy integracyjne} wysyłają żądania HTTP do aplikacji przez \texttt{TestClient} i korzystają z prawdziwej bazy PostgreSQL (osobna baza \texttt{imsu\_test}). Schemat bazy testowej jest budowany tymi samymi migracjami Alembic co baza aplikacji, a każdy test działa w transakcji wycofywanej po jego zakończeniu, więc testy są od siebie niezależne. Wspólne dane (uczeń, nauczyciel, administrator, kurs z lekcjami) dostarczają fixture'y pytest.
+\textbf{Testy integracyjne} wysyłają żądania HTTP do aplikacji przez \texttt{TestClient} i korzystają z prawdziwej bazy PostgreSQL (osobna baza \texttt{imsu\_test}). Schemat bazy testowej jest budowany tymi samymi migracjami Alembic co baza aplikacji, a każdy test działa w transakcji wycofywanej po jego zakończeniu, więc testy są od siebie niezależne. Wspólne dane (uczeń, nauczyciel, administrator, kurs z opublikowanymi lekcjami, zapis ucznia, ankieta) dostarczają fixture'y pytest.
 
-Interfejs użytkownika sprawdzany jest ręcznie według scenariusza na kontach demonstracyjnych; kod klienta przechodzi lint (ESLint), kontrolę formatowania (Prettier) i build produkcyjny.
+\textbf{Test systemowy} to skrypt Playwright \nolinkurl{frontend/e2e/demo-tour.mjs}: przechodzi scenariusz pokazu na wszystkich kontach demonstracyjnych, zapisuje zrzut każdego ekranu (szerokość komputera i wybrane ekrany na telefonie 390 px) i zgłasza poziome przewijanie strony. Kod klienta przechodzi lint (ESLint), kontrolę formatowania (Prettier) i build produkcyjny.
 
 \subsection{Środowisko testowe}
 
@@ -39,6 +40,7 @@ FastAPI TestClient (httpx) & żądania HTTP do aplikacji \\
 PostgreSQL & 17, baza \texttt{imsu\_test} w kontenerze Docker \\
 Alembic & budowa schematu bazy testowej \\
 Ruff & lint i formatowanie kodu serwera \\
+Node.js, Playwright & przejście scenariusza pokazu (Chromium) \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -65,122 +67,137 @@ Poniższa tabela zawiera reprezentatywne przypadki testowe. Kolumna \emph{Typ}: 
 \bottomrule
 \endlastfoot
 
-TC-01 & Rejestracja ucznia & identity & I &
-  \texttt{POST /auth/register}: rola \emph{student} &
-  201; ciasteczko sesji \texttt{HttpOnly} \faCheck \\
+TC-01 & Profil z ankiety (R1) & learning\_style & J &
+  punkty A 11 / V 6 / K 3; V 9 / A 8 / K 3; V 20 / A 0 / K 0 &
+  A 55 / V 30 / K 15; V 45 / A 40 / K 15; V 90 / A 5 / K 5 \faCheck \\
 \addlinespace
-TC-02 & Rejestracja jako administrator & identity & I &
-  \texttt{POST /auth/register}: rola \emph{admin} &
-  422; konto nie powstaje \faCheck \\
+TC-02 & Zmiana procentów (R2) & learning\_style & J &
+  V 45 / A 40 / K 15, porażka w V; potem zaliczenie w A &
+  V 35 / A 47 / K 18; V 28 / A 57 / K 15; suma 100, każda $\geq$ 5 \faCheck \\
 \addlinespace
-TC-03 & Blokada konta działa od razu & identity & I &
-  administrator blokuje zalogowanego użytkownika &
-  kolejne żądanie \texttt{GET /auth/me}: 401 \faCheck \\
+TC-03 & Tylko pierwsze podejście w formie & learning\_style & J, I &
+  drugie podejście w tej samej formie i lekcji; podejście w innej formie &
+  powtórka zapisana bez zmiany procentów; inna forma policzona \faCheck \\
+\addlinespace
+TC-04 & Sugestia innej formy (R5) & learning\_style & J, I &
+  porażka bez potwierdzonych form; porażka przy potwierdzonej formie &
+  druga forma ankiety (\texttt{survey}); forma potwierdzona (\texttt{confirmed}) z najlepszym zaliczeniem \faCheck \\
+\addlinespace
+TC-05 & Propozycja tylko dla formy potwierdzonej (R6) & learning\_style & J, I &
+  wyższy procent formy bez zaliczenia; potem zaliczenie w tej formie &
+  brak propozycji; propozycja z dowodem (lekcje, średnia, procent) \faCheck \\
+\addlinespace
+TC-06 & Odrzucona propozycja wraca (R6) & learning\_style & J, I &
+  odrzucenie, potem 1 i 2 nowe policzone wyniki &
+  po 1 wyniku brak propozycji, po 2 -- propozycja wraca \faCheck \\
+\addlinespace
+TC-07 & Granice okresu próbnego (R7) & learning\_style & J &
+  różnica średnich $+10$, $+9$, $-9$, $-10$; brak średniej ,,przed'' &
+  \texttt{helped}, \texttt{neutral}, \texttt{neutral}, \texttt{worse} + propozycja powrotu; \texttt{no\_baseline} \faCheck \\
+\addlinespace
+TC-08 & Ścieżka Kuby & learning\_style & I &
+  porażka w V, zmiana formy, zaliczenie w A, przyjęcie propozycji &
+  V 35 / A 47 / K 18 $\to$ V 28 / A 57 / K 15, propozycja V $\to$ A, okres próbny z ,,przed'' 40\% \faCheck \\
+\addlinespace
+TC-09 & Zmiana stylu czyści wybory formy & learning\_style & I &
+  wybory formy w lekcji zaliczonej i niezaliczonej, zmiana stylu &
+  wybór w niezaliczonej usunięty i opisany w zdarzeniu; w zaliczonej zostaje \faCheck \\
+\addlinespace
+TC-10 & Ankieta raz, remis & learning\_style & I &
+  ponowne wysłanie ankiety; remis punktów &
+  409 \texttt{SURVEY\_ALREADY\_DONE}; profil bez stylu, wybór przez \texttt{tie-choice} \faCheck \\
 \addlinespace
 \midrule
-TC-04 & Katalog kursów ucznia & curriculum & I &
-  \texttt{GET /courses}: kursy prywatne i opublikowane &
-  uczeń widzi tylko kursy opublikowane \faCheck \\
+TC-11 & Nauczyciel czeka na zatwierdzenie & identity & I &
+  rejestracja nauczyciela, endpoint nauczyciela &
+  \texttt{approval\_status = pending}; 403 \texttt{TEACHER\_NOT\_APPROVED} \faCheck \\
 \addlinespace
-TC-05 & Kurs prywatny przez klasę & curriculum & I &
-  kurs prywatny przypisany do klasy ucznia &
-  uczeń otwiera kurs, lekcję i quiz; po usunięciu z klasy -- 404 \faCheck \\
+TC-12 & Zatwierdzanie tylko przez administratora & identity & I &
+  nauczyciel lub uczeń wywołuje \texttt{POST /users/\{id\}/approve} &
+  403; po decyzji administratora nauczyciel działa \faCheck \\
 \addlinespace
-TC-06 & Cudzy kurs & curriculum & I &
-  nauczyciel otwiera kurs innego nauczyciela &
-  404 (bez zdradzania istnienia kursu) \faCheck \\
+TC-13 & Prośba o zapis & curriculum & I &
+  prośba, powtórka, odrzucenie, ponowna prośba &
+  \texttt{pending}; bez zmian; \texttt{rejected}; znów \texttt{pending} \faCheck \\
+\addlinespace
+TC-14 & Treść tylko dla przyjętych & curriculum & I &
+  uczeń bez przyjętej prośby otwiera lekcję &
+  403 \texttt{ENROLLMENT\_REQUIRED} \faCheck \\
+\addlinespace
+TC-15 & Blokada kolejności (R10) & curriculum & J, I &
+  lekcja 2 przed zaliczeniem lekcji 1; zaliczenie; zmiana kolejności &
+  403 \texttt{LESSON\_LOCKED} z wymaganą lekcją; odblokowanie; zaliczona zostaje dostępna \faCheck \\
 \addlinespace
 \midrule
-TC-07 & Plik niedozwolonego typu & content & I &
-  \texttt{POST /files}: plik \texttt{.svg} lub \texttt{.exe} &
-  400 \texttt{FILE\_TYPE\_NOT\_ALLOWED} \faCheck \\
+TC-16 & Gotowość lekcji (R11) & authoring & J, I &
+  nowa lekcja; pula 3 pytań; publikacja niekompletnej lekcji &
+  lista braków z kodami; \texttt{QUIZ\_TOO\_FEW\_QUESTIONS} (3, min. 5); 409 \texttt{LESSON\_NOT\_READY} \faCheck \\
 \addlinespace
-TC-08 & Plik innego nauczyciela w lekcji & content & I &
-  \texttt{PUT /lessons/\{id\}/blocks}: załącznik z cudzym plikiem &
+TC-17 & Opublikowana lekcja zostaje kompletna & content & I &
+  usunięcie karty PDF z wersji K opublikowanej lekcji &
+  409 \texttt{PUBLISHED\_LESSON\_INCOMPLETE} z listą braków \faCheck \\
+\addlinespace
+TC-18 & Plik innego nauczyciela & content & I &
+  \texttt{PUT /lessons/\{id\}/versions/V}: załącznik z cudzym plikiem &
   400 \texttt{FILE\_NOT\_FOUND} \faCheck \\
 \addlinespace
 \midrule
-TC-09 & Ankieta bez klucza & learning\_style & I &
-  \texttt{GET /survey/questions} &
-  odpowiedzi bez informacji o formie V/A/K \faCheck \\
+TC-19 & Losowanie z puli (R9) & assessment & J, I &
+  pula 8, pierwsze podejście i powtórka; odświeżenie strony &
+  5 pytań bez klucza; powtórka: 3 nowe + 2 stare; ten sam otwarty zestaw \faCheck \\
 \addlinespace
-TC-10 & Remis w ankiecie & learning\_style & I &
-  tyle samo punktów V i A &
-  styl mieszany \texttt{VA} \faCheck \\
+TC-20 & Odpowiedzi spoza zestawu & assessment & I &
+  odpowiedź na pytanie spoza wylosowanego zestawu; drugie wysłanie &
+  400 \texttt{QUIZ\_ANSWER\_MISMATCH}; 409 \texttt{DRAW\_NOT\_OPEN} \faCheck \\
 \addlinespace
-TC-11 & Zwinięte materiały & learning\_style & I &
-  uczeń o stylu V otwiera lekcję z materiałami A i K &
-  wszystkie bloki; materiały A i K na liście zwiniętych \faCheck \\
-\addlinespace
-TC-12 & Uczeń bez ankiety & learning\_style & I &
-  \texttt{GET /lessons/\{id\}/personalized-blocks} &
-  403 \texttt{SURVEY\_REQUIRED} \faCheck \\
-\addlinespace
-TC-13 & Pierwszy sukces i pierwsza porażka & learning\_style & J &
-  kolejne wyniki quizu w tej samej lekcji &
-  liczy się tylko pierwszy sukces i pierwsza porażka; powtórzenia nie zmieniają wag \faCheck \\
-\addlinespace
-TC-14 & Propozycja zmiany stylu & learning\_style & J &
-  wagi V 6 / A 9 / K 2, styl V &
-  propozycja: A \faCheck \\
-\addlinespace
-TC-15 & Styl ręczny wyłącza propozycje & learning\_style & J &
-  jak TC-14, źródło stylu: ręczne &
-  brak propozycji \faCheck \\
+TC-21 & Wyniki z wyjaśnieniami & assessment & I &
+  wysłanie zestawu &
+  wynik, poprawne odpowiedzi i wyjaśnienie przy każdym pytaniu, \texttt{QuizFeedback} \faCheck \\
 \addlinespace
 \midrule
-TC-16 & Pytania według stylu & assessment & I &
-  uczeń o stylu V pobiera quiz &
-  pytania wspólne i V, bez klucza odpowiedzi \faCheck \\
+TC-22 & Statystyki i szczegóły ucznia & learning\_style & I &
+  autor i inny nauczyciel pobierają statystyki kursu i szczegóły ucznia &
+  autor: skuteczność form, rozkład stylów; inny nauczyciel -- 404, uczeń -- 403 \faCheck \\
 \addlinespace
-TC-17 & Rozwinięty materiał w quizie & assessment & I &
-  uczeń rozwija materiał innej formy i pobiera quiz ponownie &
-  w quizie pojawia się pytanie o ten materiał \faCheck \\
+TC-23 & Usunięte endpointy v2 & learning\_style & I &
+  \texttt{personalized-blocks}, \texttt{blocks/\{id\}/open}, \texttt{proposal/accept} &
+  404 \faCheck \\
 \addlinespace
-TC-18 & Wielokrotne podejścia & assessment & I &
-  dwa zaliczone podejścia w tej samej lekcji &
-  wagi zmieniają się tylko po pierwszym \faCheck \\
-\addlinespace
-TC-19 & Pytanie spoza stylu & assessment & I &
-  odpowiedź na pytanie formy, której uczeń nie widzi &
-  400 \texttt{QUIZ\_ANSWER\_MISMATCH} \faCheck \\
-\addlinespace
-\midrule
-TC-20 & Idempotentny seed & demo & I &
-  dwukrotne uruchomienie seeda &
-  brak duplikatów kursów, lekcji i klasy \faCheck \\
+TC-24 & Idempotentny seed i reset & demo & I &
+  dwukrotne uruchomienie seeda; pokaz, potem \texttt{-{}-reset-students} &
+  drugie uruchomienie nic nie zmienia; stany kont wracają do startowych \faCheck \\
 
 \end{longtable}
 \endgroup
 
 \subsection{Scenariusze testowe}
 
-\subsubsection{ST-01: Od ankiety do adaptacji}
-\textbf{Cel:} sprawdzenie pełnej ścieżki ucznia.
+\subsubsection{ST-01: Od ankiety do sugestii}
+\textbf{Cel:} sprawdzenie ścieżki ucznia od ankiety do pierwszej reakcji na porażkę.
 \begin{enumerate}[leftmargin=*]
-    \item Uczeń bez ankiety próbuje otworzyć lekcję (TC-12) -- 403 \texttt{SURVEY\_REQUIRED}.
-    \item Uczeń wypełnia ankietę -- powstaje profil ze stylem i wagami (TC-09, TC-10).
-    \item Uczeń otwiera lekcję -- materiały innych stylów są zwinięte (TC-11).
-    \item Uczeń rozwija materiał i rozwiązuje quiz -- pytania odpowiadają stylowi efektywnemu (TC-16, TC-17).
-    \item Wynik quizu zmienia wagi; kolejne podejście już ich nie zmienia (TC-18).
+    \item Uczeń bez ankiety otwiera lekcję -- 403 \texttt{SURVEY\_REQUIRED}.
+    \item Uczeń wypełnia ankietę -- powstaje profil procentowy i styl (TC-01); druga ankieta jest odrzucona (TC-10).
+    \item Uczeń otwiera lekcję -- dostaje wersję w formie swojego stylu; kolejna lekcja jest zablokowana (TC-15).
+    \item Uczeń rozwiązuje quiz z puli (TC-19) i nie zalicza -- procent formy spada o 10 (TC-02), a wynik zawiera wyjaśnienia (TC-21) i sugestię innej formy (TC-04).
+    \item Uczeń wybiera ,,Przerób tę lekcję w formie X'' -- dostaje wersję X i nowy zestaw pytań; powtórka w tej samej formie nie zmienia procentów (TC-03).
 \end{enumerate}
 
-\subsubsection{ST-02: Propozycja zmiany stylu}
-\textbf{Cel:} sprawdzenie reakcji systemu na wyniki ucznia.
+\subsubsection{ST-02: Propozycja zmiany stylu i okres próbny}
+\textbf{Cel:} sprawdzenie reakcji systemu na wyniki w innej formie (ścieżka Kuby, TC-08).
 \begin{enumerate}[leftmargin=*]
-    \item Wagi ucznia o stylu V spadają po niezaliczonych quizach do V 7 / A 8 / K 3.
-    \item Profil ucznia zawiera propozycję zmiany stylu na A z uzasadnieniem (TC-14).
-    \item Uczeń odrzuca propozycję -- nie pojawia się ona ponownie.
-    \item Uczeń wybiera styl ręcznie -- propozycje są wyłączone (TC-15).
+    \item Uczeń zalicza lekcję w formie innej niż styl -- forma jest potwierdzona, ma wyższy procent, powstaje propozycja z dowodem (TC-05).
+    \item Uczeń odrzuca propozycję -- wraca ona po 2 nowych policzonych wynikach (TC-06).
+    \item Uczeń przyjmuje propozycję -- styl się zmienia, wybory formy w niezaliczonych lekcjach są czyszczone (TC-09), zaczyna się okres próbny.
+    \item Po 2 policzonych wynikach w nowej formie okres kończy się wynikiem zależnym od różnicy średnich; spadek o 10 lub więcej daje propozycję powrotu (TC-07).
 \end{enumerate}
 
-\subsubsection{ST-03: Dostęp do kursów przez klasy}
-\textbf{Cel:} sprawdzenie widoczności kursów prywatnych.
+\subsubsection{ST-03: Zapisy na kurs i zatwierdzanie nauczycieli}
+\textbf{Cel:} sprawdzenie dostępu do kursów i kont nauczycieli.
 \begin{enumerate}[leftmargin=*]
-    \item Nauczyciel tworzy klasę, dodaje ucznia i przypisuje kurs prywatny.
-    \item Uczeń nie widzi kursu w katalogu (TC-04), ale otwiera go przez klasę (TC-05).
-    \item Uczeń spoza klasy i inny nauczyciel otrzymują 404 (TC-06).
-    \item Po usunięciu ucznia z klasy kurs przestaje być dla niego dostępny.
+    \item Nauczyciel rejestruje się -- konto czeka na zatwierdzenie, endpointy nauczyciela zwracają 403 (TC-11); administrator zatwierdza konto (TC-12).
+    \item Nauczyciel publikuje lekcję dopiero, gdy jest kompletna (TC-16, TC-17), a potem kurs.
+    \item Uczeń prosi o zapis -- do decyzji nie ma dostępu do treści (TC-13, TC-14).
+    \item Autor przyjmuje prośbę -- uczeń widzi stany lekcji; po wycofaniu publikacji kursu przyjęty uczeń zachowuje dostęp.
 \end{enumerate}
 
 \subsection{Podsumowanie pokrycia testami}
@@ -190,17 +207,18 @@ TC-20 & Idempotentny seed & demo & I &
 \toprule
 \textbf{Moduł} & \textbf{Jednostkowe} & \textbf{Integracyjne} & \textbf{Łącznie} \\
 \midrule
-\texttt{identity}        & 6  & 42  & 48 \\
-\texttt{curriculum}      & -- & 64  & 64 \\
-\texttt{content}         & 2  & 23  & 25 \\
-\texttt{learning\_style} & 23 & 42  & 65 \\
-\texttt{assessment}      & 6  & 15  & 21 \\
-\texttt{demo}            & -- & 10  & 10 \\
+\texttt{identity}        & 6   & 73  & 79 \\
+\texttt{curriculum}      & 21  & 104 & 125 \\
+\texttt{content}         & 34  & 41  & 75 \\
+\texttt{learning\_style} & 75  & 53  & 128 \\
+\texttt{assessment}      & 14  & 20  & 34 \\
+\texttt{authoring}       & --  & 16  & 16 \\
+\texttt{demo}            & --  & 11  & 11 \\
 \texttt{core} (błędy, stan serwera) & -- & 5 & 5 \\
 \midrule
-\textbf{Razem}           & \textbf{37} & \textbf{201} & \textbf{238} \\
+\textbf{Razem}           & \textbf{150} & \textbf{323} & \textbf{473} \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Tabela podaje liczbę funkcji testowych. Część testów jest sparametryzowana (ten sam test dla wielu danych wejściowych), dlatego pytest wykonuje łącznie \textbf{349} przypadków testowych.
+Tabela podaje liczbę przypadków wykonywanych przez pytest (z parametryzacją; 330 funkcji testowych). Sam moduł reguł \nolinkurl{learning_style/rules.py} ma \textbf{67} przypadków testowych w \nolinkurl{tests/learning_style/test_rules.py}. Test seeda sprawdza stany wszystkich kont demonstracyjnych (procenty, propozycje, okres próbny, prośbę \texttt{pending}, nauczyciela \texttt{pending}), idempotencję i \texttt{-{}-reset-students}. Przejście Playwright \nolinkurl{frontend/e2e/demo-tour.mjs} obejmuje wszystkie konta demonstracyjne w kolejności scenariusza pokazu.

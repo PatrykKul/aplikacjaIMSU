@@ -1,0 +1,38 @@
+% Sequence diagram 3: passed quiz -> style proposal -> trial period (R2, R4, R6, R7, R10)
+\begin{sequencediagram}
+    \scriptsize
+    \def\unitfactor{0.72}
+    \newthread{k}{Uczeń (klient)}
+    \newinst[2.6]{as}{\texttt{assessment}}
+    \newinst[1.7]{ls}{\texttt{learning\_style}}
+    \newinst[2.9]{cu}{\texttt{curriculum}}
+
+    \begin{call}{k}{\texttt{POST .../quiz/attempts}}{as}{80\%, propozycja}
+        \begin{call}{as}{\texttt{record\_quiz\_result}}{ls}{\texttt{QuizFeedback}}
+            \begin{callself}{ls}{R2: A 47 $\to$ 57, V 28, K 15}{}
+            \end{callself}
+            \begin{call}{ls}{\texttt{mark\_lesson\_passed}}{cu}{lekcja 4 (R10)}
+            \end{call}
+            \begin{callself}{ls}{R6: propozycja V $\to$ A}{}
+            \end{callself}
+            \begin{callself}{ls}{zapis, jeden commit}{}
+            \end{callself}
+        \end{call}
+    \end{call}
+
+    \begin{call}{k}{\texttt{POST .../proposals/\{id\}/accept}}{ls}{styl A, okres 0 z 2}
+        \begin{callself}{ls}{R6: czyszczenie wyborów}{}
+        \end{callself}
+        \begin{callself}{ls}{R7: start, przed = 40\%}{}
+        \end{callself}
+    \end{call}
+
+    \begin{sdblock}{loop}{2 kolejne policzone wyniki w formie A}
+        \begin{call}{k}{\texttt{POST .../quiz/attempts}}{as}{wynik okresu}
+            \begin{call}{as}{\texttt{record\_quiz\_result}}{ls}{}
+                \begin{callself}{ls}{R7: po $-$ przed}{}
+                \end{callself}
+            \end{call}
+        \end{call}
+    \end{sdblock}
+\end{sequencediagram}
