@@ -1,6 +1,6 @@
 # Moduł `content`
 
-Trzy wersje lekcji (V / A / K) jako listy bloków (tekst, załączniki) oraz pliki. Decyzje: D12, D14, D23–D25, D28, D42, D49 (część wersji).
+Trzy wersje lekcji (V / A / K) jako listy bloków (tekst, załączniki) oraz pliki. Decyzje: D12, D14, D23–D25, D28, D42, D49 (część wersji), D56 (pliki po zmianie właściciela), D58 (nagranie z transkrypcją), D59 (kod).
 
 ## Odpowiedzialność
 - Treść lekcji w **trzech wersjach**: jedna lista bloków na formę (`V` — tekst ze schematami / filmem, `A` — nagranie + opis, `K` — instrukcja + karta PDF), zapisywana w całości. Zarys i wnioski (wspólne dla wersji) są w `curriculum`.
@@ -23,15 +23,15 @@ Wspólne: `id` (`[A-Za-z0-9_-]{1,40}`, unikalny w wersji), `type`. Do 200 blokó
 
 | `type` / `kind` | Pola |
 |---|---|
-| `text` | `doc` — dokument TipTap (`core/rich_text.py`) |
+| `text` | `doc` — dokument TipTap (`core/rich_text.py`: sprawdzany tylko korzeń `doc`, więc przechodzą wszystkie węzły edytora, także `codeBlock` i znacznik `code`, D59; `codeBlock` z kodem to treść niepusta) |
 | `attachment` (wspólne) | `title` (1–120), `description` (≤ 500) |
 | `image` | `file_id`, `alt` |
 | `video` | `file_id` **albo** `youtube_url` (rozpoznawany przez `youtube_id()`: `watch?v=`, `youtu.be/`, `/embed/`, `/shorts/`) |
-| `audio` | `file_id` **albo** `transcript` (1–5000 znaków, czytany przez lektora przeglądarki) |
+| `audio` | `file_id` i / albo `transcript` (1–5000 znaków) — co najmniej jedno (D58); plik + transkrypcja: nagranie z rozwijaną transkrypcją pod odtwarzaczem; sama transkrypcja: czyta ją lektor przeglądarki |
 | `pdf` | `file_id` |
 | `link` | `url` (tylko `https`) |
 
-Załącznik **nie ma pola `forms`** — formę wyznacza wersja (D42). Walidacja: unikalne `id`; dokładnie jedno źródło wideo; `file_id` = plik o rodzaju zgodnym z typem (`400 FILE_KIND_MISMATCH`) należący do **autora kursu albo już użyty w którejś wersji tej lekcji** (D56: po zmianie właściciela nowy autor zachowuje załączniki poprzedniego; inaczej `400 FILE_NOT_FOUND`). Nieznane pola (np. odesłane `file_url`) są ignorowane. W odpowiedzi pola tylko do wyświetlania: `file_url`, `file_name`, `youtube_id`.
+Załącznik **nie ma pola `forms`** — formę wyznacza wersja (D42). Walidacja: unikalne `id`; dokładnie jedno źródło wideo; nagranie z plikiem, transkrypcją albo jednym i drugim; `file_id` = plik o rodzaju zgodnym z typem (`400 FILE_KIND_MISMATCH`) należący do **autora kursu albo już użyty w którejś wersji tej lekcji** (D56: po zmianie właściciela nowy autor zachowuje załączniki poprzedniego; inaczej `400 FILE_NOT_FOUND`). Nieznane pola (np. odesłane `file_url`) są ignorowane. W odpowiedzi pola tylko do wyświetlania: `file_url`, `file_name`, `youtube_id`.
 
 ## R11 — gotowość wersji (`readiness.py`, czysta funkcja `version_issues(form, blocks)`)
 
@@ -39,7 +39,7 @@ Załącznik **nie ma pola `forms`** — formę wyznacza wersja (D42). Walidacja:
 |---|---|---|
 | każda | co najmniej jeden blok | `VERSION_EMPTY` (wtedy bez kodów szczegółowych) |
 | V | niepusty blok tekstu **i** obraz albo wideo | `V_VISUAL_MISSING` |
-| A | nagranie (plik albo tekst lektora) | `A_AUDIO_MISSING` |
+| A | nagranie (plik, tekst lektora albo oba) | `A_AUDIO_MISSING` |
 | A | niepusty blok tekstu (krótki opis) | `A_DESCRIPTION_MISSING` |
 | K | niepusty blok tekstu (instrukcja) | `K_INSTRUCTION_MISSING` |
 | K | PDF (karta zadania) | `K_WORKSHEET_MISSING` |
@@ -71,8 +71,9 @@ Uczeń nie ma dostępu do `versions` (404) — swoją wersję dostaje przez `GET
 ## Testy
 `backend/tests/content/`:
 - `test_blocks.py`: `youtube_id()` dla znanych i obcych adresów.
-- `test_versions.py`: nowa lekcja ma trzy puste wersje, zapis każdej wersji osobno, zapis zastępuje wersję, załącznik bez `forms`, serwis (`get_version`, `version_issues`), błędne bloki i nieznana forma → 422, plik innego nauczyciela i niezgodny rodzaj → 400, po zmianie właściciela zapis z plikami poprzedniego autora użytymi w lekcji (także przeniesionymi do innej wersji) przechodzi, a nieużyty plik poprzedniego autora → 400, opublikowana lekcja: zapis z nowym brakiem → 409, kompletny zapis przechodzi; wersje tylko dla autora, odrzucony nauczyciel → 403, bez logowania → 401.
-- `test_readiness.py`: każdy kod R11 dla V / A / K (komplet i braki).
+- `test_versions.py`: nowa lekcja ma trzy puste wersje, zapis każdej wersji osobno, zapis zastępuje wersję, załącznik bez `forms`, serwis (`get_version`, `version_issues`), nagranie z plikiem i transkrypcją naraz, nagranie bez pliku i transkrypcji → 422, błędne bloki i nieznana forma → 422, plik innego nauczyciela i niezgodny rodzaj → 400, po zmianie właściciela zapis z plikami poprzedniego autora użytymi w lekcji (także przeniesionymi do innej wersji) przechodzi, a nieużyty plik poprzedniego autora → 400, opublikowana lekcja: zapis z nowym brakiem → 409, kompletny zapis przechodzi; wersje tylko dla autora, odrzucony nauczyciel → 403, bez logowania → 401.
+- `test_readiness.py`: każdy kod R11 dla V / A / K (komplet i braki; nagranie z plikiem, transkrypcją albo oboma).
+- `tests/test_rich_text.py`: dokument z `codeBlock` i znacznikiem `code` przechodzi walidację, kod liczy się jako treść (`is_empty_document`).
 - `test_files.py`: dozwolone pliki, inne typy, za duży (bez śladu na dysku), pusty, brak pola, tylko nauczyciel, pobieranie `inline`, Range dla wideo, logowanie, nieistniejący.
 
 ## Jak sprawdzić ręcznie
