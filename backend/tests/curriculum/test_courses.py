@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.modules.identity.models import User
-from tests.curriculum.conftest import INTRODUCTION
+from tests.curriculum.conftest import INTRODUCTION, SUMMARY
 
 MakeCourse = Callable[..., dict[str, Any]]
 Login = Callable[[User], None]
@@ -23,11 +23,17 @@ def test_teacher_creates_private_course(client: TestClient, login: Login, teache
     course = response.json()
     assert course["title"] == "Procenty"
     assert course["description"] == "Opis"
-    assert course["owner_id"] == teacher.id
+    assert course["owner"] == {"id": teacher.id, "display_name": teacher.display_name}
     assert course["is_published"] is False
     assert course["is_archived"] is False
     assert course["introduction"] is None
+    assert course["summary"] is None
     assert course["lessons"] == []
+    assert course["lesson_count"] == 0
+    assert course["enrollment_status"] is None
+    assert course["progress"] is None
+    assert course["pending_requests"] == 0
+    assert "owner_id" not in course
 
 
 def test_description_is_optional(client: TestClient, login: Login, teacher: User) -> None:
@@ -73,9 +79,9 @@ def _titles(client: TestClient) -> set[str]:
 def test_teacher_lists_only_own_courses(
     client: TestClient, login: Login, make_course: MakeCourse, teacher: User, other_teacher: User
 ) -> None:
-    make_course(other_teacher, title="Cudzy opublikowany", published=True)
+    make_course(other_teacher, title="Cudzy opublikowany", lessons=("L",), published=True)
     make_course(teacher, title="Mój prywatny")
-    make_course(teacher, title="Mój opublikowany", published=True)
+    make_course(teacher, title="Mój opublikowany", lessons=("L",), published=True)
 
     login(teacher)
     assert _titles(client) == {"Mój prywatny", "Mój opublikowany"}
@@ -85,7 +91,7 @@ def test_student_lists_only_published_courses(
     client: TestClient, login: Login, make_course: MakeCourse, teacher: User, student: User
 ) -> None:
     make_course(teacher, title="Prywatny")
-    make_course(teacher, title="Opublikowany", published=True)
+    make_course(teacher, title="Opublikowany", lessons=("L",), published=True)
 
     login(student)
     assert _titles(client) == {"Opublikowany"}
@@ -95,7 +101,7 @@ def test_admin_lists_every_course_with_archived(
     client: TestClient, login: Login, make_course: MakeCourse, teacher: User, admin: User
 ) -> None:
     make_course(teacher, title="Prywatny")
-    archived = make_course(teacher, title="Zarchiwizowany", published=True)
+    archived = make_course(teacher, title="Zarchiwizowany", lessons=("L",), published=True)
     client.delete(f"/courses/{archived['id']}")
 
     login(admin)
@@ -160,7 +166,12 @@ def test_owner_edits_course(client: TestClient, make_course: MakeCourse, teacher
 
     response = client.patch(
         f"/courses/{course['id']}",
-        json={"title": "Nowy tytuł", "description": "Nowy opis", "introduction": INTRODUCTION},
+        json={
+            "title": "Nowy tytuł",
+            "description": "Nowy opis",
+            "introduction": INTRODUCTION,
+            "summary": SUMMARY,
+        },
     )
 
     assert response.status_code == 200
@@ -168,6 +179,7 @@ def test_owner_edits_course(client: TestClient, make_course: MakeCourse, teacher
     assert updated["title"] == "Nowy tytuł"
     assert updated["description"] == "Nowy opis"
     assert updated["introduction"] == INTRODUCTION
+    assert updated["summary"] == SUMMARY
     assert updated["is_published"] is False
 
 
@@ -175,12 +187,15 @@ def test_partial_edit_keeps_other_fields(
     client: TestClient, make_course: MakeCourse, teacher: User
 ) -> None:
     course = make_course(teacher)
-    client.patch(f"/courses/{course['id']}", json={"introduction": INTRODUCTION})
+    client.patch(
+        f"/courses/{course['id']}", json={"introduction": INTRODUCTION, "summary": SUMMARY}
+    )
 
     updated = client.patch(f"/courses/{course['id']}", json={"title": "Inny"}).json()
 
     assert updated["description"] == "Opis"
     assert updated["introduction"] == INTRODUCTION
+    assert updated["summary"] == SUMMARY
 
 
 def test_owner_publishes_and_unpublishes(
@@ -190,10 +205,8 @@ def test_owner_publishes_and_unpublishes(
     teacher: User,
     student: User,
 ) -> None:
-    course = make_course(teacher)
+    course = make_course(teacher, lessons=("A",), published=True)
     url = f"/courses/{course['id']}"
-
-    assert client.patch(url, json={"is_published": True}).json()["is_published"] is True
     login(student)
     assert client.get(url).status_code == 200
 
@@ -202,6 +215,22 @@ def test_owner_publishes_and_unpublishes(
     login(student)
     assert client.get(url).status_code == 404
 
+    login(teacher)
+    assert client.patch(url, json={"is_published": True}).json()["is_published"] is True
+
+
+def test_course_without_published_lesson_cannot_be_published(
+    client: TestClient, make_course: MakeCourse, teacher: User
+) -> None:
+    course = make_course(teacher, lessons=("Szkic",))
+    url = f"/courses/{course['id']}"
+
+    response = client.patch(url, json={"is_published": True, "title": "Nowy"})
+
+    assert response.status_code == 409
+    assert response.json() == {"code": "COURSE_HAS_NO_PUBLISHED_LESSONS"}
+    assert client.get(url).json()["title"] == "Procenty"  # nothing saved
+
 
 @pytest.mark.parametrize(
     "body",
@@ -209,6 +238,7 @@ def test_owner_publishes_and_unpublishes(
         {"introduction": {"type": "paragraph"}},
         {"introduction": "tekst"},
         {"introduction": {"type": "doc", "content": "x"}},
+        {"summary": {"type": "paragraph"}},
         {"title": ""},
         {"owner_id": 1},
     ],
@@ -230,7 +260,7 @@ def test_only_owner_edits_course(
     teacher: User,
     editor: str,
 ) -> None:
-    course = make_course(teacher, published=True)
+    course = make_course(teacher, lessons=("A",), published=True)
 
     login(request.getfixturevalue(editor))
     url = f"/courses/{course['id']}"
@@ -251,7 +281,7 @@ def test_archived_course_disappears_for_owner_and_students(
     teacher: User,
     student: User,
 ) -> None:
-    course = make_course(teacher, published=True)
+    course = make_course(teacher, lessons=("A",), published=True)
     url = f"/courses/{course['id']}"
 
     assert client.delete(url).status_code == 204
