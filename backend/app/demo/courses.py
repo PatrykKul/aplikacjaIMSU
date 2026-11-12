@@ -292,7 +292,7 @@ class Course:
     title: str
     description: str  # catalog card, max 500 characters
     introduction: dict[str, Any]
-    summary: dict[str, Any]  # "Podsumowanie i wnioski"
+    summary: Node  # "Podsumowanie i wnioski"; no own heading (the course page titles it)
     lessons: tuple[Lesson, ...]
 
 
@@ -341,7 +341,6 @@ MATH = Course(
         "do samodzielnej pracy. Krótki quiz po lekcji otwiera następną."
     ),
     introduction=doc(
-        heading("O kursie"),
         paragraph(
             "Funkcja liniowa to jeden z najważniejszych tematów matematyki w szkole podstawowej. "
             "Przyda się na egzaminie ósmoklasisty, w fizyce (droga i prędkość) i w zwykłych sytuacjach – "
@@ -355,7 +354,6 @@ MATH = Course(
         paragraph("Przygotuj zeszyt w kratkę, ołówek i linijkę."),
     ),
     summary=doc(
-        heading("Podsumowanie i wnioski"),
         bullets(
             "Funkcja liniowa ma wzór y = ax + b, a jej wykres to prosta. Do narysowania wystarczą dwa punkty.",
             "b to miejsce, w którym prosta przecina oś y – punkt (0, b).",
@@ -1409,7 +1407,6 @@ ENGLISH = Course(
         "przykłady czytane po angielsku) albo z kartą ćwiczeń. Quiz po lekcji otwiera następną."
     ),
     introduction=doc(
-        heading("O kursie"),
         paragraph(
             "Present Perfect to czas, który łączy przeszłość z teraźniejszością: mówi o tym, co się wydarzyło "
             "i ma znaczenie teraz. W języku polskim nie ma takiego czasu, dlatego warto poćwiczyć go osobno."
@@ -1424,7 +1421,6 @@ ENGLISH = Course(
         ),
     ),
     summary=doc(
-        heading("Podsumowanie i wnioski"),
         bullets(
             "Budowa: have/has + trzecia forma czasownika (V3). Has tylko z he, she, it; przeczenie haven't/hasn't, pytanie Have/Has + osoba + V3?",
             "ever (kiedykolwiek) w pytaniach, never (nigdy) w zdaniach twierdzących, already (już) przed V3, yet (już / jeszcze) na końcu pytań i przeczeń.",
@@ -2624,7 +2620,6 @@ PYTHON = Course(
         "Przyda się dowolny edytor Pythona, np. IDLE. Quiz po lekcji otwiera następną."
     ),
     introduction=doc(
-        heading("O kursie"),
         paragraph(
             "Pętla pozwala powtórzyć instrukcje wiele razy bez przepisywania kodu. Dzięki niej program wypisze "
             "tabliczkę mnożenia, policzy sumę stu liczb albo będzie pytał o hasło, dopóki nie wpiszesz poprawnego."
@@ -2640,7 +2635,6 @@ PYTHON = Course(
         ),
     ),
     summary=doc(
-        heading("Podsumowanie i wnioski"),
         bullets(
             "`for` przechodzi po kolejnych elementach listy, napisu albo `range()`; zmienna pętli w każdym obrocie przyjmuje następny element.",
             "`range(start, stop, krok)` daje liczby od start do stop − 1; `range(n)` – n liczb od 0.",
