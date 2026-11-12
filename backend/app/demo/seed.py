@@ -26,7 +26,7 @@ from app.core.db import SessionLocal
 from app.demo.courses import ASSETS_DIR, COURSES, Audio, Block, Course, Text, block_payload
 from app.modules.assessment import service as assessment
 from app.modules.assessment.models import LessonQuiz, QuizDraw
-from app.modules.assessment.schemas import QuizContent
+from app.modules.assessment.schemas import AttemptResponse, QuizContent
 from app.modules.authoring import service as authoring
 from app.modules.content import service as content
 from app.modules.content.blocks import LessonBlocks
@@ -333,7 +333,7 @@ def survey_choices(db: Session, survey: Survey) -> list[SurveyChoice]:
     return choices
 
 
-def take_quiz(db: Session, student: User, lesson: Lesson, percent: int) -> None:
+def take_quiz(db: Session, student: User, lesson: Lesson, percent: int) -> AttemptResponse:
     """Draw (or reuse the open draw) and answer k of 5 questions correctly."""
     lesson = curriculum.get_study_lesson(db, lesson.id, student)
     draw = assessment.current_draw(db, student, lesson)
@@ -349,6 +349,7 @@ def take_quiz(db: Session, student: User, lesson: Lesson, percent: int) -> None:
         answers[question_id] = key if index < correct else wrong
     result = assessment.submit_attempt(db, lesson.id, student, draw.id, answers)
     assert result.percent == percent, (student.email, lesson.title, result.percent)
+    return result
 
 
 Column = InstrumentedAttribute[Any]
