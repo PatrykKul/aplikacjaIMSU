@@ -45,6 +45,7 @@ from app.modules.learning_style.schemas import (
     LearningProfileResponse,
     LessonRefResponse,
     LessonResultResponse,
+    LessonStudyStateResponse,
     OpenProposalBrief,
     ProgressResponse,
     Proposal,
@@ -661,6 +662,41 @@ def set_lesson_form(
         )
         db.commit()
     return _study_response(db, lesson, user, profile)
+
+
+def study_states(db: Session, course_id: int, user: User) -> list[LessonStudyStateResponse]:
+    """Per published lesson of the course: started, passed, best and last score, chosen form."""
+    require_student(user)
+    course = curriculum.get_visible_course(db, course_id, user)
+    if not curriculum.is_accepted(db, course.id, user.id):
+        raise AppError(403, "ENROLLMENT_REQUIRED")
+    lesson_ids = [lesson.id for lesson in curriculum.published_lessons(course)]
+    passed = curriculum.passed_lesson_ids(db, user.id, lesson_ids)
+    profile = get_profile(db, user.id)
+    style = None if profile is None else profile.style
+    choices = {
+        choice.lesson_id: choice.form
+        for choice in db.scalars(select(LessonForm).where(LessonForm.user_id == user.id))
+        if choice.form != style
+    }
+    scores: dict[int, list[int]] = {}
+    for row in user_results(db, user.id):
+        scores.setdefault(row.lesson_id, []).append(row.percent)
+    states = []
+    for lesson_id in lesson_ids:
+        percents = scores.get(lesson_id, [])
+        chosen = choices.get(lesson_id)
+        states.append(
+            LessonStudyStateResponse(
+                lesson_id=lesson_id,
+                started=bool(percents) or chosen is not None,
+                passed=lesson_id in passed,
+                best_percent=max(percents, default=None),
+                last_percent=percents[-1] if percents else None,
+                chosen_form=chosen,
+            )
+        )
+    return states
 
 
 # --- Course hint ---------------------------------------------------------------------------------
