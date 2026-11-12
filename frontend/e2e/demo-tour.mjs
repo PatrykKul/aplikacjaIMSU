@@ -418,8 +418,10 @@ console.log("uczen3: styl A → V → A bez lekcji (cofnięcie, D60)");
     "uczen3: a new trial started after the revert",
   );
   await page.goto(`${APP}/progress`);
+  // The journal entry, not the hidden SVG <title> of the chart
   await page
     .getByText(/cofnięta przed pierwszą lekcją/)
+    .filter({ visible: true })
     .first()
     .waitFor();
   await page
