@@ -8,6 +8,7 @@ from app.core.db import DbSession
 from app.core.errors import AppError
 from app.modules.identity.models import User, UserRole
 from app.modules.identity.security import decode_access_token
+from app.modules.identity.service import require_approved
 
 
 def get_current_user(request: Request, db: DbSession) -> User:
@@ -31,5 +32,12 @@ def require_role(*roles: UserRole) -> Callable[[User], User]:
     return dependency
 
 
+def get_approved_teacher(user: Annotated[User, Depends(require_role(UserRole.TEACHER))]) -> User:
+    """A teacher whose account the admin approved (otherwise 403 TEACHER_NOT_APPROVED)."""
+    require_approved(user)
+    return user
+
+
 AdminUser = Annotated[User, Depends(require_role(UserRole.ADMIN))]
-TeacherUser = Annotated[User, Depends(require_role(UserRole.TEACHER))]
+TeacherUser = Annotated[User, Depends(get_approved_teacher)]
+StudentUser = Annotated[User, Depends(require_role(UserRole.STUDENT))]
