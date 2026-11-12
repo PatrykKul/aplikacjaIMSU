@@ -1,12 +1,12 @@
 # Moduł `learning_style`
 
-Model ucznia i silnik adaptacji: ankieta VAK, jeden aktywny styl i profil procentowy, wersja lekcji w formie ucznia, reguły po quizie (sugestia, propozycja zmiany stylu, okres próbny, podpowiedź z kursu), dziennik decyzji, statystyki ucznia i kursu. Decyzje: D29, D31, D41, D44, D45, D50, D51, D52; D3 (bez wyjątku — backend zwraca kody i liczby).
+Model ucznia i silnik adaptacji: ankieta VAK, jeden aktywny styl i profil procentowy, wersja lekcji w formie ucznia, reguły po quizie (sugestia, propozycja zmiany stylu, okres próbny, podpowiedź z kursu), dziennik decyzji, statystyki ucznia i kursu. Decyzje: D29, D31, D41, D44, D45, D50, D51, D52, D57, D60–D62; D3 (bez wyjątku — backend zwraca kody i liczby).
 
 Zasada: **każda reakcja systemu wynika z jednej czystej funkcji w `rules.py` i niesie liczby, z których wynika**; serwis tylko ładuje dane, zapisuje decyzję i wpis w dzienniku.
 
 ## Odpowiedzialność
 - Ankieta (raz, D50), profil: aktywny styl (V, A albo K), źródło stylu, procenty V / A / K, historia procentów.
-- Wersja lekcji dla ucznia (`/study`): forma lekcji = jawny wybór (`lesson_forms`) albo aktywny styl; bloki z `content.service.get_version`.
+- Wersja lekcji dla ucznia (`/study`): forma lekcji = jawny wybór (`lesson_forms`) albo aktywny styl; bloki z `content.service.get_version`. **Forma równa aktywnemu stylowi to nie jawny wybór** (D57): `form_source = style`, liczone w chwili odpowiedzi (wiersz `lesson_forms` równy stylowi — np. wybór zostawiony w zaliczonej lekcji, a potem zmiana stylu na tę formę — nie daje `choice`); wybór formy równej stylowi usuwa wiersz.
 - Wynik quizu w modelu ucznia (`quiz_results`) i reguły R2–R7 — jedyny punkt styku z `assessment`: `hooks.record_quiz_result`.
 - Propozycje zmiany stylu, okresy próbne, ręczna zmiana stylu, rozstrzygnięcie remisu ankiety.
 - Dziennik decyzji (`decision_events`) — uczeń i autor kursu go widzą.
@@ -16,7 +16,7 @@ Zasada: **każda reakcja systemu wynika z jednej czystej funkcji w `rules.py` i 
 
 ## Model danych
 
-Migracje: `ea197399889b` (ankieta + 20 pytań z v1), `c3a91f2d7b40` (teksty neutralne płciowo), `01324f58656d` (model v3; dane uczenia v2 usunięte, bez przenoszenia).
+Migracje: `ea197399889b` (ankieta + 20 pytań z v1), `c3a91f2d7b40` (teksty neutralne płciowo), `01324f58656d` (model v3; dane uczenia v2 usunięte, bez przenoszenia), `7d2e9b4c1a35` (`style_trials.result` = `cancelled`).
 
 | Tabela | Kolumny | Uwagi |
 |---|---|---|
@@ -28,7 +28,7 @@ Migracje: `ea197399889b` (ankieta + 20 pytań z v1), `c3a91f2d7b40` (teksty neut
 | `quiz_results` | `id`, `user_id`, `course_id` (indeks), `lesson_id`, `draw_id` → `quiz_draws` (SET NULL), `form`, `percent` (0–100), `passed`, `counted`, `created_at` | wynik w modelu ucznia (S z wykładu); indeks (`user_id`, `lesson_id`) |
 | `lesson_forms` | `user_id`, `lesson_id` (PK razem), `form`, `updated_at` | jawny wybór formy lekcji; brak wiersza = forma = aktywny styl |
 | `style_proposals` | `id`, `user_id`, `kind` (`switch` / `revert`), `from_style`, `to_style`, `evidence` (JSONB), `status` (`open` / `accepted` / `rejected` / `expired` / `superseded`), `counted_at_decision`, `created_at`, `decided_at` | częściowy indeks unikalny: najwyżej jedna `open` na ucznia |
-| `style_trials` | `id`, `user_id`, `from_style`, `to_style`, `source` (`proposal` / `manual`), `before_average` (null = brak danych), `after_average`, `result` (`helped` / `neutral` / `worse` / `no_baseline` / null), `started_at`, `finished_at` (null = trwa) | okres próbny (R7) |
+| `style_trials` | `id`, `user_id`, `from_style`, `to_style`, `source` (`proposal` / `manual`), `before_average` (null = brak danych), `after_average`, `result` (`helped` / `neutral` / `worse` / `no_baseline` / `cancelled` / null), `started_at`, `finished_at` (null = trwa) | okres próbny (R7); `cancelled` — cofnięty albo zastąpiony przed pierwszą policzoną lekcją (R7a), null po zakończeniu — przerwany zmianą stylu po policzonych lekcjach |
 | `decision_events` | `id`, `user_id` (CASCADE), `type` (40), `course_id` (SET NULL, indeks), `lesson_id` (SET NULL), `data` (JSONB), `created_at` | dziennik decyzji; indeks (`user_id`, `created_at`) |
 
 Czas w nowych wierszach (`quiz_results`, `decision_events`, `style_history`, propozycje, okresy próbne, `quiz_draws.submitted_at`) ustawia `service.now()` = `clock_timestamp()`: wiersze jednego żądania mają różne czasy, a okres próbny porównuje czas wyniku z czasem startu.
@@ -71,7 +71,7 @@ Bez SQLAlchemy i FastAPI; wejście: `dict` i dataklasy (`Result`, `Rejection`, `
 
 ### R4. Quiz zaliczony — odblokowanie i pochwała — `praise(results)`
 - Każde zaliczone podejście (dowolne, także niepoliczone) woła `curriculum.mark_lesson_passed` (zapis w `lesson_completions` raz); następna opublikowana lekcja staje się dostępna (R10 w `curriculum`), `QuizFeedback.unlocked_lesson` podaje ją przy pierwszym zaliczeniu; `course_completed` — gdy właśnie zaliczona została ostatnia niezaliczona lekcja kursu.
-- `praise`: bieżący wynik musi być policzony i zaliczony; seria = policzone zaliczone wyniki w tej samej formie liczone wstecz **przez wszystkie kursy**; niepoliczone wyniki są pomijane, serię przerywa policzony wynik niezaliczony albo w innej formie. Pochwała przy serii ≥ 2 → `{form, streak, average}`.
+- `praise`: bieżący wynik musi być policzony i zaliczony; seria = policzone zaliczone wyniki w tej samej formie liczone wstecz **przez wszystkie kursy**; niepoliczone wyniki są pomijane, serię przerywa policzony wynik niezaliczony albo w innej formie. Pochwała przy serii ≥ 2 → `{form, streak, average}` w `QuizFeedback.praise` i jako zdarzenie `praise` w dzienniku (D61).
 - Przykład (Marta): V 80, V 100, V 80 → „3 lekcje z rzędu zaliczone w formie wzrokowej, średnio 87%”.
 
 ### R5. Quiz niezaliczony — „przerób w formie X” — `retry_suggestion(failed, percentages, stats, survey, results)`
@@ -92,7 +92,7 @@ Bez SQLAlchemy i FastAPI; wejście: `dict` i dataklasy (`Result`, `Rejection`, `
 - **Czyszczenie wyborów formy** — `forms_to_clear(chosen_forms, passed_lesson_ids)`: przy **każdej** zmianie stylu (przyjęte `switch` i `revert`, zmiana ręczna) usuwane są wiersze `lesson_forms` w lekcjach jeszcze niezaliczonych; w zaliczonych wybór zostaje jako zapis historii. Lista (`lesson_id`, `lesson_title`, `form`) trafia do `cleared_lessons` w zdarzeniu.
 
 ### R7. Okres próbny — `trial_baseline(results, previous_style)`, `trial_outcome(before, form, after_results)`, `trial_progress(form, after_results)`
-- Start: przyjęta propozycja `switch` albo zmiana ręczna (także w trakcie innego okresu — poprzedni kończy się bez wyniku). Po przyjęciu `revert` okresu nie ma (bez pętli).
+- Start: przyjęta propozycja `switch` albo zmiana ręczna (także w trakcie innego okresu — poprzedni po policzonych lekcjach kończy się bez wyniku, przed nimi patrz R7a). Po przyjęciu `revert` okresu nie ma (bez pętli).
 - `before_average` = średnia z ostatnich ≤ 2 policzonych wyników w **poprzednim** stylu (`null`, gdy brak).
 - Liczą się policzone wyniki w **nowym** stylu (`to_style`) zapisane od `started_at`; wyniki w innej formie (np. lekcja przerabiana w wybranej formie) się nie liczą. Po 2 → `after_average` (średnia dwóch pierwszych), `diff = after − before`:
   - `diff ≥ +10` → `helped` („Zmiana pomogła: średnia 40% → 90%”),
@@ -105,6 +105,15 @@ Bez SQLAlchemy i FastAPI; wejście: `dict` i dataklasy (`Result`, `Rejection`, `
 - Tylko dla ucznia **bez żadnego wyniku w kursie**. Policzone wyniki innych uczniów tego kursu pogrupowane po formie; formy z ≥ 2 uczniami; najwyższa średnia → więcej uczniów → V, A, K → `{form, average, students, results}`; `null` bez danych. Bez automatycznej zmiany stylu.
 - Przykład (demo, Matematyka, Zosia po przyjęciu): „W tym kursie najlepiej wypada forma słuchowa (średnio 86%, 3 uczniów)”.
 
+### R7a. Zmiana stylu w trakcie okresu próbnego — `trial_on_style_change(active, counted_in_trial, new_style, previous_style, before_average, *, starts_trial)` (D60)
+- Wejście: trwający okres (`TrialInfo`: `id`, `from_style`, `to_style`, `before_average`) albo `None`, liczba policzonych wyników w jego nowej formie (`trial_progress`), nowy i poprzedni styl, `before_average` = `trial_baseline` poprzedniego stylu; `starts_trial = false` dla przyjętego `revert`. Wynik `TrialDecision(action, from_style, before_average)`.
+- Trwa okres i **0** policzonych lekcji w nowej formie (zmiana nie była sprawdzona):
+  - nowy styl = `from_style` okresu → `cancel`: okres `result = cancelled`, `finished_at`; nowy okres **nie** startuje; w dzienniku `style_change_reverted` **zamiast** `manual_style_change` / `proposal_accepted`;
+  - inny (trzeci) styl → `replace`: stary okres `cancelled`, nowy startuje z **tym samym** punktem odniesienia (`from_style`, `before_average` starego okresu), `trial_started` z `replaced_trial_id`.
+- Były policzone lekcje albo brak okresu → `start` (jak dotąd: stary okres zamknięty z `result = null`, nowy od poprzedniego stylu); `starts_trial = false` → `none` (bez nowego okresu).
+- Przykłady: A (2 lekcje po 100%) → ręcznie V → bez lekcji ręcznie A → `cancel` (nie ma okresu „V → A” ani komunikatu „brak wyników do porównania”); A → V → K bez lekcji → `replace`, okres A → K z `before_average` = 100.
+- `LearningProfileResponse.trial` nie pokazuje okresu `cancelled`: trwający albo ostatni zakończony niecofnięty (albo null).
+
 Reguły R9 (losowanie, `assessment/drawing.py`), R10 (blokada, `curriculum/progress.py`) i R11 (gotowość, `*/readiness.py`) — w modułach `05`, `02`, `07`.
 
 ## Kolejność w `hooks.record_quiz_result`
@@ -113,7 +122,7 @@ Jedno wywołanie z `assessment.submit_attempt` po ocenie zestawu (wynik liczy se
 
 1. `require_style`; forma = `lesson_form` (wybór lekcji albo aktywny styl) w chwili wysłania.
 2. `counted = is_counted(formy wcześniejszych wyników tej lekcji, forma)`; zapis `quiz_results`; jeśli policzony → `apply_result`, nowe procenty w profilu. `form_stats` z wyników łącznie z bieżącym.
-3. Zaliczony → `course_progress` przed i po `curriculum.mark_lesson_passed` (odblokowanie, `course_completed`), `praise`. Zdarzenie `quiz_attempt`; przy policzonym — punkt `style_history`.
+3. Zaliczony → `course_progress` przed i po `curriculum.mark_lesson_passed` (odblokowanie, `course_completed`), `praise`. Zdarzenie `quiz_attempt`; przy policzonym — punkt `style_history`; przy pochwale — zdarzenie `praise`.
 4. Niezaliczony → `retry_suggestion` (z procentami **po** zmianie i procentami ankiety), zdarzenie `retry_suggestion`.
 5. Trwający okres próbny → `trial_outcome`; po 2 wynikach: zakończenie, `trial_finished`, przy `worse` propozycja `revert` (`proposal_created`).
 6. `switch_proposal` (pomijane, gdy otwarta jest `revert`): wygaszenie nieaktualnej (`proposal_expired`), utworzenie nowej (`proposal_created`).
@@ -126,16 +135,18 @@ Jedno wywołanie z `assessment.submit_attempt` po ocenie zestawu (wynik liczy se
 | `survey_completed` | `points`, `percentages`, `style` (null przy remisie), `tie_styles` | — |
 | `tie_resolved` | `style`, `tie_styles` | — |
 | `quiz_attempt` | `draw_id`, `form`, `percent`, `passed`, `counted`, `percentages_before`, `percentages_after`, `unlocked_lesson` ({`id`, `title`, `number`} / null) | kurs, lekcja |
+| `praise` | `form`, `streak`, `average` (R4, seria ≥ 2) | kurs, lekcja |
 | `retry_suggestion` | `failed`: {`form`, `percent`, `previous`: {`lesson_id`, `lesson_title`, `percent`} / null}, `suggested`: {`form`, `reason`, `percent`, `survey_percent`, `best`: {…} / null} | kurs, lekcja |
 | `lesson_form_changed` | `from`, `to`, `source` (`manual` / `suggestion`) | kurs, lekcja |
 | `proposal_created` | `proposal_id`, `kind`, `from`, `to`, `evidence` | kurs, lekcja (z quizu) |
 | `proposal_accepted` | `proposal_id`, `kind`, `from`, `to`, `cleared_lessons` ([{`lesson_id`, `lesson_title`, `form`}]) | — |
 | `proposal_rejected`, `proposal_expired` | `proposal_id`, `kind`, `from`, `to` | `expired`: kurs, lekcja |
 | `manual_style_change` | `from`, `to`, `cleared_lessons`, `superseded_proposal_id` (null, gdy nie było otwartej) | — |
-| `trial_started` | `trial_id`, `from`, `to`, `source`, `before_average` | — |
+| `trial_started` | `trial_id`, `from`, `to`, `source`, `before_average`, `replaced_trial_id` (okres zastąpiony przez R7a albo null) | — |
+| `style_change_reverted` | `from`, `to`, `trial_id` (cofnięty okres), `source` (`manual` / `proposal`), `cleared_lessons` — cofnięcie zmiany przed pierwszą lekcją (R7a), zamiast `manual_style_change` / `proposal_accepted` | — |
 | `trial_finished` | `trial_id`, `from`, `to`, `before_average`, `after_average`, `result` | kurs, lekcja |
 
-Punkt `style_history` (z `event_id`) zapisują: `survey_completed`, `tie_resolved`, policzony `quiz_attempt`, `proposal_accepted`, `manual_style_change`.
+Punkt `style_history` (z `event_id`) zapisują: `survey_completed`, `tie_resolved`, policzony `quiz_attempt`, `proposal_accepted`, `manual_style_change`, `style_change_reverted`.
 
 ## Statystyki (`stats.py`, czyste funkcje)
 - `form_effectiveness(course_results)` → dla V / A / K: `average` (policzonych), `counted_results`, `attempts` (wszystkie), `students` (z co najmniej jednym podejściem w formie).
@@ -151,11 +162,12 @@ Punkt `style_history` (z `event_id`) zapisują: `survey_completed`, `tie_resolve
 | `POST /survey/answers` | uczeń | `{answers: [{question_id, answer_id}]}` → `LearningProfileResponse` | 409 `SURVEY_ALREADY_DONE` / `SURVEY_EMPTY`; 400 `SURVEY_DUPLICATE_ANSWER` / `SURVEY_INCOMPLETE` / `SURVEY_ANSWER_MISMATCH`; 403 `FORBIDDEN` |
 | `GET /profile/learning-style` | zalogowany | `LearningProfileResponse` (nie-uczeń i uczeń bez ankiety: `survey_completed = false`, reszta pusta) | 401 |
 | `POST /profile/learning-style/tie-choice` | uczeń | `{style}` przy nierozstrzygniętym remisie | 403 `SURVEY_REQUIRED`, 409 `NO_TIE`, 400 `STYLE_NOT_TIED`, 422 |
-| `PUT /profile/learning-style` | uczeń | `{style}` → zmiana ręczna: procenty bez zmian, otwarta propozycja `superseded`, czyszczenie wyborów formy, nowy okres próbny | 403 `SURVEY_REQUIRED`, 409 `SAME_STYLE`, 422 |
+| `PUT /profile/learning-style` | uczeń | `{style}` → zmiana ręczna: procenty bez zmian, otwarta propozycja `superseded`, czyszczenie wyborów formy, nowy okres próbny albo cofnięcie / zastąpienie trwającego (R7a) | 403 `SURVEY_REQUIRED`, 409 `SAME_STYLE`, 422 |
 | `POST /profile/learning-style/proposals/{id}/accept` | uczeń | przyjęcie → `LearningProfileResponse` | 404 `PROPOSAL_NOT_FOUND` (także cudza), 409 `PROPOSAL_NOT_OPEN`, 403 `SURVEY_REQUIRED` |
 | `POST /profile/learning-style/proposals/{id}/reject` | uczeń | odrzucenie → `LearningProfileResponse` | jak wyżej |
 | `GET /lessons/{id}/study` | uczeń | `StudyResponse` | 403 `SURVEY_REQUIRED` / `ENROLLMENT_REQUIRED` / `LESSON_LOCKED` (+ `required_lesson`), 404 `LESSON_NOT_FOUND`; 403 `FORBIDDEN` dla innych ról |
-| `PUT /lessons/{id}/study/form` | uczeń | `{form, source: "manual" \| "suggestion"}` → `StudyResponse`; zdarzenie `lesson_form_changed` (ta sama forma → bez zmian) | jak wyżej, 422 |
+| `PUT /lessons/{id}/study/form` | uczeń | `{form, source: "manual" \| "suggestion"}` → `StudyResponse`; forma różna od stylu → zapis wyboru, równa stylowi → usunięcie wyboru (powrót do stylu); zdarzenie `lesson_form_changed`, gdy forma lekcji się zmienia (ta sama forma → bez zmian) | jak wyżej, 422 |
+| `GET /courses/{id}/study-states` | uczeń przyjęty | `LessonStudyState[]` — opublikowane lekcje w kolejności kursu (przycisk „Rozpocznij” / „Kontynuuj” / „Powtórz”, D57) | 404 `COURSE_NOT_FOUND`, 403 `ENROLLMENT_REQUIRED` / `FORBIDDEN` |
 | `GET /courses/{id}/hint` | uczeń przyjęty | `CourseHint` albo `null` | 404 `COURSE_NOT_FOUND`, 403 `ENROLLMENT_REQUIRED` / `FORBIDDEN` |
 | `GET /me/progress` | uczeń | `ProgressResponse` | 403 `FORBIDDEN` |
 | `GET /me/journal` | uczeń | `JournalEntry[]`, od najnowszego | 403 `FORBIDDEN` |
@@ -163,14 +175,15 @@ Punkt `style_history` (z `event_id`) zapisują: `survey_completed`, `tie_resolve
 | `GET /courses/{id}/students/{student_id}` | autor | `StudentDetailResponse` (tylko uczeń przyjęty do kursu) | 404 `STUDENT_NOT_FOUND` / `COURSE_NOT_FOUND`, 403 |
 
 Schematy:
-- `LearningProfileResponse`: `survey_completed`, `style`, `style_source`, `tie_styles` (niepuste tylko przy nierozstrzygniętym remisie), `percentages`, `forms` ({`V`: {`confirmed`, `lessons`, `average`}, …}), `survey` ({`points`, `percentages` z R1, `created_at`}), `open_proposal`, `trial` (trwający albo ostatni zakończony).
+- `LearningProfileResponse`: `survey_completed`, `style`, `style_source`, `tie_styles` (niepuste tylko przy nierozstrzygniętym remisie), `percentages`, `forms` ({`V`: {`confirmed`, `lessons`, `average`}, …}), `survey` ({`points`, `percentages` z R1, `created_at`}), `open_proposal`, `trial` (trwający albo ostatni zakończony, bez `cancelled`).
 - `Proposal`: `id`, `kind`, `from`, `to`, `evidence`, `created_at`. `Trial`: `id`, `from`, `to`, `source`, `before_average`, `after_average`, `result`, `done` (policzone wyniki w nowej formie, ≤ 2), `needed` (2), `started_at`, `finished_at`.
-- `StudyResponse`: `lesson_id`, `form`, `form_source` (`style` / `choice`), `style`, `blocks` (wersja w formie `form`; pusta lista, gdy wersji nie ma), `other_forms`, `suggestion` (z ostatniego podejścia w lekcji, gdy było niezaliczone i uczeń nie przeszedł jeszcze na sugerowaną formę), `last_result` ({`percent`, `passed`, `form`} / null).
+- `StudyResponse`: `lesson_id`, `form`, `form_source` (`style` / `choice` — tylko wybór różny od aktywnego stylu), `style`, `blocks` (wersja w formie `form`; pusta lista, gdy wersji nie ma), `other_forms`, `suggestion` (z ostatniego podejścia w lekcji, gdy było niezaliczone i uczeń nie przeszedł jeszcze na sugerowaną formę), `last_result` ({`percent`, `passed`, `form`} / null).
+- `LessonStudyState`: `lesson_id`, `started` (jest wynik w lekcji albo jawny wybór formy), `passed` (zaliczenie z `curriculum`), `best_percent` / `last_percent` (najlepszy / ostatni wynik w lekcji, null bez wyników), `chosen_form` (jawny wybór formy różny od aktywnego stylu albo null). Blokadę lekcji podaje `CourseResponse.lessons[].state`.
 - `CourseHint`: `form`, `average`, `students`, `results`.
-- `ProgressResponse`: `history` ([{`at`, `percentages`, `style`}]), `courses` (przyjęte: `id`, `title`, `passed`, `total`, `next_lesson`), `lessons` (`course_id`, `course_title`, `lesson_id`, `lesson_title`, `number`, `passed`, `attempts`).
-- `JournalEntry`: `id`, `type`, `at`, `course` {`id`, `title`} / null, `lesson` {`id`, `title`} / null, `data`.
+- `ProgressResponse`: `history` ([{`at`, `percentages`, `style`, `event`}] — `event`: `JournalEntry` zdarzenia, które zapisało punkt (`style_history.event_id`; D62: wykres odróżnia ankietę i policzone quizy od zmian stylu i cofnięć); punkty są tylko dla zdarzeń zmieniających profil albo styl), `courses` (przyjęte: `id`, `title`, `passed`, `total`, `next_lesson`), `lessons` (`course_id`, `course_title`, `lesson_id`, `lesson_title`, `number`, `passed`, `attempts`).
+- `JournalEntry`: `id`, `type`, `at`, `course` {`id`, `title`} / null, `lesson` {`id`, `title`, `number`} / null (`number` wśród opublikowanych lekcji, null dla nieopublikowanej — etykiety „L1 · A”), `data`.
 - `CourseStatsResponse`: `forms` ({`V`: {`average`, `counted_results`, `attempts`, `students`}, …}), `styles` ({`V`, `A`, `K`, `none`} przyjętych uczniów), `students` ([{`id`, `display_name`, `email`, `style`, `percentages`, `passed`, `total`, `average` (policzone w kursie), `last_activity` (ostatni wynik w kursie), `open_proposal` {`to`, `kind`} / null}]), `pending_requests`.
-- `StudentDetailResponse`: `student`, `profile`, `history`, `lessons` (tylko ten kurs), `journal` (zdarzenia tego kursu + zdarzenia globalne: ankieta, wybór remisu, zmiany stylu, okresy próbne).
+- `StudentDetailResponse`: `student`, `profile`, `history` (jak w `ProgressResponse`, z `event`), `lessons` (tylko ten kurs), `journal` (zdarzenia tego kursu + zdarzenia globalne: ankieta, wybór remisu, zmiany stylu, okresy próbne).
 
 Usunięte endpointy v2 (testowane jako 404): `GET /survey/results`, `DELETE /profile/learning-style`, `POST /profile/learning-style/proposal/accept|reject`, `GET /lessons/{id}/personalized-blocks`, `POST /lessons/{id}/blocks/{block_id}/open`.
 
@@ -188,10 +201,10 @@ Zdania decyzji składa wyłącznie `features/learning-style/explain.ts` (kody i 
 
 ## Testy
 `backend/tests/learning_style/`:
-- `test_rules.py` (67 przypadków z parametryzacją): R1 (przykłady, minimum 5%, reszty przy remisie, brak punktów, właściwość „suma 100 i każda 5–90” na siatce, liderzy), R2 (przykłady ze specyfikacji, ścieżki Kuby i Marty, limit 90, minimum 5, proporcja, właściwość na siatce), `is_counted`, R3 (potwierdzenie niepoliczonym zaliczeniem, porażka nie potwierdza), R4 (Marta, seria ≥ 2, przerwanie inną formą i porażką, pomijanie niepoliczonych), R5 (ankieta, potwierdzony kandydat, remisy procentu / średniej / kolejności, oblanie w formie innej niż styl, poprzedni wynik z innej lekcji), R6 (Kuba z dowodem, niepotwierdzona / niewyższa forma, okres próbny, wybór kandydata, powrót odrzuconej po 2 wynikach, niepoliczone nie odnawiają, odrzucenie innej formy nie blokuje), `forms_to_clear`, R7 (Marta, granice +10 / +9 / −9 / −10, `no_baseline`, czekanie na 2 wyniki w nowej formie, dwa pierwsze wyniki, `trial_baseline`), R8 (min. 2 uczniów, remisy, uczeń z wynikami).
+- `test_rules.py` (67 przypadków z parametryzacją): R1 (przykłady, minimum 5%, reszty przy remisie, brak punktów, właściwość „suma 100 i każda 5–90” na siatce, liderzy), R2 (przykłady ze specyfikacji, ścieżki Kuby i Marty, limit 90, minimum 5, proporcja, właściwość na siatce), `is_counted`, R3 (potwierdzenie niepoliczonym zaliczeniem, porażka nie potwierdza), R4 (Marta, seria ≥ 2, przerwanie inną formą i porażką, pomijanie niepoliczonych), R5 (ankieta, potwierdzony kandydat, remisy procentu / średniej / kolejności, oblanie w formie innej niż styl, poprzedni wynik z innej lekcji), R6 (Kuba z dowodem, niepotwierdzona / niewyższa forma, okres próbny, wybór kandydata, powrót odrzuconej po 2 wynikach, niepoliczone nie odnawiają, odrzucenie innej formy nie blokuje), `forms_to_clear`, R7 (Marta, granice +10 / +9 / −9 / −10, `no_baseline`, czekanie na 2 wyniki w nowej formie, dwa pierwsze wyniki, `trial_baseline`), R7a (start, cofnięcie, zastąpienie z punktem odniesienia, po policzonych lekcjach jak dotąd, `revert` bez okresu), R8 (min. 2 uczniów, remisy, uczeń z wynikami).
 - `test_scoring.py`, `test_stats.py` (czyste funkcje); `test_survey_api.py` (20 pytań, brak klucza, procenty i styl, minimum, ankieta raz, remis i wybór, walidacja, role, usunięte endpointy v2, dziennik tylko własny); `test_survey_wording.py`.
-- `test_adaptation_flow.py` (przez API): tylko pierwsze podejście w formie zmienia procenty, forma z wyboru lekcji, zdarzenie `quiz_attempt` z danymi, odblokowanie i ukończenie kursu, sugestie (ankieta, potwierdzona), ścieżka Kuby do propozycji i okresu próbnego, brak propozycji dla niepotwierdzonej formy, powrót odrzuconej po 2 wynikach, wygaszenie, cudza propozycja → 404, Marta `helped`, `worse` → propozycja powrotu bez nowego okresu, `no_baseline`, wyniki w innej formie poza okresem, zmiana ręczna (`superseded` + okres próbny, nowy okres w trakcie starego, błędy), czyszczenie wyborów formy przy zmianie ręcznej i przyjęciu propozycji.
-- `test_study_api.py` (wersja stylu, wybór innej formy, brak wersji, sugestia do zmiany formy, dostęp), `test_insights_api.py` (podpowiedź i dostęp, postępy, dziennik od najnowszego z kursem i lekcją, tylko uczeń; statystyki kursu, otwarta propozycja w tabeli, tylko autor; szczegóły ucznia tylko dla przyjętego).
+- `test_adaptation_flow.py` (przez API): tylko pierwsze podejście w formie zmienia procenty, forma z wyboru lekcji, zdarzenie `quiz_attempt` z danymi, zdarzenie `praise` przy serii, odblokowanie i ukończenie kursu, sugestie (ankieta, potwierdzona), ścieżka Kuby do propozycji i okresu próbnego, brak propozycji dla niepotwierdzonej formy, powrót odrzuconej po 2 wynikach, wygaszenie, cudza propozycja → 404, Marta `helped`, `worse` → propozycja powrotu bez nowego okresu, `no_baseline`, wyniki w innej formie poza okresem, zmiana ręczna (`superseded` + okres próbny, nowy okres w trakcie starego, błędy), czyszczenie wyborów formy przy zmianie ręcznej i przyjęciu propozycji; R7a: ścieżka Patryka A (2 × 100%) → V → A bez lekcji (cofnięcie, okres `cancelled`, brak okresu „V → A”, profil bez okresu) i A → V → K (okres A → K z punktem odniesienia z A, `replaced_trial_id`), zmiana po policzonej lekcji jak dotąd, cofnięcie po przyjęciu propozycji.
+- `test_study_api.py` (wersja stylu, wybór innej formy, powrót do formy stylu usuwa wybór, wybór w zaliczonej lekcji równy nowemu stylowi → `style`, brak wersji, sugestia do zmiany formy, dostęp), `test_insights_api.py` (punkty historii ze zdarzeniami: ankieta, policzone quizy, zmiana ręczna, cofnięcie, wybór remisu, przyjęta propozycja, bez punktów dla niepoliczonych wyników i pochwały, numer lekcji; stany lekcji ucznia: nowa, z wyborem formy, niezaliczona, zaliczona z najlepszym i ostatnim wynikiem, tylko opublikowane, dostęp; podpowiedź i dostęp, postępy, dziennik od najnowszego z kursem i lekcją, tylko uczeń; statystyki kursu, otwarta propozycja w tabeli, tylko autor; szczegóły ucznia tylko dla przyjętego).
 
 ## Jak sprawdzić ręcznie
 Na kontach demo (`moduly/06-demo.md`, hasło `Demo123!`):
@@ -205,8 +218,7 @@ Na kontach demo (`moduly/06-demo.md`, hasło `Demo123!`):
 - **Druga szansa jest łatwiejsza:** po porażce uczeń zna część pytań i ich wyjaśnienia, więc pierwsze podejście w nowej formie tej samej lekcji może zawyżać jej procent. Łagodzą to: inne pytania przy powtórce (R9), liczenie tylko pierwszego podejścia w formie i wymóg potwierdzenia formy przed propozycją (R6) — reguły nie usuwają tego efektu.
 - Model VAK i dopasowanie formy do stylu (*meshing*) nie mają mocnego potwierdzenia empirycznego (Pashler i in., 2008): ankieta to hipoteza startowa, którą system sprawdza wynikami, a decyzję zostawia uczniowi (`02-koncepcja.md` §8).
 - Ankieta raz — bez ponownego wypełnienia; statystyki form i propozycje liczone ze wszystkich kursów ucznia.
-- Pochwała (R4) jest tylko w odpowiedzi na podejście (`QuizFeedback.praise`) — nie ma osobnego zdarzenia w dzienniku.
-- Okres próbny przerwany kolejną zmianą stylu kończy się bez wyniku (w dzienniku tylko nowy `trial_started`).
-- Zmiana formy lekcji przy otwartym (niewysłanym) zestawie pytań nie losuje nowych pytań — zestaw nie ma formy; forma liczy się w chwili wysłania.
+- Okres próbny przerwany kolejną zmianą stylu **po** policzonych lekcjach kończy się bez wyniku (w dzienniku tylko nowy `trial_started`); przed nimi — cofnięcie albo zastąpienie (R7a).
+- Zmiana formy lekcji przy otwartym zestawie pytań losuje nowy zestaw (`quiz_draws.form`, `moduly/05-assessment.md`), ale wynik zawsze dostaje formę z chwili wysłania.
 - Statystyki kursu i podpowiedź R8 liczą wyniki tylko uczniów obecnie przyjętych na kurs (uczeń odrzucony po fakcie wypada ze statystyk); tabela i rozkład stylów — też tylko przyjęci.
 - W szczegółach ucznia widać zdarzenia kursu i globalne; propozycja powstała po quizie w innym kursie jest tam niewidoczna, choć jej przyjęcie (globalne) widać.

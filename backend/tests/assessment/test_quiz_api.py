@@ -8,10 +8,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
+from app.modules.assessment.models import QuizDraw
 from app.modules.curriculum.models import Lesson
 from app.modules.identity.models import User
 from tests.assessment.conftest import question
-from tests.learning_style.conftest import pool, take_quiz
+from tests.learning_style.conftest import pool, set_form, take_quiz
 
 Login = Callable[[User], None]
 
@@ -137,6 +138,44 @@ def test_refresh_returns_the_same_open_draw(client: TestClient, course, learner)
     url = f"/lessons/{course['lessons'][0]['id']}/quiz"
     first, second = client.get(url).json(), client.get(url).json()
     assert first == second
+
+
+def test_draw_keeps_the_lesson_form(client: TestClient, db: Session, course, learner):
+    learner(course["id"], "V")
+    draw = client.get(f"/lessons/{course['lessons'][0]['id']}/quiz").json()
+    stored = db.get(QuizDraw, draw["draw_id"])
+    assert stored is not None
+    assert (stored.form, draw["form"]) == ("V", "V")
+
+
+def test_changing_the_lesson_form_draws_a_new_set(client: TestClient, db: Session, course, learner):
+    # D61: an open set of another form than the lesson's form now is dropped
+    learner(course["id"], "V")
+    lesson_id = course["lessons"][0]["id"]
+    url = f"/lessons/{lesson_id}/quiz"
+    in_v = client.get(url).json()
+
+    set_form(client, lesson_id, "A", "manual")
+    in_a = client.get(url).json()
+
+    assert in_a["draw_id"] != in_v["draw_id"]
+    assert in_a["form"] == "A"
+    assert db.get(QuizDraw, in_v["draw_id"]) is None
+    assert client.get(url).json() == in_a  # refresh keeps the new set
+    # Back to the style: the set of form A goes as well; the result gets form V
+    set_form(client, lesson_id, "V", "manual")
+    in_v_again = client.get(url).json()
+    assert (in_v_again["form"], in_v_again["draw_id"] != in_a["draw_id"]) == ("V", True)
+    assert take_quiz(client, lesson_id, 80)["feedback"]["form"] == "V"
+
+
+def test_draw_from_before_the_form_column_is_kept(client: TestClient, db: Session, course, learner):
+    learner(course["id"], "V")
+    url = f"/lessons/{course['lessons'][0]['id']}/quiz"
+    first = client.get(url).json()
+    db.execute(update(QuizDraw).where(QuizDraw.id == first["draw_id"]).values(form=None))
+    db.commit()
+    assert client.get(url).json()["draw_id"] == first["draw_id"]
 
 
 def test_retry_draws_questions_outside_the_last_set(client: TestClient, course, learner):

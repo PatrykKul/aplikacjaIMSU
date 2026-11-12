@@ -198,6 +198,35 @@ def test_partial_edit_keeps_other_fields(
     assert updated["summary"] == SUMMARY
 
 
+def test_null_clears_introduction_and_summary(
+    client: TestClient, make_course: MakeCourse, teacher: User
+) -> None:
+    # D61: omitted = unchanged, null = cleared (TipTap texts only)
+    course = make_course(teacher)
+    url = f"/courses/{course['id']}"
+    client.patch(url, json={"introduction": INTRODUCTION, "summary": SUMMARY})
+
+    cleared = client.patch(url, json={"introduction": None}).json()
+
+    assert (cleared["introduction"], cleared["summary"]) == (None, SUMMARY)
+    assert client.patch(url, json={"summary": None}).json()["summary"] is None
+    assert client.get(url).json()["title"] == "Procenty"
+
+
+@pytest.mark.parametrize("field", ["title", "description", "is_published"])
+def test_null_in_a_required_course_field_is_rejected(
+    client: TestClient, make_course: MakeCourse, teacher: User, field: str
+) -> None:
+    course = make_course(teacher)
+
+    response = client.patch(f"/courses/{course['id']}", json={field: None, "summary": SUMMARY})
+
+    assert response.status_code == 422
+    assert response.json()["fields"] == [{"field": field, "type": "value_error"}]
+    after = client.get(f"/courses/{course['id']}").json()
+    assert (after["title"], after["description"], after["summary"]) == ("Procenty", "Opis", None)
+
+
 def test_owner_publishes_and_unpublishes(
     client: TestClient,
     login: Login,

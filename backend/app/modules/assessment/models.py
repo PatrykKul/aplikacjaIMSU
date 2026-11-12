@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, func, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,6 +29,7 @@ class QuizDraw(Base):
     __tablename__ = "quiz_draws"
     __table_args__ = (
         CheckConstraint("percent BETWEEN 0 AND 100", name="percent"),
+        CheckConstraint("form IS NULL OR form IN ('V', 'A', 'K')", name="form"),
         Index("ix_quiz_draws_user_id_lesson_id", "user_id", "lesson_id"),
     )
 
@@ -40,6 +41,8 @@ class QuizDraw(Base):
     # question id -> chosen answer id; None until submitted
     answers: Mapped[dict[str, str] | None] = mapped_column(JSONB)
     percent: Mapped[int | None]
+    # Lesson form when drawn; an open draw of another form is replaced (D61)
+    form: Mapped[str | None] = mapped_column(String(1))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # None = attempt still open
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

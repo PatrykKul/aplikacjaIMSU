@@ -6,6 +6,7 @@ from app.modules.curriculum.models import EnrollmentStatus
 from app.modules.curriculum.schemas import (
     CourseCreateRequest,
     CourseEnrollmentResponse,
+    CourseOwnerRequest,
     CourseResponse,
     CourseSummaryResponse,
     CourseUpdateRequest,
@@ -15,7 +16,7 @@ from app.modules.curriculum.schemas import (
     LessonResponse,
     LessonUpdateRequest,
 )
-from app.modules.identity.dependencies import CurrentUser, StudentUser, TeacherUser
+from app.modules.identity.dependencies import AdminUser, CurrentUser, StudentUser, TeacherUser
 
 courses_router = APIRouter(prefix="/courses", tags=["curriculum"])
 lessons_router = APIRouter(prefix="/lessons", tags=["curriculum"])
@@ -49,6 +50,14 @@ def update_course(
 @courses_router.delete("/{course_id}", status_code=status.HTTP_204_NO_CONTENT)
 def archive_course(course_id: int, db: DbSession, user: CurrentUser) -> None:
     service.archive_course(db, course_id, user)
+
+
+@courses_router.put("/{course_id}/owner")
+def change_owner(
+    course_id: int, data: CourseOwnerRequest, db: DbSession, user: AdminUser
+) -> CourseResponse:
+    course = service.change_owner(db, course_id, user, data.owner_id)
+    return service.course_detail(db, course, user)
 
 
 @courses_router.post("/{course_id}/lessons", status_code=status.HTTP_201_CREATED)

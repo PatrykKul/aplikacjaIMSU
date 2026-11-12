@@ -6,7 +6,10 @@ The paths of Kuba and Marta are the contract for the demo data (docs/08, "Dane d
 from typing import Any
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.modules.learning_style.models import StyleTrial
 from tests.learning_style.conftest import (
     journal_types,
     last_event,
@@ -80,7 +83,7 @@ def test_quiz_attempt_event_with_data(client: TestClient, course, learner):
     draw_id = take_quiz(client, l1, 80)["draw_id"]
     event = last_event(client, "quiz_attempt")
     assert event["course"] == {"id": course["id"], "title": "Matematyka"}
-    assert event["lesson"] == {"id": l1, "title": "Lekcja 1"}
+    assert event["lesson"] == {"id": l1, "title": "Lekcja 1", "number": 1}
     assert event["data"] == {
         "draw_id": draw_id,
         "form": "V",
@@ -237,6 +240,7 @@ def test_kuba_path_to_the_proposal_and_trial(client: TestClient, course, learner
         "to": "A",
         "source": "proposal",
         "before_average": 40,
+        "replaced_trial_id": None,
     }
     assert journal_types(client) == [
         "survey_completed",
@@ -347,6 +351,10 @@ def test_marta_trial_helped(client: TestClient, quiz_course, learner):
     assert third["trial"]["done"] == 2
     assert third["trial"]["finished_at"] is not None
     assert third["praise"] == {"form": "V", "streak": 3, "average": 87}
+    praise_event = last_event(client, "praise")
+    assert praise_event["data"] == {"form": "V", "streak": 3, "average": 87}
+    assert praise_event["lesson"]["id"] == lesson_ids(course)[2]
+    assert praise_event["course"]["id"] == course["id"]
     assert third["proposal"] is None
     assert last_event(client, "trial_finished")["data"] == {
         "trial_id": trial["id"],
@@ -428,13 +436,128 @@ def test_manual_change_supersedes_the_proposal_and_starts_a_trial(
     assert history[-1]["style"] == "K"
 
 
-def test_manual_change_during_a_trial_starts_a_new_one(client: TestClient, course, learner):
+def test_manual_change_after_a_counted_lesson_starts_a_new_trial(
+    client: TestClient, db: Session, course, learner
+):
     learner(course["id"], "V")
     first = client.put("/profile/learning-style", json={"style": "A"}).json()["trial"]
+    take_quiz(client, lesson_ids(course)[0], 80)  # counted in A: the change was tried
     second = client.put("/profile/learning-style", json={"style": "K"}).json()["trial"]
     assert second["id"] != first["id"]
     assert (second["from"], second["to"], second["finished_at"]) == ("A", "K", None)
+    assert second["before_average"] == 80  # last results in A
     assert journal_types(client).count("trial_started") == 2
+    assert last_event(client, "trial_started")["data"]["replaced_trial_id"] is None
+    old = db.get(StyleTrial, first["id"])
+    assert old is not None and old.finished_at is not None
+    assert old.result is None  # interrupted without a result, as before R7a
+
+
+# --- R7a: style change before the first lesson of a trial ----------------------------------------
+
+STYLE_A = survey_styles(6, 10, 4)  # V 30 / A 50 / K 20, style A
+
+
+def two_lessons_in_a(client: TestClient, course) -> None:
+    l1, l2 = lesson_ids(course)[:2]
+    take_quiz(client, l1, 100)
+    take_quiz(client, l2, 100)
+
+
+def trials(db: Session, user_id: int) -> list[StyleTrial]:
+    query = select(StyleTrial).where(StyleTrial.user_id == user_id).order_by(StyleTrial.id)
+    return list(db.scalars(query))
+
+
+def test_going_back_before_a_lesson_undoes_the_change(
+    client: TestClient, db: Session, course, learner
+):
+    # Patryk's path: A (2 lessons, 100%) -> V -> back to A without any lesson in V
+    student = learner(course["id"], STYLE_A)
+    two_lessons_in_a(client, course)
+    to_v = client.put("/profile/learning-style", json={"style": "V"}).json()["trial"]
+    assert (to_v["from"], to_v["to"], to_v["before_average"]) == ("A", "V", 100)
+
+    back = client.put("/profile/learning-style", json={"style": "A"})
+
+    assert back.status_code == 200
+    body = back.json()
+    assert (body["style"], body["style_source"]) == ("A", "manual")
+    assert body["trial"] is None  # no "V -> A" trial and no message without a baseline
+    [cancelled] = trials(db, student.id)
+    assert (cancelled.id, cancelled.result) == (to_v["id"], "cancelled")
+    assert cancelled.finished_at is not None
+    assert journal_types(client)[-3:] == [
+        "manual_style_change",
+        "trial_started",
+        "style_change_reverted",
+    ]
+    assert last_event(client, "style_change_reverted")["data"] == {
+        "from": "V",
+        "to": "A",
+        "trial_id": to_v["id"],
+        "source": "manual",
+        "cleared_lessons": [],
+    }
+    history = client.get("/me/progress").json()["history"]
+    assert [point["style"] for point in history[-2:]] == ["V", "A"]
+    # The next lesson in A is a normal result, not a trial lesson
+    feedback = take_quiz(client, lesson_ids(course)[2], 100)["feedback"]
+    assert feedback["trial"] is None
+
+
+def test_third_style_before_a_lesson_keeps_the_baseline(
+    client: TestClient, db: Session, course, learner
+):
+    # A -> V -> K without any lesson in V: trial "A -> K" compared with the results in A
+    student = learner(course["id"], STYLE_A)
+    two_lessons_in_a(client, course)
+    to_v = client.put("/profile/learning-style", json={"style": "V"}).json()["trial"]
+
+    to_k = client.put("/profile/learning-style", json={"style": "K"}).json()
+
+    trial = to_k["trial"]
+    assert (trial["from"], trial["to"], trial["source"]) == ("A", "K", "manual")
+    assert (trial["before_average"], trial["done"], trial["finished_at"]) == (100, 0, None)
+    replaced, running = trials(db, student.id)
+    assert (replaced.id, replaced.result) == (to_v["id"], "cancelled")
+    assert running.id == trial["id"]
+    assert last_event(client, "trial_started")["data"] == {
+        "trial_id": trial["id"],
+        "from": "A",
+        "to": "K",
+        "source": "manual",
+        "before_average": 100,
+        "replaced_trial_id": to_v["id"],
+    }
+    assert last_event(client, "manual_style_change")["data"]["from"] == "V"
+    assert "style_change_reverted" not in journal_types(client)
+    # Two lessons in K finish the trial against the baseline from A
+    l3, l4 = lesson_ids(course)[2:4]
+    take_quiz(client, l3, 100)
+    finished = take_quiz(client, l4, 100)["feedback"]["trial"]
+    assert (finished["before_average"], finished["after_average"]) == (100, 100)
+    assert finished["result"] == "neutral"
+
+
+def test_going_back_after_an_accepted_proposal(client: TestClient, db: Session, course, learner):
+    # Kuba accepts V -> A and goes back to V before any lesson in A: undone as well
+    student = learner(course["id"], KUBA)
+    proposal = kuba_until_proposal(client, course)["feedback"]["proposal"]
+    client.post(f"/profile/learning-style/proposals/{proposal['id']}/accept")
+
+    back = client.put("/profile/learning-style", json={"style": "V"}).json()
+
+    assert (back["style"], back["trial"]) == ("V", None)
+    [trial] = trials(db, student.id)
+    assert (trial.from_style, trial.to_style, trial.source, trial.result) == (
+        "V",
+        "A",
+        "proposal",
+        "cancelled",
+    )
+    data = last_event(client, "style_change_reverted")["data"]
+    assert (data["from"], data["to"], data["source"]) == ("A", "V", "manual")
 
 
 def test_manual_change_errors(client: TestClient, login, student, fill_survey):
@@ -463,8 +586,9 @@ def test_style_change_clears_choices_in_lessons_not_passed(client: TestClient, c
     ]
     assert client.get(f"/lessons/{l2}/study").json()["form_source"] == "style"
     assert client.get(f"/lessons/{l2}/study").json()["form"] == "A"
+    # the choice in the passed lesson stays, but it equals the new style: "your style" (D57)
     kept = client.get(f"/lessons/{l1}/study").json()
-    assert (kept["form"], kept["form_source"]) == ("A", "choice")
+    assert (kept["form"], kept["form_source"]) == ("A", "style")
 
 
 def test_accepted_proposal_clears_choices(client: TestClient, course, learner):

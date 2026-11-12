@@ -13,6 +13,8 @@ from app.modules.learning_style.rules import (
     Praise,
     Rejection,
     Result,
+    TrialDecision,
+    TrialInfo,
     apply_result,
     average,
     counted_total,
@@ -27,6 +29,7 @@ from app.modules.learning_style.rules import (
     survey_percentages,
     switch_proposal,
     trial_baseline,
+    trial_on_style_change,
     trial_outcome,
     trial_progress,
 )
@@ -497,6 +500,42 @@ def test_trial_baseline_last_two_counted_in_the_previous_style():
     assert trial_baseline(KUBA, "V") == 40  # lessons 2 and 3 (40, 40); lesson 1 is older
     assert trial_baseline([result(1, "K", 40), result(1, "V", 80)], "K") == 40  # Marta
     assert trial_baseline([result(1, "V", 80)], "K") is None
+
+
+# --- R7a. Style change during a trial ------------------------------------------------------------
+
+A_TO_V = TrialInfo(id=7, from_style="A", to_style="V", before_average=100)
+
+
+def test_style_change_without_trial_starts_one():
+    assert trial_on_style_change(None, 0, "V", "A", 100) == TrialDecision("start", "A", 100)
+
+
+def test_going_back_before_any_lesson_cancels_the_trial():
+    # Patryk's path: A (2 x 100%) -> V -> A without a lesson in V
+    assert trial_on_style_change(A_TO_V, 0, "A", "V", None) == TrialDecision("cancel", None, None)
+
+
+def test_third_style_before_any_lesson_keeps_the_original_baseline():
+    # A -> V -> K without a lesson in V: trial A -> K, baseline from A
+    assert trial_on_style_change(A_TO_V, 0, "K", "V", None) == TrialDecision("replace", "A", 100)
+
+
+@pytest.mark.parametrize("counted", [1, 2])
+def test_after_counted_lessons_a_new_trial_starts_as_before(counted):
+    for new_style in ("A", "K"):
+        decision = trial_on_style_change(A_TO_V, counted, new_style, "V", 60)
+        assert decision == TrialDecision("start", "V", 60)
+
+
+def test_accepted_revert_starts_no_trial():
+    assert trial_on_style_change(None, 0, "A", "V", 80, starts_trial=False) == TrialDecision(
+        "none", None, None
+    )
+    running = trial_on_style_change(A_TO_V, 1, "A", "V", 80, starts_trial=False)
+    assert running == TrialDecision("none", None, None)
+    # Going back before any lesson is still an undo
+    assert trial_on_style_change(A_TO_V, 0, "A", "V", 80, starts_trial=False).action == "cancel"
 
 
 # --- R8. Course hint -----------------------------------------------------------------------------

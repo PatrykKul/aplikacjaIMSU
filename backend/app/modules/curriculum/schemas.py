@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 from app.core.rich_text import RichTextDocument
 from app.modules.curriculum.models import TITLE_LENGTH, EnrollmentStatus
@@ -22,7 +22,16 @@ class CourseCreateRequest(BaseModel):
     description: Description = ""
 
 
+def _not_null(value: Any) -> Any:
+    """An omitted field stays; an explicit `null` is allowed only where it clears a text."""
+    if value is None:
+        raise ValueError("this field cannot be null")
+    return value
+
+
 class CourseUpdateRequest(BaseModel):
+    """Omitted fields stay; `null` clears the introduction or the summary (D61)."""
+
     model_config = ConfigDict(extra="forbid")
 
     title: Title | None = None
@@ -30,6 +39,8 @@ class CourseUpdateRequest(BaseModel):
     introduction: RichTextDocument | None = None
     summary: RichTextDocument | None = None
     is_published: bool | None = None
+
+    not_null = field_validator("title", "description", "is_published", mode="before")(_not_null)
 
 
 class LessonCreateRequest(BaseModel):
@@ -44,6 +55,12 @@ class LessonUpdateRequest(BaseModel):
     title: Title | None = None
     outline: RichTextDocument | None = None
     conclusions: RichTextDocument | None = None
+
+    not_null = field_validator("title", mode="before")(_not_null)
+
+
+class CourseOwnerRequest(BaseModel):
+    owner_id: int
 
 
 class LessonOrderRequest(BaseModel):

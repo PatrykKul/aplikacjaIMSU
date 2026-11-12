@@ -105,3 +105,16 @@ class LessonCompletion(Base):
         ForeignKey("lessons.id", ondelete="CASCADE"), primary_key=True
     )
     passed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CourseOwnerChange(Base):
+    """An admin moved a course to another teacher (D56): who, from whom, to whom, when."""
+
+    __tablename__ = "course_owner_changes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), index=True)
+    from_owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    to_owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    changed_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

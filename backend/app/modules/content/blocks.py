@@ -109,16 +109,16 @@ class VideoAttachment(_Attachment):
 class AudioAttachment(_Attachment):
     kind: Literal["audio"]
     file_id: int | None = None
-    # Read aloud by the browser's speech synthesis and shown as a transcript
+    # Shown under the player (folded); without a file the browser's speech synthesis reads it
     transcript: (
         Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=5000)]
         | None
     ) = None
 
     @model_validator(mode="after")
-    def _one_source(self) -> Self:
-        if (self.file_id is None) == (self.transcript is None):
-            raise ValueError("a recording needs either file_id or transcript")
+    def _has_source(self) -> Self:
+        if self.file_id is None and self.transcript is None:
+            raise ValueError("a recording needs file_id, transcript or both")
         return self
 
     def file_ids(self) -> list[tuple[int, FileKind]]:

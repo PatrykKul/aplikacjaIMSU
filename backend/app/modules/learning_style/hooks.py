@@ -86,6 +86,8 @@ def record_quiz_result(
     )
     if counted:
         service.record_history(db, profile, attempt_event)
+    if praise is not None:
+        service.log_event(db, user.id, "praise", asdict(praise), **where)
 
     # 4. Failed: suggest another form for this lesson (R5)
     suggestion = None

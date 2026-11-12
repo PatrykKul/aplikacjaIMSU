@@ -45,6 +45,7 @@ from app.modules.learning_style.schemas import (
     LearningProfileResponse,
     LessonRefResponse,
     LessonResultResponse,
+    LessonStudyStateResponse,
     OpenProposalBrief,
     ProgressResponse,
     Proposal,
@@ -63,6 +64,7 @@ SOURCE_SURVEY = "survey"
 SOURCE_TIE_CHOICE = "tie_choice"
 SOURCE_MANUAL = "manual"
 SOURCE_PROPOSAL = "proposal"
+TRIAL_CANCELLED = "cancelled"
 
 
 def now() -> Function[Any]:
@@ -310,6 +312,19 @@ def last_trial(db: Session, user_id: int) -> StyleTrial | None:
     )
 
 
+def shown_trial(db: Session, user_id: int) -> StyleTrial | None:
+    """The running trial or the last finished one that was not cancelled (R7a)."""
+    return db.scalar(
+        select(StyleTrial)
+        .where(
+            StyleTrial.user_id == user_id,
+            or_(StyleTrial.result.is_(None), StyleTrial.result != TRIAL_CANCELLED),
+        )
+        .order_by(StyleTrial.id.desc())
+        .limit(1)
+    )
+
+
 def trial_results(db: Session, trial: StyleTrial) -> list[rules.Result]:
     """Results recorded since the trial started (until it finished)."""
     query = select(QuizResult).where(
@@ -371,9 +386,16 @@ def create_proposal(
     return proposal
 
 
-def start_trial(db: Session, user_id: int, from_style: str, to_style: str, source: str) -> None:
-    """Two lessons in the new style, compared with the last results in the previous one (R7)."""
-    before = rules.trial_baseline(rule_results(db, user_results(db, user_id)), from_style)
+def start_trial(
+    db: Session,
+    user_id: int,
+    from_style: str,
+    to_style: str,
+    source: str,
+    before: int | None,
+    replaced_trial_id: int | None = None,
+) -> None:
+    """Two lessons in the new style, compared with the baseline `before` (R7, R7a)."""
     trial = StyleTrial(
         user_id=user_id,
         from_style=from_style,
@@ -394,16 +416,9 @@ def start_trial(db: Session, user_id: int, from_style: str, to_style: str, sourc
             "to": to_style,
             "source": source,
             "before_average": before,
+            "replaced_trial_id": replaced_trial_id,
         },
     )
-
-
-def _stop_running_trial(db: Session, user_id: int) -> None:
-    """A trial interrupted by another style change ends without a result."""
-    trial = running_trial(db, user_id)
-    if trial is not None:
-        trial.finished_at = now()
-        db.flush()
 
 
 # --- Style changes -------------------------------------------------------------------------------
@@ -430,8 +445,58 @@ def _switch_style(
     return cleared
 
 
+def _change_style(
+    db: Session,
+    profile: LearningProfile,
+    to_style: str,
+    source: str,
+    event_type: str,
+    event_data: dict[str, Any],
+    *,
+    starts_trial: bool = True,
+) -> None:
+    """Switch the style, log it with a history point and settle the trial period (R7, R7a).
+
+    `event_type` / `event_data` describe the change (`manual_style_change`, `proposal_accepted`);
+    undoing a change that was not tried yet is logged as `style_change_reverted` instead.
+    """
+    user_id = profile.user_id
+    previous = profile.style
+    assert previous is not None
+    trial = running_trial(db, user_id)
+    active = None
+    counted = 0
+    if trial is not None:
+        active = rules.TrialInfo(trial.id, trial.from_style, trial.to_style, trial.before_average)
+        counted = rules.trial_progress(trial.to_style, trial_results(db, trial))
+    before = rules.trial_baseline(rule_results(db, user_results(db, user_id)), previous)
+    decision = rules.trial_on_style_change(
+        active, counted, to_style, previous, before, starts_trial=starts_trial
+    )
+    replaced_id = None
+    if trial is not None:
+        # Interrupted after counted lessons: no result; not tried at all: cancelled
+        cancelled = decision.action in ("cancel", "replace")
+        trial.result = TRIAL_CANCELLED if cancelled else None
+        trial.finished_at = now()
+        db.flush()
+        replaced_id = trial.id if decision.action == "replace" else None
+        if decision.action == "cancel":
+            event_type = "style_change_reverted"
+            event_data = {"from": previous, "to": to_style, "trial_id": trial.id, "source": source}
+    cleared = _switch_style(db, profile, to_style, source)
+    event = log_event(db, user_id, event_type, {**event_data, "cleared_lessons": cleared})
+    record_history(db, profile, event)
+    if decision.action in ("start", "replace"):
+        assert decision.from_style is not None
+        start_trial(
+            db, user_id, decision.from_style, to_style, source, decision.before_average, replaced_id
+        )
+
+
 def change_style_manually(db: Session, user: User, style: str) -> LearningProfile:
-    """Manual change: percentages stay, open proposal superseded, a new trial starts."""
+    """Manual change: percentages stay, open proposal superseded, a new trial starts (or the
+    running one is undone or replaced, R7a)."""
     profile = require_style(db, user)
     previous = profile.style
     assert previous is not None
@@ -440,21 +505,12 @@ def change_style_manually(db: Session, user: User, style: str) -> LearningProfil
     proposal = open_proposal(db, user.id)
     if proposal is not None:
         close_proposal(db, proposal, "superseded")
-    _stop_running_trial(db, user.id)
-    cleared = _switch_style(db, profile, style, SOURCE_MANUAL)
-    event = log_event(
-        db,
-        user.id,
-        "manual_style_change",
-        {
-            "from": previous,
-            "to": style,
-            "cleared_lessons": cleared,
-            "superseded_proposal_id": None if proposal is None else proposal.id,
-        },
-    )
-    record_history(db, profile, event)
-    start_trial(db, user.id, previous, style, SOURCE_MANUAL)
+    data = {
+        "from": previous,
+        "to": style,
+        "superseded_proposal_id": None if proposal is None else proposal.id,
+    }
+    _change_style(db, profile, style, SOURCE_MANUAL, "manual_style_change", data)
     db.commit()
     return profile
 
@@ -473,19 +529,15 @@ def accept_proposal(db: Session, user: User, proposal_id: int) -> LearningProfil
     profile = require_style(db, user)
     proposal = _own_open_proposal(db, user, proposal_id)
     close_proposal(db, proposal, "accepted")
-    _stop_running_trial(db, user.id)
-    previous = profile.style
-    assert previous is not None
-    cleared = _switch_style(db, profile, proposal.to_style, SOURCE_PROPOSAL)
-    event = log_event(
+    _change_style(
         db,
-        user.id,
+        profile,
+        proposal.to_style,
+        SOURCE_PROPOSAL,
         "proposal_accepted",
-        {**proposal_data(proposal), "cleared_lessons": cleared},
+        proposal_data(proposal),
+        starts_trial=proposal.kind == "switch",
     )
-    record_history(db, profile, event)
-    if proposal.kind == "switch":
-        start_trial(db, user.id, previous, proposal.to_style, SOURCE_PROPOSAL)
     db.commit()
     return profile
 
@@ -548,7 +600,7 @@ def profile_response(db: Session, user: User) -> LearningProfileResponse:
     assert result is not None
     form_stats = rules.form_stats(rule_results(db, user_results(db, user.id)))
     proposal = open_proposal(db, user.id)
-    trial = last_trial(db, user.id)
+    trial = shown_trial(db, user.id)
     return LearningProfileResponse(
         survey_completed=True,
         style=profile.style,
@@ -570,9 +622,13 @@ def profile_response(db: Session, user: User) -> LearningProfileResponse:
 
 
 def lesson_form(db: Session, user_id: int, lesson_id: int, style: str) -> tuple[str, str]:
-    """(form, source): an explicit choice for the lesson, otherwise the active style."""
+    """(form, source): an explicit choice for the lesson, otherwise the active style.
+
+    A stored choice equal to the active style is not a choice (D57): it stays in a passed
+    lesson after a style change to that form, and must read as "your style".
+    """
     choice = db.get(LessonForm, (user_id, lesson_id))
-    if choice is None:
+    if choice is None or choice.form == style:
         return style, "style"
     return choice.form, "choice"
 
@@ -640,17 +696,24 @@ def study(db: Session, lesson_id: int, user: User) -> StudyResponse:
 def set_lesson_form(
     db: Session, lesson_id: int, user: User, form: str, source: str
 ) -> StudyResponse:
-    """Explicit form of one lesson ("redo this lesson in another form"), logged."""
+    """Explicit form of one lesson ("redo this lesson in another form"), logged.
+
+    A form equal to the active style removes the choice: the lesson follows the style again.
+    """
     profile = require_style(db, user)
     lesson = curriculum.get_study_lesson(db, lesson_id, user)
     assert profile.style is not None
     current, _ = lesson_form(db, user.id, lesson.id, profile.style)
+    choice = db.get(LessonForm, (user.id, lesson.id))
+    if form == profile.style:
+        # Back to the style: no explicit choice any more
+        if choice is not None:
+            db.delete(choice)
+    elif choice is None:
+        db.add(LessonForm(user_id=user.id, lesson_id=lesson.id, form=form))
+    else:
+        choice.form = form
     if form != current:
-        choice = db.get(LessonForm, (user.id, lesson.id))
-        if choice is None:
-            db.add(LessonForm(user_id=user.id, lesson_id=lesson.id, form=form))
-        else:
-            choice.form = form
         log_event(
             db,
             user.id,
@@ -659,8 +722,43 @@ def set_lesson_form(
             course_id=lesson.course_id,
             lesson_id=lesson.id,
         )
-        db.commit()
+    db.commit()
     return _study_response(db, lesson, user, profile)
+
+
+def study_states(db: Session, course_id: int, user: User) -> list[LessonStudyStateResponse]:
+    """Per published lesson of the course: started, passed, best and last score, chosen form."""
+    require_student(user)
+    course = curriculum.get_visible_course(db, course_id, user)
+    if not curriculum.is_accepted(db, course.id, user.id):
+        raise AppError(403, "ENROLLMENT_REQUIRED")
+    lesson_ids = [lesson.id for lesson in curriculum.published_lessons(course)]
+    passed = curriculum.passed_lesson_ids(db, user.id, lesson_ids)
+    profile = get_profile(db, user.id)
+    style = None if profile is None else profile.style
+    choices = {
+        choice.lesson_id: choice.form
+        for choice in db.scalars(select(LessonForm).where(LessonForm.user_id == user.id))
+        if choice.form != style
+    }
+    scores: dict[int, list[int]] = {}
+    for row in user_results(db, user.id):
+        scores.setdefault(row.lesson_id, []).append(row.percent)
+    states = []
+    for lesson_id in lesson_ids:
+        percents = scores.get(lesson_id, [])
+        chosen = choices.get(lesson_id)
+        states.append(
+            LessonStudyStateResponse(
+                lesson_id=lesson_id,
+                started=bool(percents) or chosen is not None,
+                passed=lesson_id in passed,
+                best_percent=max(percents, default=None),
+                last_percent=percents[-1] if percents else None,
+                chosen_form=chosen,
+            )
+        )
+    return states
 
 
 # --- Course hint ---------------------------------------------------------------------------------
@@ -697,16 +795,27 @@ def course_hint(db: Session, course_id: int, user: User) -> CourseHint | None:
 
 
 def history(db: Session, user_id: int) -> list[HistoryPointResponse]:
-    rows = db.scalars(
-        select(StyleHistory)
-        .where(StyleHistory.user_id == user_id)
-        .order_by(StyleHistory.created_at, StyleHistory.id)
+    """Profile after every change, each with the event that caused it (D62)."""
+    rows = list(
+        db.scalars(
+            select(StyleHistory)
+            .where(StyleHistory.user_id == user_id)
+            .order_by(StyleHistory.created_at, StyleHistory.id)
+        )
     )
+    event_ids = {row.event_id for row in rows if row.event_id is not None}
+    events = (
+        list(db.scalars(select(DecisionEvent).where(DecisionEvent.id.in_(event_ids))))
+        if event_ids
+        else []
+    )
+    entries = {entry.id: entry for entry in _journal_entries(db, events)}
     return [
         HistoryPointResponse(
             at=row.created_at,
             percentages={"V": row.percent_v, "A": row.percent_a, "K": row.percent_k},
             style=row.style,
+            event=None if row.event_id is None else entries.get(row.event_id),
         )
         for row in rows
     ]
@@ -787,14 +896,18 @@ def _journal_entries(db: Session, events: Sequence[DecisionEvent]) -> list[Journ
     if course_ids:
         query = select(Course.id, Course.title).where(Course.id.in_(course_ids))
         courses = {course_id: title for course_id, title in db.execute(query)}
-    lessons = lesson_titles(db, (e.lesson_id for e in events if e.lesson_id is not None))
+    lessons: dict[int, LessonRefResponse] = {}
+    for lesson_id in {e.lesson_id for e in events if e.lesson_id is not None}:
+        found = db.get(Lesson, lesson_id)
+        if found is not None:
+            lessons[lesson_id] = lesson_ref(found)
     entries = []
     for event in events:
         course = lesson = None
         if event.course_id is not None:
             course = RefResponse(id=event.course_id, title=courses.get(event.course_id, ""))
         if event.lesson_id is not None:
-            lesson = RefResponse(id=event.lesson_id, title=lessons.get(event.lesson_id, ""))
+            lesson = lessons.get(event.lesson_id)
         entries.append(
             JournalEntry(
                 id=event.id,
