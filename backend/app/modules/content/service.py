@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.errors import AppError
+from app.modules.content import readiness
 from app.modules.content.blocks import LessonBlocks, youtube_id
 from app.modules.content.files import KIND_BY_CONTENT_TYPE, extension, file_type_for
 from app.modules.content.models import File, LessonContent
 from app.modules.content.schemas import UploadedFileResponse
 from app.modules.curriculum import service as curriculum
+from app.modules.curriculum.readiness import Issue
 from app.modules.identity.models import User, UserRole
 
 CHUNK_SIZE = 1024 * 1024
@@ -159,12 +161,24 @@ def _check_files(db: Session, data: LessonBlocks, owner_id: int) -> None:
             raise AppError(400, "FILE_KIND_MISMATCH")
 
 
+def version_issues(db: Session, lesson_id: int) -> list[Issue]:
+    """For authoring: what the three versions lack before publication (R11), V, A, K order."""
+    versions = stored_versions(db, lesson_id)
+    return [issue for form in FORMS for issue in readiness.version_issues(form, versions[form])]
+
+
 def save_version(
     db: Session, lesson_id: int, form: str, user: User, data: LessonBlocks
 ) -> list[dict[str, Any]]:
+    """Replace the blocks of one version; a published lesson must stay complete (R11)."""
     lesson = curriculum.get_owned_lesson(db, lesson_id, user)
     _check_files(db, data, lesson.course.owner_id)
     blocks = [block.model_dump(exclude_none=True) for block in data.blocks]
+    if lesson.is_published:
+        before = readiness.version_issues(form, _stored_blocks(db, lesson_id, form))
+        missing = [i for i in readiness.version_issues(form, blocks) if i not in before]
+        if missing:
+            raise AppError(409, "PUBLISHED_LESSON_INCOMPLETE", issues=missing)
     content = _content(db, lesson_id, form)
     if content is None:
         db.add(LessonContent(lesson_id=lesson_id, form=form, blocks=blocks))
