@@ -110,6 +110,19 @@ export function SurveyForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Ankieta: jak najlepiej się uczysz?
+        </h1>
+        <p className="text-muted-foreground">
+          20 krótkich pytań. Wybierz odpowiedź, która najbardziej do Ciebie
+          pasuje; nie ma złych odpowiedzi. Wynik to procenty trzech form:
+          wzrokowej, słuchowej i kinestetycznej – lekcje dostaniesz w formie z
+          najwyższym procentem. Ankietę wypełnia się raz, potem procenty
+          zmieniają wyniki quizów.
+        </p>
+      </div>
+
       <div className="sticky top-16 z-30 -mx-4 border-b bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
         <div className="flex items-center justify-between text-sm">
           <span>
