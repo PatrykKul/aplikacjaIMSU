@@ -19,6 +19,7 @@ Zlecenie: `..\ZADANIE-CLAUDE-CODE-IMSU-v3.md`. Specyfikacja zaakceptowana przez 
 | R5 porażka | „Przerób tę lekcję w formie X”: X = potwierdzona z najwyższym procentem, a gdy brak potwierdzonych — druga forma z ankiety | „Słuchowe były drugie w Twojej ankiecie (40%), nie mamy jeszcze o nich wyników” |
 | R6 propozycja | zmiana stylu na stałe tylko dla formy **potwierdzonej** z wyższym procentem niż styl; odrzucona wraca po 2 nowych wynikach | „Wzrokowe: 3 lekcje, średnio 53% · Słuchowe: 1 lekcja, średnio 80%” |
 | R7 okres próbny | po zmianie stylu 2 lekcje w nowej formie vs średnia 2 ostatnich w starej: ≥ +10 „pomogła”, ≤ −10 propozycja powrotu, pomiędzy „bez wyraźnej różnicy” | Marta: 40% → 90% = pomogła |
+| R7a cofnięcie | zmiana stylu, zanim w okresie próbnym była jakakolwiek lekcja: powrót do starego stylu cofa zmianę (bez nowego okresu), trzeci styl dostaje nowy okres z punktem odniesienia ze stylu wyjściowego | A → V → A bez lekcji = „Zmiana cofnięta”; A → V → K porównuje z A |
 | R8 podpowiedź | uczeń bez wyników w kursie widzi, która forma wypada w tym kursie najlepiej (min. 2 uczniów) — bez automatycznej zmiany | „forma słuchowa (średnio 86%, 3 uczniów)” |
 | R9 losowanie | 5 pytań z puli ≥ 5; powtórka najpierw spoza ostatniego zestawu; zestaw zapisany na serwerze | pula 8 → 3 nowe + 2 stare |
 | R10 kolejność | lekcja n+1 po zaliczeniu lekcji n (serwer: `403 LESSON_LOCKED`) | |
@@ -59,12 +60,15 @@ Praca: etap A (specyfikacja) → B0 (fundament integratora: modele, migracja, us
 
 ## Co nie działa / wymaga Patryka
 
-1. **Zrzuty w `docs/zrzuty-v3/` trzeba wygenerować ponownie po restarcie serwera frontendu.** Pełne przejście przeszło, ale potem uruchomiłem `npm run build` w tym samym katalogu `.next`, z którego korzystał działający `next dev` — jego procesy kompilacji padły (strony lekcji zwracają 500 do restartu). Środowisko nie pozwoliło mi zakończyć tych procesów (`node.exe` z `next dev`, także osierocony `next dev -p 3014` agenta 4 z `..\wt\a4`). Po ich zakończeniu: `npm run dev` w `frontend/`, `python -m app.demo.seed --reset-students` w `backend/`, przejście z opisu w `frontend/e2e/demo-tour.mjs`, znowu `--reset-students`.
-2. **Nagrań nikt nie odsłuchał uchem.** Polskie głosy czytają słowa kodu fonetycznie („łajl”, „rejndż”) i litery matematyczne („iks”, „igrek”) — przesłuchaj 1–2 nagrania przed pokazem.
-3. W blokach tekstu kod jest zwykłym akapitem (edytor ma wyłączone `code` / `codeBlock`); kod o stałej szerokości jest na PNG i w kartach PDF.
-4. Merge `feat/v3-adaptacja` → `main`, push i powiadomienie Bartka (jego lokalna baza: `alembic downgrade base`, `alembic upgrade head`, seed) — Twoja decyzja.
-5. Drobne ustalenia z przeglądu kodu, niepoprawione (do decyzji): pochwała R4 jest tylko w wyniku quizu, bez zdarzenia w dzienniku (specyfikacja jej tam nie wymienia); ekran szczegółów ucznia u nauczyciela składa kilka krótkich fragmentów zdań poza `explain.ts`; `null` w `PATCH /courses/{id}` nie czyści wstępu ani podsumowania, a w `PATCH /lessons/{id}` czyści zarys i wnioski; zmiana formy lekcji przy otwartym (niewysłanym) zestawie pytań nie losuje nowych pytań — wynik i tak liczy się do formy z chwili wysłania.
-6. Worktree agentów (`..\wt\a1`–`a5`) i gałęzie `feat/v3-a1`–`a5` są już scalone; można je usunąć: `git worktree remove ..\wt\a1` (… `a5`) i `git branch -d feat/v3-a1` (… `a5`). Bazy `imsu_test_a1`, `imsu_test_a2`, `imsu_test_a5`, `imsu_test_int`, `imsu_a5` w kontenerze są robocze.
+Stan po poprawkach z 12.11 (szczegóły w sekcji „Poprawki po teście”):
+
+1. ~~Zrzuty do wygenerowania ponownie~~ — **zrobione**: 50 zrzutów w `docs/zrzuty-v3/` z pełnego przejścia.
+2. **Nagrań nikt nie odsłuchał uchem.** Każde z 48 nagrań przeczytało cały tekst (sprawdzone znacznikami słów edge-tts), ale brzmienie słów kodu i liter („łajl”, „rejndż”, „iks”, „igrek”) trzeba ocenić uchem — przesłuchaj 2–3 nagrania.
+3. ~~Kod jako zwykły akapit~~ — **zrobione**: `code` i `codeBlock` w edytorze i w lekcjach demo.
+4. Merge `feat/v3-adaptacja` → `main`, push i powiadomienie Bartka (jego lokalna baza: `alembic downgrade base`, `alembic upgrade head`, seed; starsza baza z danymi v3 — `alembic upgrade head`, seed i `--refresh-demo-media`) — Twoja decyzja.
+5. ~~Drobne ustalenia z przeglądu kodu~~ — **zrobione** (pochwała w dzienniku, zdania w `explain.ts`, semantyka `null`, zestaw pytań a forma lekcji).
+6. ~~Worktree agentów~~ — **usunięte** (`wt/a1`–`a5`, `wt/b1`–`b3` i ich gałęzie).
+7. Twoje prywatne konto ucznia (spoza kont demo) ma wyniki w Programowaniu — wlicza się do statystyk tego kursu (np. „A 87%, 1 uczeń”); reset kont demo go nie rusza.
 
 ## Decyzje podjęte samodzielnie
 
@@ -76,3 +80,34 @@ Praca: etap A (specyfikacja) → B0 (fundament integratora: modele, migracja, us
 - `package-lock.json` zsynchronizowany (`npm ci` padało już przed etapem: brak `@emnapi/*` w locku).
 - Seed przełącza wyjście na UTF-8 — w konsoli cp1250 strzałka „→” przerywała go w połowie historii ucznia (błąd znaleziony przy weryfikacji, naprawiony).
 - Dokumentacja LaTeX: diagramy UML rysowane w samym LaTeX-u (TikZ, `pgf-umlcd`, `pgf-umlsd` z lokalnego MiKTeX-a) zamiast PNG.
+
+## Poprawki po teście (12.11)
+
+Zlecenie: `..\ZADANIE-CLAUDE-CODE-IMSU-v3-poprawki.md`. Decyzje D55–D62 (`04-decyzje.md`) zapisane przed kodem. Praca: trzech agentów równolegle (backend, frontend, dane demo i nagrania) w osobnych worktree, integracja i weryfikacja przez integratora.
+
+| # | Poprawka | Wynik |
+|---|---|---|
+| 1 | Kursy od różnych nauczycieli | Matematyka — Anna Nowak, Angielski — Katarzyna Wróbel (`nauczyciel.angielski@imsu.pl`), Programowanie — Paweł Sikora (`nauczyciel.programowanie@imsu.pl`); seed przepina istniejące kursy przez `change_owner`, `--reset-students` też; stany uczniów i statystyki bez zmian |
+| 2 | Zmiana właściciela przez administratora | `PUT /courses/{id}/owner` (tylko admin; `404 USER_NOT_FOUND`, `409 TEACHER_NOT_APPROVED`), log w tabeli `course_owner_changes` (migracja `7d2e9b4c1a35`); nowy właściciel zachowuje załączniki lekcji (pliki już użyte w lekcji są dozwolone); w `/courses` admina „Zmień właściciela” (wybór + `AlertDialog`) |
+| 3 | Wejście do lekcji | `GET /courses/{id}/study-states`; przyciski „Rozpocznij”, „Kontynuuj”, „Powtórz” + najlepszy wynik, kłódka; w „Moje kursy” „Kontynuuj: Lekcja n – tytuł” |
+| 4 | Przełącznik formy | spokojna linia „Forma: … (Twój styl) · Zmień formę tej lekcji”; ramka sugestii tylko po niezaliczonym quizie. **Przyczyna błędnego podpisu „Forma wybrana dla tej lekcji”:** o podpisie decydowało samo istnienie wiersza `lesson_forms`, a wiersz równy stylowi powstawał przy wyborze formy stylu z menu (utrwalone testem) i zostawał w zaliczonych lekcjach po zmianie stylu (np. Marta: lekcja 1 przerobiona w V, potem styl V). Teraz `choice` tylko, gdy wybór ≠ styl, a wybór formy stylu usuwa wiersz |
+| 5 | Wersja A | 12 lekcji × (3 nagrania 30–50 s pod nagłówkami sekcji + powtórka 20–30 s), razem 48 MP3 (ok. 26 min, 6 MB); rozwijana transkrypcja pod każdym nagraniem (blok audio z plikiem i transkrypcją); tekst lektora osobno od transkrypcji (wymowa wzorów i słów kodu); **wszystkie 48 nagrań przeczytały cały tekst** (znaczniki słów edge-tts); `--refresh-demo-media` podmienia nagrania i treść w istniejącej bazie |
+| 6 | Bloki kodu | `code` i `codeBlock` w edytorze (przyciski „Kod”, „Blok kodu”), czcionka o stałej szerokości u ucznia, nauczyciela i w podglądzie, przewijanie w poziomie na telefonie; lekcje Programowania z listingami, Matematyka ze wzorami w `code` |
+| 7 | Podwójne nagłówki | usunięte z wstępów i podsumowań kursów demo (zarysy i wnioski ich nie miały) |
+| 8 | Okres próbny przy cofnięciu (błąd Patryka) | reguła R7a `rules.trial_on_style_change`: A → V → A bez lekcji = cofnięcie (okres `cancelled`, nowy nie startuje, zdarzenie `style_change_reverted`), A → V → K = nowy okres z punktem odniesienia z A; nowy tekst `no_baseline`; testy jednostkowe i integracyjne obu ścieżek; etykieta „aktywny styl” w jednej linii |
+| 9 | Drobne z raportu | zdarzenie `praise` w dzienniku; zdania szczegółów ucznia w `explain.ts`; `PATCH`: pole pominięte = bez zmian, `null` = wyczyść (wymagane → 422); zestaw pytań z formą (`quiz_draws.form`) — po zmianie formy lekcji nowy zestaw |
+| 10 | Wykres i tabela „Moich postępów” | punkty tylko ankieta i policzone quizy, oś „Ankieta”, „L1 · A”…, data w podpowiedzi i tabeli; zmiany stylu jako pionowe znaczniki, **cofnięta zmiana — znacznik przekreślony z dopiskiem „cofnięta”** (wybrane zamiast pomijania: widać, że uczeń próbował, a w dzienniku jest wyjaśnienie); tabela z kolumną „Zdarzenie” i „bez zmian” w wierszach zmian stylu; test logiki wykresu (`npm test`, 8 przypadków, w tym ścieżka ankieta → 2 quizy → A → V → A) |
+
+**Jak sprawdzone:**
+
+| Sprawdzenie | Wynik |
+|---|---|
+| `pytest` | **540 passed** (było 473) |
+| `ruff check .`, `ruff format --check .` | czysto |
+| `npm run lint`, `npm run format:check`, `npx tsc --noEmit`, `npm test` | czysto, 8 / 8 |
+| Build produkcyjny | przechodzi (w kopii roboczej z identycznym frontendem — bez ruszania `.next` działającego `next dev`) |
+| Migracje | na pustej bazie: 10 kroków w górę, 10 w dół, znowu w górę; `alembic check` — zgodne z modelami |
+| Seed | nowa baza 2 × — identyczne liczby wierszy; baza deweloperska: migracja, przepięcie 2 kursów, `--refresh-demo-media`, `--reset-students`, seed ponownie — identyczne liczby; stany Kuby, Marty, Zosi, uczniów 1–6 i skuteczność form w Matematyce (V 60 / A 86 / K 70) bez zmian |
+| Playwright `frontend/e2e/demo-tour.mjs` | **50 zrzutów na dysku** w `docs/zrzuty-v3/`, 0 błędów 500 i JS, 0 poziomych przewinięć, wszystkie nowe kontrole spełnione: zmiana właściciela Programowania na Annę i z powrotem (sprawdzone przez API), przyciski lekcji (Zosia, Kuba), wersja A z kilkoma nagraniami i rozwiniętą transkrypcją, blok kodu (komputer i telefon), ścieżka A → V → A u Szymona (`uczen3`) z wpisem o cofnięciu, wierszem „Zmiana stylu na V (ręcznie)” i przekreślonym znacznikiem; po przejściu `--reset-students` |
+
+**Co nie działa / uwagi:** brzmienie nagrań do odsłuchania (pkt 2 wyżej); `--refresh-demo-media` za każdym razem wgrywa 48 nagrań od nowa (stare zostają w `files`) i nadpisuje zmiany nauczyciela w treści kursów demo; kurs demo przepięty na konto spoza kont demo nie zostanie rozpoznany przez seed. W trakcie przejścia Patryk przypadkiem zatrzymał dev serwer — uruchomiłem go ponownie (`npm run dev` w `frontend/`, log w katalogu tymczasowym sesji).

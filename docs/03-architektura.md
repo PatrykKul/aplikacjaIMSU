@@ -57,6 +57,7 @@ Struktura modułu: `models.py`, `schemas.py`, `service.py` (publiczny interfejs)
 | Lesson | `lessons` | curriculum | kurs, tytuł, pozycja, zarys i wnioski (TipTap), `is_published`, archiwizacja |
 | Enrollment | `enrollments` | curriculum | prośba o zapis: kurs, uczeń, status (pending / accepted / rejected), daty prośby i decyzji |
 | LessonCompletion | `lesson_completions` | curriculum | pierwsze zaliczenie lekcji przez ucznia (podstawa odblokowania) |
+| CourseOwnerChange | `course_owner_changes` | curriculum | zmiana właściciela kursu przez administratora: kurs, z kogo, na kogo, kto, kiedy (D56) |
 | LessonContent | `lesson_contents` | content | jedna wersja lekcji (`form` V / A / K) — bloki w JSONB: `text` (TipTap) albo `attachment` (`kind`, tytuł, opis, plik / adres / tekst lektora) |
 | File | `files` | content | wgrany plik (właściciel, nazwa, typ, rozmiar, losowa nazwa na dysku) |
 | SurveyQuestion / SurveyAnswer | `survey_questions`, `survey_answers` | learning_style | ankieta VAK (odpowiedź ma styl V / A / K) |
@@ -69,7 +70,7 @@ Struktura modułu: `models.py`, `schemas.py`, `service.py` (publiczny interfejs)
 | StyleTrial | `style_trials` | learning_style | okres próbny: style, źródło, średnie przed / po, wynik |
 | DecisionEvent | `decision_events` | learning_style | dziennik decyzji: typ, kurs, lekcja, dane |
 | LessonQuiz | `lesson_quizzes` | assessment | pula pytań lekcji w JSONB (treść, odpowiedzi, poprawna, wyjaśnienie) |
-| QuizDraw | `quiz_draws` | assessment | wylosowany zestaw ucznia: pytania, odpowiedzi, wynik, czas wysłania (null = otwarty) |
+| QuizDraw | `quiz_draws` | assessment | wylosowany zestaw ucznia: pytania, forma lekcji przy losowaniu, odpowiedzi, wynik, czas wysłania (null = otwarty) |
 
 Migracje: od `be52e423dcf8` do `01324f58656d_v3_adaptation` (usuwa tabele klas, `material_openings`, `quiz_attempts`; dane uczenia v2 nie są przenoszone — bazy przebudowujemy: `alembic downgrade base`, `alembic upgrade head`, seed).
 
@@ -150,6 +151,6 @@ frontend/e2e/
 - `.env` poza repozytorium, `.env.example` z nazwami zmiennych (`JWT_SECRET` ≥ 32 znaki).
 - Wgrane pliki w `UPLOAD_DIR` poza repozytorium, serwowane przez backend (`GET /files/{id}`, z obsługą Range).
 - Dane demo: `python -m app.demo.seed` (`--reset-students`, `--refresh-demo-media`; `moduly/06-demo.md`). Generatory zasobów demo — w osobnym venv narzędziowym (Pillow, edge-tts, imageio-ffmpeg; internet dla nagrań).
-- Testy backendu: `pytest` (473 testy, w tym 67 dla `rules.py`), dwie bazy w jednym kontenerze (`imsu_test` tworzona przez `docker/init-test-db.sql` przy pierwszym starcie); wspólne fixture'y (`db`, `client`, `make_user`, `login`, `student`, `teacher`, `other_teacher`, `admin`, `make_course`, `enroll`) w `backend/tests/conftest.py`. Kontrola: `ruff check .`, `ruff format --check .`.
+- Testy backendu: `pytest` (540 testów, w tym reguły w `test_rules.py`), dwie bazy w jednym kontenerze (`imsu_test` tworzona przez `docker/init-test-db.sql` przy pierwszym starcie); wspólne fixture'y (`db`, `client`, `make_user`, `login`, `student`, `teacher`, `other_teacher`, `admin`, `make_course`, `enroll`) w `backend/tests/conftest.py`. Kontrola: `ruff check .`, `ruff format --check .`.
 - Frontend: Next.js 16 (Cache Components wyłączone — dane pobiera przeglądarka z FastAPI), Tailwind przez PostCSS, shadcn/ui `base-nova`; kontrola `npm run lint`, `npm run format:check`, `npm run build`; przejście scenariusza pokazu `node e2e/demo-tour.mjs` (Playwright spoza zależności projektu, zrzuty do `docs/zrzuty-v3/`).
 - `GET /health` zwraca stan API i bazy. Po restarcie komputera: Docker Desktop i `docker compose up -d`. Uruchomienie od zera: `README.md` i `SCENARIUSZ-POKAZU.md`.
