@@ -14,6 +14,7 @@ import { plural } from "@/shared/lib/plural";
 import type {
   CourseHint,
   FormStats,
+  LearningProfile,
   LessonRef,
   Praise,
   Proposal,
@@ -448,6 +449,46 @@ export function clearedLessonsText(cleared: ClearedLesson[], to: Form): string {
 /** "Zmiana na styl wzrokowy (V) cofnięta przed pierwszą lekcją – wracamy do stylu słuchowego (A)" */
 export function styleChangeRevertedText(from: Form, to: Form): string {
   return `Zmiana na styl ${styleName(from)} cofnięta przed pierwszą lekcją – wracamy do stylu ${STYLE_ADJ_GEN[to]} (${to})`;
+}
+
+// --- The teacher's view of a student ---
+
+export type SummaryLine = { label: string; text: string };
+
+/** Style and its source, an open proposal and the trial, in a neutral voice. */
+export function profileSummaryLines(profile: LearningProfile): SummaryLine[] {
+  const lines: SummaryLine[] = [];
+  if (!profile.survey_completed) {
+    lines.push({ label: "Styl", text: "uczeń nie wypełnił jeszcze ankiety" });
+  } else if (!profile.style) {
+    lines.push({
+      label: "Styl",
+      text: "remis w ankiecie – uczeń jeszcze nie wybrał stylu",
+    });
+  } else {
+    const source = styleSourceText(profile.style_source);
+    lines.push({
+      label: "Styl",
+      text: source
+        ? `${styleName(profile.style)}, ${source}`
+        : styleName(profile.style),
+    });
+  }
+  if (profile.open_proposal) {
+    const { kind, to, evidence } = profile.open_proposal;
+    const evidenceText = proposalEvidenceText(evidence);
+    lines.push({
+      label: "Otwarta propozycja",
+      text: `${kind === "revert" ? "powrót do stylu" : "zmiana stylu na"} ${styleName(to)}${evidenceText ? ` – ${evidenceText}` : ""}`,
+    });
+  }
+  if (profile.trial) {
+    lines.push({
+      label: profile.trial.result ? "Ostatni okres próbny" : "Okres próbny",
+      text: `${styleName(profile.trial.from)} → ${styleName(profile.trial.to)}: ${trialStatusText(profile.trial)}`,
+    });
+  }
+  return lines;
 }
 
 // --- Decision journal ---
