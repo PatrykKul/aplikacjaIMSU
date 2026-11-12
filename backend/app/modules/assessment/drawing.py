@@ -3,7 +3,7 @@
 import random
 from collections.abc import Collection, Sequence
 
-from app.modules.assessment.schemas import QUIZ_SIZE
+from app.modules.learning_style.rules import QUIZ_SIZE
 
 
 def draw_questions(

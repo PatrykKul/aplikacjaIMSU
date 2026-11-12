@@ -10,7 +10,6 @@ from app.modules.assessment.grading import GradingError, grade
 from app.modules.assessment.models import LessonQuiz, QuizDraw
 from app.modules.assessment.readiness import quiz_issues
 from app.modules.assessment.schemas import (
-    QUIZ_SIZE,
     AttemptResponse,
     QuestionResultResponse,
     QuizContent,
@@ -24,6 +23,7 @@ from app.modules.curriculum.models import Lesson
 from app.modules.identity.models import User, UserRole
 from app.modules.learning_style import hooks
 from app.modules.learning_style import service as learning_style
+from app.modules.learning_style.rules import QUIZ_SIZE
 
 # Random source of the draws; tests may replace it with a seeded `random.Random`
 rng = random.Random()

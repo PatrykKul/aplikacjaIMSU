@@ -145,6 +145,25 @@ def test_course_stats(client: TestClient, course, learner, make_user, enroll, lo
     assert empty["last_activity"] is None
 
 
+def test_stats_and_hint_skip_a_student_rejected_later(
+    client: TestClient, course, learner, login, teacher
+):
+    l1 = first_lessons(course)[0]
+    for percent in (80, 100):
+        learner(course["id"], "A")
+        take_quiz(client, l1, percent)
+    rejected = learner(course["id"], "A")
+    take_quiz(client, l1, 0)
+    login(teacher)
+    decision = client.post(f"/courses/{course['id']}/enrollments/{rejected.id}/reject")
+    assert decision.status_code == 200
+    forms = client.get(f"/courses/{course['id']}/stats").json()["forms"]
+    assert forms["A"] == {"average": 90, "counted_results": 2, "attempts": 2, "students": 2}
+    learner(course["id"], "V")
+    hint = client.get(f"/courses/{course['id']}/hint").json()
+    assert (hint["form"], hint["average"], hint["students"]) == ("A", 90, 2)
+
+
 def test_stats_show_the_open_proposal(client: TestClient, course, learner, login, teacher):
     student = learner(course["id"], survey_styles(9, 8, 3))
     l1 = first_lessons(course)[0]

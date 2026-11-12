@@ -667,7 +667,15 @@ def set_lesson_form(
 
 
 def course_results(db: Session, course_id: int) -> list[QuizResult]:
-    query = select(QuizResult).where(QuizResult.course_id == course_id).order_by(QuizResult.id)
+    """Results of the students currently accepted in the course (a rejected one drops out)."""
+    student_ids = curriculum.accepted_student_ids(db, course_id)
+    if not student_ids:
+        return []
+    query = (
+        select(QuizResult)
+        .where(QuizResult.course_id == course_id, QuizResult.user_id.in_(student_ids))
+        .order_by(QuizResult.id)
+    )
     return list(db.scalars(query))
 
 
@@ -875,12 +883,17 @@ def course_stats(db: Session, course_id: int, teacher: User) -> CourseStatsRespo
     )
 
 
+# Events about the student's style, shown to the teacher of any course of the student
+STYLE_EVENT_TYPES = ("proposal_created", "proposal_expired", "trial_finished")
+
+
 def student_detail(
     db: Session, course_id: int, student_id: int, teacher: User
 ) -> StudentDetailResponse:
     """One student of the course: profile, chart, lessons of this course and the journal.
 
-    The journal shows the events of this course and the global ones (survey, style changes).
+    The journal shows the events of this course, the global ones (survey, style changes) and
+    every proposal and trial event, because they decide about the style used in this course too.
     """
     course = curriculum.get_owned_course(db, course_id, teacher)
     if student_id not in curriculum.accepted_student_ids(db, course.id):
@@ -890,7 +903,11 @@ def student_detail(
         select(DecisionEvent)
         .where(
             DecisionEvent.user_id == student.id,
-            or_(DecisionEvent.course_id == course.id, DecisionEvent.course_id.is_(None)),
+            or_(
+                DecisionEvent.course_id == course.id,
+                DecisionEvent.course_id.is_(None),
+                DecisionEvent.type.in_(STYLE_EVENT_TYPES),
+            ),
         )
         .order_by(DecisionEvent.created_at.desc(), DecisionEvent.id.desc())
     )

@@ -1,6 +1,6 @@
 """What the quiz pool lacks before the lesson can be published (R11): pure function."""
 
-from app.modules.assessment.schemas import QUIZ_SIZE
+from app.modules.learning_style.rules import QUIZ_SIZE
 
 
 def quiz_issues(question_count: int) -> list[dict[str, int | str]]:

@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field, StringConstraints, model_validator
 from app.modules.learning_style.schemas import Form, QuizFeedback
 
 MAX_QUESTIONS = 50
-QUIZ_SIZE = 5  # questions drawn for one attempt
 
 ItemId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,40}$")]
 QuestionText = Annotated[
