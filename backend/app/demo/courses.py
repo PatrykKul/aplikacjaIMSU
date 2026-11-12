@@ -12,7 +12,10 @@ into the API shape of `app/modules/content/blocks.py`, `Question.payload` into a
 
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal
+
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 
 Form = Literal["V", "A", "K"]
 FORMS: tuple[Form, ...] = ("V", "A", "K")
@@ -1216,4 +1219,1167 @@ MATH = Course(
 )
 
 
-COURSES: tuple[Course, ...] = (MATH,)
+# =================================================================================================
+# Angielski: Present Perfect
+# =================================================================================================
+
+ENGLISH = Course(
+    code="e",
+    title="Angielski: Present Perfect",
+    description=(
+        "Present Perfect krok po kroku dla klas 6–8: budowa zdania z have/has i trzecią formą czasownika, "
+        "słówka ever, never, already i yet, różnica między for i since oraz wybór między Present Perfect "
+        "a Past Simple. Każdą lekcję przerobisz z tabelami i osią czasu, z nagraniem (objaśnienia po polsku, "
+        "przykłady czytane po angielsku) albo z kartą ćwiczeń. Quiz po lekcji otwiera następną."
+    ),
+    introduction=doc(
+        heading("O kursie"),
+        paragraph(
+            "Present Perfect to czas, który łączy przeszłość z teraźniejszością: mówi o tym, co się wydarzyło "
+            "i ma znaczenie teraz. W języku polskim nie ma takiego czasu, dlatego warto poćwiczyć go osobno."
+        ),
+        paragraph(
+            "Kurs ma cztery lekcje: budowa zdania, słówka ever, never, already i yet, for i since oraz porównanie "
+            "z Past Simple. Po każdej lekcji rozwiązujesz quiz z 5 pytań – ",
+            ("zaliczenie (co najmniej 4 dobre odpowiedzi) otwiera następną lekcję.", True),
+        ),
+        paragraph(
+            "W nagraniach objaśnienia są po polsku, a angielskie zdania przykładowe czytają głosy z wymową brytyjską."
+        ),
+    ),
+    summary=doc(
+        heading("Podsumowanie i wnioski"),
+        bullets(
+            "Budowa: have/has + trzecia forma czasownika (V3). Has tylko z he, she, it; przeczenie haven't/hasn't, pytanie Have/Has + osoba + V3?",
+            "ever (kiedykolwiek) w pytaniach, never (nigdy) w zdaniach twierdzących, already (już) przed V3, yet (już / jeszcze) na końcu pytań i przeczeń.",
+            "for + okres (for three years), since + początek (since 2019, since Monday) – gdy coś trwa od przeszłości do teraz.",
+            "Past Simple, gdy podajesz zakończony czas (yesterday, last week, ago) albo pytasz When…?; Present Perfect, gdy czas jest nieważny albo okres wciąż trwa.",
+        ),
+        paragraph(
+            "Sprawdzian dla siebie: opowiedz po angielsku o trzech swoich doświadczeniach (I have been…, I have tried…) "
+            "i o jednej rzeczy, której jeszcze nie ma na Twojej liście (I have never…)."
+        ),
+    ),
+    lessons=(
+        # --- 1. Budowa zdania -------------------------------------------------------------------
+        Lesson(
+            title="Budowa zdania",
+            outline=doc(
+                paragraph(
+                    "Nauczysz się budować zdania w Present Perfect: twierdzące, przeczące i pytające. "
+                    "Poznasz trzecią formę czasownika (V3) – regularną z końcówką -ed i nieregularną z tabeli – oraz krótkie odpowiedzi."
+                )
+            ),
+            conclusions=doc(
+                bullets(
+                    "Zdanie twierdzące: osoba + have/has + V3, np. I have finished. Has tylko z he, she, it: She has finished.",
+                    "V3 czasowników regularnych kończy się na -ed (play → played), nieregularnych – to trzecia kolumna tabeli (go – went – gone).",
+                    "Przeczenie: haven't / hasn't + V3; pytanie: Have / Has + osoba + V3? Krótkie odpowiedzi: Yes, I have. / No, she hasn't.",
+                    "Skróty: I've, you've, he's, she's – tu 's to has, nie is (She's visited Rome = She has visited Rome).",
+                )
+            ),
+            versions={
+                "V": (
+                    Text(
+                        "v-tekst",
+                        doc(
+                            heading("Present Perfect = have / has + V3"),
+                            paragraph(
+                                "Present Perfect opisuje coś, co wydarzyło się w przeszłości i ma znaczenie teraz (skutek albo doświadczenie). "
+                                "Nie podajemy, kiedy dokładnie to było."
+                            ),
+                            table(
+                                ("osoba", "twierdzenie", "przeczenie", "pytanie"),
+                                (
+                                    "I / you / we / they",
+                                    "I have finished.",
+                                    "I haven't finished.",
+                                    "Have you finished?",
+                                ),
+                                (
+                                    "he / she / it",
+                                    "She has finished.",
+                                    "She hasn't finished.",
+                                    "Has she finished?",
+                                ),
+                            ),
+                            paragraph(
+                                ("Has", True),
+                                " tylko z he, she, it (i z imionami: Tom has…). Krótkie odpowiedzi powtarzają have/has, bez V3: "
+                                "Yes, I have. / No, I haven't. / Yes, she has. / No, she hasn't.",
+                            ),
+                            heading("Trzecia forma czasownika (V3)"),
+                            bullets(
+                                "Regularne: + -ed, jak w drugiej formie: work → worked, play → played, stop → stopped (podwojone p).",
+                                "Nieregularne – trzecia kolumna tabeli: go – went – gone, see – saw – seen, eat – ate – eaten, write – wrote – written, be – was/were – been.",
+                            ),
+                            paragraph(
+                                "Uwaga: w Present Perfect używamy V3, nie V2: ",
+                                ("I have written", True),
+                                " (nie: I have wrote).",
+                            ),
+                            heading("Skróty"),
+                            paragraph(
+                                "I have → I've, she has → she's, have not → haven't, has not → hasn't. "
+                                "W zdaniu She's visited Rome skrót 's oznacza has, bo dalej stoi V3."
+                            ),
+                        ),
+                    ),
+                    Image(
+                        "v-budowa",
+                        "Budowa zdania w Present Perfect",
+                        "e1_v_budowa.png",
+                        "Schemat trzech rodzajów zdań: twierdzące osoba + have/has + V3, przeczące z haven't/hasn't, pytanie z Have/Has na początku",
+                    ),
+                    Image(
+                        "v-formy",
+                        "Trzecia forma czasownika",
+                        "e1_v_formy.png",
+                        "Tabela form czasowników: regularne work, play, stop i nieregularne go, see, eat, write, be z wyróżnioną kolumną V3",
+                    ),
+                ),
+                "A": (
+                    Text(
+                        "a-opis",
+                        doc(
+                            paragraph(
+                                "Posłuchaj rozmowy o budowie zdań w Present Perfect. Objaśnienia są po polsku, "
+                                "a angielskie przykłady czytają lektorzy. Najważniejsze do zapamiętania:"
+                            ),
+                            bullets(
+                                "osoba + have/has + trzecia forma (V3); has tylko z he, she, it,",
+                                "V3: regularne z -ed, nieregularne z tabeli (go – went – gone),",
+                                "przeczenie haven't/hasn't, pytanie Have/Has na początku, krótkie odpowiedzi,",
+                                "skrót 's przed V3 to has.",
+                            ),
+                            paragraph("Powtarzaj angielskie zdania na głos razem z lektorem."),
+                        ),
+                    ),
+                    Audio(
+                        "a-nagranie",
+                        "Rozmowa: jak zbudować zdanie w Present Perfect",
+                        "e1_a_rozmowa.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Cześć! W tym nagraniu nauczysz się budować zdania w czasie Present Perfect. Ten czas łączy przeszłość z teraźniejszością: mówi o czymś, co się wydarzyło i ma znaczenie teraz. Nie mówimy, kiedy dokładnie to było.",
+                            ),
+                            say("M", "A jak zbudować takie zdanie?"),
+                            say(
+                                "Z",
+                                "Potrzebujesz dwóch elementów: słówka",
+                                ("EN", "have"),
+                                "albo",
+                                ("EN", "has"),
+                                "i trzeciej formy czasownika. Posłuchaj:",
+                            ),
+                            say("EN2", "I have finished my homework."),
+                            say(
+                                "Z",
+                                "Słówko",
+                                ("EN", "has"),
+                                "stawiamy tylko przy osobach",
+                                ("EN", "he, she, it"),
+                                "i przy imionach. Na przykład:",
+                                ("EN", "She has finished her homework. Tom has finished, too."),
+                            ),
+                            say("M", "A czym jest trzecia forma?"),
+                            say(
+                                "Z",
+                                "Przy czasownikach regularnych dodajesz końcówkę e de, tak samo jak w drugiej formie:",
+                                ("EN", "work, worked. Play, played. Stop, stopped."),
+                            ),
+                            say(
+                                "Z",
+                                "Przy nieregularnych bierzesz trzecią kolumnę z tabeli czasowników:",
+                                (
+                                    "EN",
+                                    "go, went, gone. See, saw, seen. Eat, ate, eaten. Write, wrote, written.",
+                                ),
+                            ),
+                            say(
+                                "Z",
+                                "Uważaj, żeby nie pomylić drugiej formy z trzecią. Mówimy",
+                                ("EN", "I have written a letter,"),
+                                "a nie",
+                                ("EN", "I have wrote."),
+                            ),
+                            say("M", "A jak zrobić przeczenie?"),
+                            say(
+                                "Z",
+                                "Dodajesz not do",
+                                ("EN", "have"),
+                                "albo",
+                                ("EN", "has."),
+                                "W mowie prawie zawsze używamy skrótów:",
+                                ("EN2", "I haven't seen this film. She hasn't called."),
+                            ),
+                            say("M", "A pytania?"),
+                            say(
+                                "Z",
+                                "Przestawiasz",
+                                ("EN", "have"),
+                                "albo",
+                                ("EN", "has"),
+                                "na początek zdania, przed osobę:",
+                                ("EN", "Have you finished? Has she called?"),
+                            ),
+                            say(
+                                "Z",
+                                "Krótko odpowiadasz samym",
+                                ("EN", "have"),
+                                "albo",
+                                ("EN", "has,"),
+                                "bez trzeciej formy:",
+                                ("EN2", "Yes, I have. No, she hasn't."),
+                            ),
+                            say(
+                                "M",
+                                "Słyszałem też skrót",
+                                ("EN2", "she's."),
+                                "Czy to zawsze znaczy",
+                                ("EN2", "she is?"),
+                            ),
+                            say(
+                                "Z",
+                                "Nie zawsze. Jeśli dalej stoi trzecia forma, to skrót od",
+                                ("EN", "has."),
+                                "Zdanie",
+                                ("EN", "She's visited Rome"),
+                                "znaczy",
+                                ("EN", "She has visited Rome."),
+                            ),
+                            say(
+                                "Z",
+                                "Podsumujmy: osoba, potem",
+                                ("EN", "have"),
+                                "albo",
+                                ("EN", "has,"),
+                                "a na końcu trzecia forma czasownika.",
+                            ),
+                        ),
+                        "Nauczycielka objaśnia budowę zdań, a lektorzy czytają angielskie przykłady.",
+                    ),
+                ),
+                "K": (
+                    Text(
+                        "k-instrukcja",
+                        doc(
+                            paragraph(
+                                "Przygotuj zeszyt i dwa kolorowe długopisy. Każde zdanie zapisz i przeczytaj na głos – "
+                                "pisanie i mówienie pomagają zapamiętać."
+                            ),
+                            ordered(
+                                "Zapisz dużymi literami wzór: osoba + have/has + V3. Pod spodem dopisz: has tylko z he, she, it (i z imionami).",
+                                "Zrób tabelkę czasowników z trzema kolumnami: forma podstawowa – V2 – V3. Wpisz regularne: work – worked – worked, play – played – played, stop – stopped – stopped, i nieregularne: go – went – gone, see – saw – seen, eat – ate – eaten, write – wrote – written, be – was/were – been. Pokoloruj kolumnę V3.",
+                                "Ułóż 3 zdania twierdzące, np. I have finished my homework. She has eaten breakfast. We have seen this film.",
+                                "Zamień je na przeczenia, dopisując not w skrócie: I haven't finished… She hasn't eaten… We haven't seen…",
+                                "Zamień je na pytania – przestaw have/has na początek: Have you finished…? Has she eaten…?",
+                                "Dopisz krótkie odpowiedzi bez V3: Yes, I have. / No, she hasn't.",
+                                "Zapisz skróty: I've, you've, she's (= she has, gdy dalej jest V3), haven't, hasn't. Obok zapisz pułapkę: I have written, nie I have wrote.",
+                                WORKSHEET_STEP,
+                            ),
+                        ),
+                    ),
+                    Pdf(
+                        "k-karta",
+                        "Karta zadania: budowa zdania",
+                        "e1_k_karta.pdf",
+                        "Uzupełnianie, przekształcanie i poprawianie zdań w Present Perfect.",
+                    ),
+                ),
+            },
+            questions=(
+                Question(
+                    "q1",
+                    "Uzupełnij: She ___ finished her homework.",
+                    "has",
+                    ("have", "is", "was"),
+                    "Z he, she, it używamy has: She has finished. Have stoi przy I, you, we, they.",
+                ),
+                Question(
+                    "q2",
+                    "Jaka jest trzecia forma (V3) czasownika go?",
+                    "gone",
+                    ("went", "goed", "going"),
+                    "go – went – gone: went to druga forma (Past Simple), a w Present Perfect potrzebna jest trzecia, np. She has gone to school.",
+                ),
+                Question(
+                    "q3",
+                    "Uzupełnij przeczenie: They ___ seen this film.",
+                    "haven't",
+                    ("hasn't", "didn't", "don't"),
+                    "Przeczenie w Present Perfect to have not / has not + V3. Przy they – haven't: They haven't seen this film.",
+                ),
+                Question(
+                    "q4",
+                    "Uzupełnij pytanie: ___ he eaten breakfast?",
+                    "Has",
+                    ("Have", "Did", "Is"),
+                    "W pytaniu have/has stoi na początku. Przy he – Has: Has he eaten breakfast?",
+                ),
+                Question(
+                    "q5",
+                    "Które zdanie jest poprawne?",
+                    "I have written a letter.",
+                    (
+                        "I have wrote a letter.",
+                        "I has written a letter.",
+                        "I written have a letter.",
+                    ),
+                    "Potrzebujemy have (przy I) i trzeciej formy write – written. Wrote to druga forma.",
+                ),
+                Question(
+                    "q6",
+                    "Have you seen my keys? Wybierz poprawną krótką odpowiedź przeczącą.",
+                    "No, I haven't.",
+                    ("No, I didn't.", "No, I don't.", "No, I hasn't."),
+                    "Krótka odpowiedź powtarza have/has z pytania: Have you…? – No, I haven't. Did i don't należą do innych czasów, a hasn't nie łączy się z I.",
+                ),
+                Question(
+                    "q7",
+                    "Co oznacza skrót 's w zdaniu She's visited Rome?",
+                    "has",
+                    ("is", "was"),
+                    "Po skrócie stoi V3 (visited), więc to Present Perfect: She has visited Rome. Gdyby dalej stało np. happy, 's znaczyłoby is.",
+                ),
+                Question(
+                    "q8",
+                    "Jaka jest trzecia forma regularnego czasownika play?",
+                    "played",
+                    ("plaid", "playen", "plays"),
+                    "Czasowniki regularne mają V3 z końcówką -ed, taką samą jak V2: play – played – played.",
+                ),
+            ),
+        ),
+        # --- 2. ever, never, already, yet -------------------------------------------------------
+        Lesson(
+            title="ever, never, already, yet",
+            outline=doc(
+                paragraph(
+                    "Poznasz cztery słówka, które często występują w Present Perfect: ever, never, already i yet. "
+                    "Dowiesz się, co znaczą, w jakich zdaniach się ich używa i gdzie stoją w zdaniu."
+                )
+            ),
+            conclusions=doc(
+                bullets(
+                    "ever = kiedykolwiek (w życiu), w pytaniach przed V3: Have you ever been to London?",
+                    "never = nigdy, w zdaniu twierdzącym przed V3: I have never eaten sushi. Bez not – po angielsku tylko jedno przeczenie.",
+                    "already = już, w zdaniu twierdzącym między have/has a V3: We have already bought the tickets.",
+                    "yet na końcu zdania: w pytaniu = już (Have you finished yet?), w przeczeniu = jeszcze (I haven't finished yet).",
+                )
+            ),
+            versions={
+                "V": (
+                    Text(
+                        "v-tekst",
+                        doc(
+                            heading("Cztery słówka Present Perfect"),
+                            table(
+                                ("słówko", "znaczenie", "gdzie w zdaniu", "przykład"),
+                                (
+                                    "ever",
+                                    "kiedykolwiek (w życiu)",
+                                    "pytanie, przed V3",
+                                    "Have you ever been to London?",
+                                ),
+                                (
+                                    "never",
+                                    "nigdy",
+                                    "zdanie twierdzące, przed V3",
+                                    "I have never eaten sushi.",
+                                ),
+                                (
+                                    "already",
+                                    "już",
+                                    "zdanie twierdzące, między have/has a V3",
+                                    "We have already bought the tickets.",
+                                ),
+                                (
+                                    "yet",
+                                    "już (pytanie) / jeszcze (przeczenie)",
+                                    "na końcu zdania",
+                                    "Have you finished yet? I haven't finished yet.",
+                                ),
+                            ),
+                            heading("Pułapki"),
+                            bullets(
+                                [
+                                    ("never", True),
+                                    " już jest przeczeniem: I have never seen snow. Błędnie: I haven't never seen snow – po angielsku nie łączymy dwóch przeczeń.",
+                                ],
+                                [
+                                    ("already", True),
+                                    " i ",
+                                    ("yet", True),
+                                    " tłumaczymy jako „już”, ale already stoi w środku zdania twierdzącego, a yet – na końcu pytania.",
+                                ],
+                                [
+                                    ("yet", True),
+                                    " w przeczeniu znaczy „jeszcze”: Jeszcze nie jadłem obiadu = I haven't had lunch yet.",
+                                ],
+                                "Na pytanie z ever często odpowiadamy z never: Have you ever been to Japan? – No, I've never been there.",
+                            ),
+                        ),
+                    ),
+                    Image(
+                        "v-slowka",
+                        "Gdzie stoją ever, never, already i yet",
+                        "e2_v_slowka.png",
+                        "Cztery przykładowe zdania z zaznaczonym miejscem słówka: ever i never przed V3, already między have a V3, yet na końcu zdania",
+                    ),
+                ),
+                "A": (
+                    Text(
+                        "a-opis",
+                        doc(
+                            paragraph(
+                                "Posłuchaj rozmowy o czterech słówkach Present Perfect. Najważniejsze do zapamiętania:"
+                            ),
+                            bullets(
+                                "ever – kiedykolwiek, w pytaniach przed V3,",
+                                "never – nigdy, bez not (jedno przeczenie),",
+                                "already – już, w środku zdania twierdzącego,",
+                                "yet – na końcu: w pytaniu „już”, w przeczeniu „jeszcze”.",
+                            ),
+                        ),
+                    ),
+                    Audio(
+                        "a-nagranie",
+                        "Rozmowa: ever, never, already, yet",
+                        "e2_a_rozmowa.mp3",
+                        (
+                            say(
+                                "Z",
+                                "W tej lekcji poznasz cztery słówka, które bardzo często towarzyszą czasowi Present Perfect:",
+                                ("EN", "ever, never, already, yet."),
+                            ),
+                            say("M", "Zacznijmy od pierwszego."),
+                            say(
+                                "EN",
+                                "Ever",
+                                (
+                                    "Z",
+                                    "znaczy kiedykolwiek, czyli kiedykolwiek w życiu. Używamy go w pytaniach i stawiamy przed trzecią formą czasownika:",
+                                ),
+                                ("EN2", "Have you ever been to London?"),
+                            ),
+                            say("M", "Czyli: czy byłeś kiedykolwiek w Londynie?"),
+                            say(
+                                "Z",
+                                "Tak. A jeśli odpowiedź brzmi: nigdy, używamy słówka",
+                                ("EN", "never."),
+                                "Stoi w tym samym miejscu, przed trzecią formą:",
+                                ("EN2", "I have never been to London. I have never eaten sushi."),
+                            ),
+                            say(
+                                "M",
+                                "Po polsku mówię: nigdy nie jadłem. Czy po angielsku też dodaję not?",
+                            ),
+                            say(
+                                "Z",
+                                "Nie! To częsty błąd.",
+                                ("EN", "Never"),
+                                "już jest przeczeniem, więc nie dodajesz",
+                                ("EN", "not."),
+                                "Zdanie",
+                                ("EN", "I haven't never eaten sushi"),
+                                "jest błędne. Po angielsku wystarcza jedno przeczenie.",
+                            ),
+                            say("M", "A jak powiedzieć już i jeszcze?"),
+                            say(
+                                "Z",
+                                "Już w zdaniu twierdzącym to",
+                                ("EN", "already."),
+                                "Stoi między",
+                                ("EN", "have"),
+                                "albo",
+                                ("EN", "has"),
+                                "a trzecią formą:",
+                                (
+                                    "EN2",
+                                    "We have already bought the tickets. She has already left.",
+                                ),
+                            ),
+                            say("M", "A słówko", ("EN2", "yet?")),
+                            say(
+                                "EN",
+                                "Yet",
+                                ("Z", "stawiamy na końcu zdania. W pytaniu znaczy już:"),
+                                ("EN2", "Have you finished your homework yet?"),
+                                (
+                                    "Z",
+                                    "Czyli: czy już odrobiłeś lekcje? A w przeczeniu znaczy jeszcze:",
+                                ),
+                                ("EN2", "I haven't finished yet."),
+                                ("Z", "Jeszcze nie skończyłem."),
+                            ),
+                            say(
+                                "M",
+                                "Czyli",
+                                ("EN2", "already"),
+                                "i",
+                                ("EN2", "yet"),
+                                "to po polsku już, ale stoją w innych miejscach.",
+                            ),
+                            say(
+                                "Z",
+                                "Właśnie.",
+                                ("EN", "Already"),
+                                "w środku zdania twierdzącego,",
+                                ("EN", "yet"),
+                                "na końcu pytania albo przeczenia. Posłuchaj krótkiej rozmowy:",
+                            ),
+                            say("EN", "Have you ever tried Polish pierogi?"),
+                            say("EN2", "No, I've never tried them. Have you made them yet?"),
+                            say("EN", "Yes, I've already made twenty!"),
+                            say(
+                                "Z",
+                                "Podsumowanie:",
+                                ("EN", "ever"),
+                                "to kiedykolwiek, w pytaniach.",
+                                ("EN", "Never"),
+                                "to nigdy, bez not.",
+                                ("EN", "Already"),
+                                "to już, w środku zdania.",
+                                ("EN", "Yet"),
+                                "stoi na końcu pytań i przeczeń.",
+                            ),
+                        ),
+                        "Rozmowa o znaczeniu i miejscu w zdaniu słówek ever, never, already i yet.",
+                    ),
+                ),
+                "K": (
+                    Text(
+                        "k-instrukcja",
+                        doc(
+                            paragraph(
+                                "Przygotuj cztery małe karteczki (najlepiej samoprzylepne) i zeszyt."
+                            ),
+                            ordered(
+                                "Na karteczkach napisz dużymi literami: ever, never, already, yet. Na odwrocie każdej zapisz znaczenie: kiedykolwiek, nigdy, już, już / jeszcze.",
+                                "Zapisz w zeszycie pytanie: Have you been to London? Połóż karteczkę ever przed been i przeczytaj na głos: Have you ever been to London? (ever – w pytaniach, przed V3).",
+                                "Zapisz: I have eaten sushi. Połóż never przed eaten: I have never eaten sushi. Zapamiętaj: never już jest przeczeniem – nie dopisuj not (błąd: I haven't never eaten).",
+                                "Zapisz: We have bought the tickets. Wsuń already między have a bought: We have already bought the tickets (already – już, w zdaniu twierdzącym).",
+                                "Zapisz pytanie: Have you finished your homework? Połóż yet na końcu: … finished your homework yet? – tu yet znaczy „już”.",
+                                "Zapisz przeczenie: I haven't finished. Połóż yet na końcu: I haven't finished yet. – tu yet znaczy „jeszcze”.",
+                                "Pomieszaj karteczki, wylosuj jedną i ułóż z nią własne zdanie. Powtórz 4 razy i za każdym razem przeczytaj zdanie na głos.",
+                                WORKSHEET_STEP,
+                            ),
+                        ),
+                    ),
+                    Pdf(
+                        "k-karta",
+                        "Karta zadania: ever, never, already, yet",
+                        "e2_k_karta.pdf",
+                        "Wstawianie słówek, układanie zdań, tłumaczenie i mini-wywiad.",
+                    ),
+                ),
+            },
+            questions=(
+                Question(
+                    "q1",
+                    "Uzupełnij: Have you ___ been to London?",
+                    "ever",
+                    ("never", "yet", "already"),
+                    "Ever (kiedykolwiek) stawiamy w pytaniach o doświadczenia, przed V3: Have you ever been to London?",
+                ),
+                Question(
+                    "q2",
+                    "Wybierz poprawne tłumaczenie: Nigdy nie jadłem sushi.",
+                    "I have never eaten sushi.",
+                    (
+                        "I haven't never eaten sushi.",
+                        "I have ever eaten sushi.",
+                        "I have eaten never sushi.",
+                    ),
+                    "never = nigdy, stoi przed V3. Ponieważ never już jest przeczeniem, nie dodajemy not – po angielsku jest tylko jedno przeczenie.",
+                ),
+                Question(
+                    "q3",
+                    "Uzupełnij: She hasn't finished ___.",
+                    "yet",
+                    ("already", "ever", "never"),
+                    "W przeczeniu yet stoi na końcu zdania i znaczy „jeszcze”: Jeszcze nie skończyła.",
+                ),
+                Question(
+                    "q4",
+                    "Które zdanie jest poprawne?",
+                    "We have already bought the tickets.",
+                    (
+                        "We have yet bought the tickets.",
+                        "We have ever bought the tickets.",
+                        "We have bought already the tickets.",
+                    ),
+                    "Already (już) w zdaniu twierdzącym stoi między have/has a V3. Yet nie występuje w takich zdaniach twierdzących, a ever – to słówko pytań.",
+                ),
+                Question(
+                    "q5",
+                    "Które zdanie jest błędne?",
+                    "I haven't never seen snow.",
+                    (
+                        "I have never seen snow.",
+                        "I haven't seen snow yet.",
+                        "Have you ever seen snow?",
+                    ),
+                    "Never już jest przeczeniem, więc nie łączymy go z haven't. Poprawnie: I have never seen snow.",
+                ),
+                Question(
+                    "q6",
+                    "Co znaczy pytanie Have you done your homework yet?",
+                    "Czy już odrobiłeś lekcje?",
+                    (
+                        "Czy kiedykolwiek odrobiłeś lekcje?",
+                        "Czy nigdy nie odrobiłeś lekcji?",
+                        "Czy jeszcze odrabiasz lekcje?",
+                    ),
+                    "W pytaniu yet na końcu znaczy „już”. Kiedykolwiek to ever, a nigdy – never.",
+                ),
+                Question(
+                    "q7",
+                    "Jak powiesz po angielsku: Jeszcze nie jadłem obiadu?",
+                    "I haven't had lunch yet.",
+                    (
+                        "I have already had lunch.",
+                        "I have never had lunch.",
+                        "I haven't had lunch already.",
+                    ),
+                    "„Jeszcze nie” to przeczenie haven't + V3 i yet na końcu zdania. Already oznacza „już” i pasuje do zdań twierdzących.",
+                ),
+                Question(
+                    "q8",
+                    "Co znaczy słówko ever w pytaniu Have you ever met a famous person?",
+                    "kiedykolwiek (w życiu)",
+                    ("nigdy", "już", "jeszcze"),
+                    "Ever w pytaniach o doświadczenia znaczy „kiedykolwiek”: Czy kiedykolwiek spotkałeś kogoś sławnego?",
+                ),
+            ),
+        ),
+        # --- 3. for i since ---------------------------------------------------------------------
+        Lesson(
+            title="for i since",
+            outline=doc(
+                paragraph(
+                    "Nauczysz się mówić, jak długo coś trwa – od przeszłości aż do teraz. "
+                    "Poznasz różnicę między for (przez jaki okres) i since (od kiedy) oraz pytanie How long…?"
+                )
+            ),
+            conclusions=doc(
+                bullets(
+                    "Present Perfect + for/since opisuje coś, co zaczęło się w przeszłości i trwa do teraz: I have lived here for five years.",
+                    "for + okres (ile czasu?): for two days, for a month, for ages.",
+                    "since + początek (od kiedy?): since 2019, since Monday, since I was six.",
+                    "Polskie „mieszkam tu od pięciu lat” to Present Perfect: I have lived here for five years (nie: I live here for five years). Pytanie: How long have you…?",
+                )
+            ),
+            versions={
+                "V": (
+                    Text(
+                        "v-tekst",
+                        doc(
+                            heading("Od przeszłości do teraz"),
+                            paragraph(
+                                "Gdy coś zaczęło się w przeszłości i trwa nadal, po angielsku używamy Present Perfect. "
+                                "Po polsku mówimy w czasie teraźniejszym: ",
+                                (
+                                    "Mieszkam tu od pięciu lat = I have lived here for five years.",
+                                    True,
+                                ),
+                            ),
+                            table(
+                                ("for – okres (ile czasu?)", "since – początek (od kiedy?)"),
+                                ("for five years", "since 2019"),
+                                ("for two weeks", "since Monday"),
+                                ("for an hour", "since 8 o'clock"),
+                                ("for ages", "since I was six"),
+                            ),
+                            paragraph(
+                                "Test: jeśli pasuje pytanie „ile czasu?” – for. Jeśli „od kiedy?” – since. "
+                                "Po since może stać całe zdanie w Past Simple: since I was six, since we moved here."
+                            ),
+                            heading("Pytanie How long…?"),
+                            paragraph(
+                                "How long have you had this phone? – I've had it for two years."
+                            ),
+                            heading("Uwaga"),
+                            bullets(
+                                "Nie mówimy: I live here for five years (brak Present Perfect) ani I have lived here since five years (pięć lat to okres).",
+                                "Liczenie: Tom started this job in March. Now it's June. He has had this job for three months (since March).",
+                            ),
+                        ),
+                    ),
+                    Image(
+                        "v-os",
+                        "for i since na osi czasu",
+                        "e3_v_for_since.png",
+                        "Oś czasu: punkt since March i klamra for three months sięgająca do teraz (June) oraz listy wyrażeń z for i since",
+                    ),
+                ),
+                "A": (
+                    Text(
+                        "a-opis",
+                        doc(
+                            paragraph(
+                                "Posłuchaj rozmowy o for i since. Najważniejsze do zapamiętania:"
+                            ),
+                            bullets(
+                                "coś trwa od przeszłości do teraz → Present Perfect,",
+                                "for + okres (ile czasu?), since + początek (od kiedy?),",
+                                "pytanie How long have you…?,",
+                                "dwa typowe błędy: I live here for… i since five years.",
+                            ),
+                        ),
+                    ),
+                    Audio(
+                        "a-nagranie",
+                        "Rozmowa: for czy since?",
+                        "e3_a_rozmowa.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Dzisiaj nauczysz się mówić, jak długo coś trwa. Pomogą nam dwa słówka:",
+                                ("EN", "for"),
+                                "i",
+                                ("EN", "since."),
+                            ),
+                            say("M", "Po polsku mówię po prostu: mieszkam tu od pięciu lat."),
+                            say(
+                                "Z",
+                                "No właśnie. Po polsku używasz czasu teraźniejszego, ale po angielsku mówimy w Present Perfect, bo mieszkanie zaczęło się w przeszłości i trwa do teraz:",
+                                ("EN2", "I have lived here for five years."),
+                            ),
+                            say("M", "Dlaczego tu jest", ("EN2", "for?")),
+                            say(
+                                "EN",
+                                "For",
+                                (
+                                    "Z",
+                                    "stawiamy przed okresem czasu, czyli odpowiedzią na pytanie: ile czasu? Pięć lat, dwa tygodnie, godzina:",
+                                ),
+                                ("EN", "for five years, for two weeks, for an hour."),
+                            ),
+                            say("M", "A", ("EN2", "since?")),
+                            say(
+                                "EN",
+                                "Since",
+                                (
+                                    "Z",
+                                    "stawiamy przed początkiem, czyli odpowiedzią na pytanie: od kiedy? Od dwa tysiące dziewiętnastego roku, od poniedziałku, od ósmej:",
+                                ),
+                                ("EN", "since 2019, since Monday, since eight o'clock."),
+                            ),
+                            say(
+                                "Z",
+                                "Po",
+                                ("EN", "since"),
+                                "może też stać całe zdanie:",
+                                ("EN2", "We have been friends since we were six."),
+                            ),
+                            say(
+                                "M",
+                                "Czyli pytam siebie: ile czasu? To",
+                                ("EN2", "for."),
+                                "Od kiedy? To",
+                                ("EN2", "since."),
+                            ),
+                            say(
+                                "Z",
+                                "Świetny sposób. Uważaj na dwa błędy. Nie mówimy",
+                                ("EN", "I live here for five years,"),
+                                "bo potrzebny jest Present Perfect. I nie mówimy",
+                                ("EN", "since five years,"),
+                                "bo pięć lat to okres, a nie początek.",
+                            ),
+                            say("M", "A jak zapytać, jak długo ktoś coś robi?"),
+                            say(
+                                "Z",
+                                "Pytaniem",
+                                ("EN", "How long?"),
+                                "Posłuchaj:",
+                                ("EN", "How long have you had this phone?"),
+                                ("EN2", "I've had it for two years."),
+                            ),
+                            say(
+                                "Z",
+                                "Na koniec zagadka. Tom zaczął nową pracę w marcu, a teraz jest czerwiec. Jak długo ma tę pracę?",
+                            ),
+                            say(
+                                "M",
+                                "Od marca do czerwca to trzy miesiące. Czyli",
+                                ("EN2", "He has had this job for three months."),
+                                "Albo",
+                                ("EN2", "since March."),
+                            ),
+                            say(
+                                "Z",
+                                "Doskonale. Zapamiętaj:",
+                                ("EN", "for"),
+                                "to okres,",
+                                ("EN", "since"),
+                                "to początek, a cały czas trwania opisujemy w Present Perfect.",
+                            ),
+                        ),
+                        "Rozmowa o tym, kiedy użyć for, a kiedy since, i jak zapytać How long…?",
+                    ),
+                ),
+                "K": (
+                    Text(
+                        "k-instrukcja",
+                        doc(
+                            paragraph("Przygotuj zeszyt, linijkę i dwa kolorowe długopisy."),
+                            ordered(
+                                "Narysuj linijką poziomą oś czasu. Na prawym końcu napisz NOW (teraz) – niech to będzie czerwiec.",
+                                "Nad osią zapisz zasadę: gdy coś zaczęło się w przeszłości i trwa do teraz, używamy Present Perfect (Mieszkam tu od 5 lat = I have lived here for five years).",
+                                "Pierwszym kolorem postaw na osi kropkę, podpisz ją March i dopisz since March. Since to początek – odpowiedź na pytanie „od kiedy?”.",
+                                "Drugim kolorem narysuj klamrę od March do NOW i podpisz ją for three months. For to okres – odpowiedź na pytanie „ile czasu?”.",
+                                "Zrób dwie kolumny: for i since. Rozłóż do nich wyrażenia: five years, 2019, Monday, two weeks, an hour, 8 o'clock, ages, I was six. (for: five years, two weeks, an hour, ages; since: 2019, Monday, 8 o'clock, I was six).",
+                                "Zapisz pytanie How long have you had your phone? i odpowiedz na nie na dwa sposoby: z for i z since.",
+                                "Zapisz dwa błędy, których unikasz: I live here for five years (brak Present Perfect) oraz since five years (pięć lat to okres).",
+                                WORKSHEET_STEP,
+                            ),
+                        ),
+                    ),
+                    Pdf(
+                        "k-karta",
+                        "Karta zadania: for i since",
+                        "e3_k_karta.pdf",
+                        "Wybór for lub since, zdania z How long i poprawianie błędów.",
+                    ),
+                ),
+            },
+            questions=(
+                Question(
+                    "q1",
+                    "Uzupełnij: I have lived here ___ 2019.",
+                    "since",
+                    ("for", "from", "ago"),
+                    "2019 to początek (od kiedy?), a z początkiem używamy since.",
+                ),
+                Question(
+                    "q2",
+                    "Uzupełnij: She has known him ___ three years.",
+                    "for",
+                    ("since", "ago", "from"),
+                    "Trzy lata to okres (ile czasu?), więc for: for three years.",
+                ),
+                Question(
+                    "q3",
+                    "Które wyrażenie jest poprawne?",
+                    "since last summer",
+                    ("since three days", "for yesterday", "for 2015"),
+                    "Last summer to moment początku, więc since. Three days to okres (for three days), a yesterday i 2015 to punkty w czasie, nie okresy.",
+                ),
+                Question(
+                    "q4",
+                    "Jak powiesz po angielsku: Mieszkam w Krakowie od pięciu lat?",
+                    "I have lived in Kraków for five years.",
+                    (
+                        "I live in Kraków for five years.",
+                        "I have lived in Kraków since five years.",
+                        "I lived in Kraków since five years.",
+                    ),
+                    "Mieszkanie trwa od przeszłości do teraz, więc Present Perfect (have lived), a pięć lat to okres – for.",
+                ),
+                Question(
+                    "q5",
+                    "Które pytanie o czas trwania jest poprawne?",
+                    "How long have you had this phone?",
+                    (
+                        "How long do you have this phone?",
+                        "How long you have had this phone?",
+                        "When have you had this phone?",
+                    ),
+                    "Pytamy o coś, co trwa do teraz: How long + have/has + osoba + V3. Have stoi przed osobą, jak w każdym pytaniu.",
+                ),
+                Question(
+                    "q6",
+                    "Na jakie pytanie odpowiada wyrażenie z for?",
+                    "Ile czasu? (jak długi okres)",
+                    ("Od kiedy? (początek)", "Kiedy dokładnie?", "Dlaczego?"),
+                    "for + okres: for two weeks, for an hour. Na pytanie „od kiedy?” odpowiada since.",
+                ),
+                Question(
+                    "q7",
+                    "Uzupełnij: They have been friends ___ they were six.",
+                    "since",
+                    ("for", "ago", "from"),
+                    "„They were six” to moment początku przyjaźni. Po since może stać całe zdanie w Past Simple.",
+                ),
+                Question(
+                    "q8",
+                    "Tom started this job in March. Now it's June. He has had this job ___.",
+                    "for three months",
+                    ("since three months", "for March", "since June"),
+                    "Od marca do czerwca minęły trzy miesiące – to okres, więc for three months. Można też powiedzieć since March.",
+                ),
+            ),
+        ),
+        # --- 4. Present Perfect czy Past Simple? ------------------------------------------------
+        Lesson(
+            title="Present Perfect czy Past Simple?",
+            outline=doc(
+                paragraph(
+                    "Porównasz Present Perfect z Past Simple i nauczysz się wybierać właściwy czas. "
+                    "Kluczem jest pytanie: czy podajesz konkretny, zakończony czas wydarzenia?"
+                )
+            ),
+            conclusions=doc(
+                bullets(
+                    "Past Simple – gdy podajesz zakończony czas: yesterday, last week, in 2019, two years ago. Pytanie When…? zawsze w Past Simple.",
+                    "Present Perfect – gdy czas jest nieważny (doświadczenie, skutek teraz) albo okres trwa: ever, never, already, yet, for, since, today, this week, so far.",
+                    "Typowa rozmowa: pytanie w Present Perfect (Have you ever been to Italy?), szczegóły w Past Simple (Yes, I went there last summer).",
+                    "Błąd: She has visited Paris in 2019. Poprawnie: She visited Paris in 2019.",
+                )
+            ),
+            versions={
+                "V": (
+                    Text(
+                        "v-tekst",
+                        doc(
+                            heading("Jedno pytanie rozstrzyga"),
+                            paragraph(
+                                "Czy w zdaniu jest (albo z rozmowy wiadomo) konkretny, zakończony czas? ",
+                                ("Tak – Past Simple. Nie – Present Perfect.", True),
+                            ),
+                            table(
+                                ("", "Past Simple", "Present Perfect"),
+                                (
+                                    "kiedy?",
+                                    "zakończony, znany czas",
+                                    "czas nieważny albo okres trwa",
+                                ),
+                                (
+                                    "słówka",
+                                    "yesterday, last week, in 2019, ago, When…?",
+                                    "ever, never, already, yet, for, since, today, this week, so far",
+                                ),
+                                (
+                                    "przykład",
+                                    "I lost my keys yesterday.",
+                                    "I have lost my keys (and I can't open the door).",
+                                ),
+                                (
+                                    "forma",
+                                    "V2: lost, went, saw",
+                                    "have/has + V3: have lost, have gone, have seen",
+                                ),
+                            ),
+                            heading("Typowa rozmowa"),
+                            paragraph(
+                                "Have you ever been to Italy? – Yes, I have. I went there last summer. "
+                                "Pytanie o doświadczenie jest w Present Perfect, ale gdy podajemy, kiedy to było (last summer), przechodzimy na Past Simple."
+                            ),
+                            heading("Pułapki"),
+                            bullets(
+                                "When did you see that film? – po When zawsze Past Simple (nie: When have you seen…?).",
+                                "We moved here two years ago – z ago zawsze Past Simple.",
+                                "I have had three cups of tea so far today – dzień trwa, a so far (do tej pory) wymaga Present Perfect.",
+                            ),
+                        ),
+                    ),
+                    Image(
+                        "v-os",
+                        "Present Perfect czy Past Simple – oś czasu",
+                        "e4_v_os_czasu.png",
+                        "Oś czasu: Past Simple jako zakończony punkt w przeszłości z datą, Present Perfect jako łuk od przeszłości do teraz, pod spodem słówka-sygnały obu czasów",
+                    ),
+                ),
+                "A": (
+                    Text(
+                        "a-opis",
+                        doc(
+                            paragraph(
+                                "Posłuchaj rozmowy o wyborze między Present Perfect a Past Simple. Najważniejsze do zapamiętania:"
+                            ),
+                            bullets(
+                                "konkretny, zakończony czas → Past Simple; czas nieważny albo okres trwa → Present Perfect,",
+                                "słówka-sygnały obu czasów (yesterday, ago… / ever, yet, so far…),",
+                                "When…? zawsze z Past Simple,",
+                                "rozmowa: pytanie w Present Perfect, szczegóły w Past Simple.",
+                            ),
+                        ),
+                    ),
+                    Audio(
+                        "a-nagranie",
+                        "Rozmowa: który czas wybrać?",
+                        "e4_a_rozmowa.mp3",
+                        (
+                            say(
+                                "Z",
+                                "W ostatniej lekcji porównamy Present Perfect z Past Simple. Oba czasy mówią o przeszłości, więc jak wybrać właściwy?",
+                            ),
+                            say("M", "No właśnie, jak?"),
+                            say(
+                                "Z",
+                                "Zadaj sobie jedno pytanie: czy podaję konkretny, zakończony czas? Jeśli tak, to Past Simple. Posłuchaj:",
+                                ("EN2", "I lost my keys yesterday."),
+                                "Wczoraj to zakończony czas, więc Past Simple.",
+                            ),
+                            say("M", "A gdy nie mówię, kiedy?"),
+                            say(
+                                "Z",
+                                "Wtedy Present Perfect. Ważny jest skutek teraz:",
+                                ("EN2", "I have lost my keys. I can't open the door!"),
+                                "Nie wiemy, kiedy ta osoba zgubiła klucze, ale wiemy, że teraz ich nie ma.",
+                            ),
+                            say("M", "Są jakieś słówka, które podpowiadają?"),
+                            say(
+                                "Z",
+                                "Tak. Do Past Simple pasują:",
+                                ("EN", "yesterday, last week, in 2019, two years ago."),
+                                "Do Present Perfect:",
+                                ("EN", "ever, never, already, yet, for, since,"),
+                                "a także",
+                                ("EN", "today, this week"),
+                                "i",
+                                ("EN", "so far,"),
+                                "czyli do tej pory, gdy okres jeszcze trwa:",
+                                ("EN", "I have had three cups of tea so far today."),
+                            ),
+                            say("M", "A pytanie zaczynające się od", ("EN2", "When?")),
+                            say(
+                                "EN",
+                                "When",
+                                (
+                                    "Z",
+                                    "pyta o konkretny czas, więc zawsze łączy się z Past Simple:",
+                                ),
+                                ("EN", "When did you see that film?"),
+                                ("Z", "Nie mówimy"),
+                                ("EN", "When have you seen it?"),
+                            ),
+                            say("M", "Słyszałem kiedyś taką rozmowę:"),
+                            say("EN2", "Have you ever been to Italy?"),
+                            say("EN", "Yes, I have. I went there last summer."),
+                            say("M", "Dlaczego czas się zmienia?"),
+                            say(
+                                "Z",
+                                "Bo najpierw pytamy o doświadczenie w ogóle, bez czasu, więc Present Perfect. Ale gdy podajemy szczegół, kiedy to było,",
+                                ("EN", "last summer,"),
+                                "przechodzimy na Past Simple.",
+                            ),
+                            say(
+                                "M",
+                                "Czyli zdanie",
+                                ("EN2", "She has visited Paris in 2019"),
+                                "jest błędne?",
+                            ),
+                            say(
+                                "Z",
+                                "Tak, bo rok dwa tysiące dziewiętnasty to zakończony czas. Poprawnie:",
+                                ("EN", "She visited Paris in 2019."),
+                                "Tak samo ze słówkiem",
+                                ("EN", "ago:"),
+                                ("EN2", "We moved here two years ago."),
+                            ),
+                            say(
+                                "Z",
+                                "Zapamiętaj: konkretny, zakończony czas to Past Simple. Brak czasu, skutek teraz albo okres, który trwa, to Present Perfect.",
+                            ),
+                        ),
+                        "Rozmowa o tym, jak wybrać między Present Perfect a Past Simple, z przykładami czytanymi po angielsku.",
+                    ),
+                ),
+                "K": (
+                    Text(
+                        "k-instrukcja",
+                        doc(
+                            paragraph(
+                                "Przygotuj zeszyt i dwa kolory. Zrobisz własną ściągę i posortujesz zdania."
+                            ),
+                            ordered(
+                                "Podziel stronę na dwie kolumny: Past Simple (V2) i Present Perfect (have/has + V3).",
+                                "Nad kolumnami zapisz pytanie-klucz: Czy podaję konkretny, zakończony czas? Tak → Past Simple, nie → Present Perfect.",
+                                "Wpisz słówka-podpowiedzi. Past Simple: yesterday, last week, in 2019, two years ago, When…? Present Perfect: ever, never, already, yet, for, since, today, this week, so far.",
+                                "Przepisz do właściwej kolumny: I lost my keys yesterday. / I have lost my keys – I can't open the door. / We moved here two years ago. / I have had three cups of tea so far today.",
+                                "Zapisz rozmowę: Have you ever been to Italy? – Yes, I have. I went there last summer. Zaznacz kolorem, gdzie zmienia się czas i dlaczego (last summer = konkretny czas).",
+                                "Zapisz zasadę z When: When did you see that film? (nie: When have you seen…?).",
+                                "Popraw błędne zdanie: She has visited Paris in 2019 → She visited Paris in 2019.",
+                                WORKSHEET_STEP,
+                            ),
+                        ),
+                    ),
+                    Pdf(
+                        "k-karta",
+                        "Karta zadania: Present Perfect czy Past Simple?",
+                        "e4_k_karta.pdf",
+                        "Wybór czasu, uzupełnianie dialogu i poprawianie błędów.",
+                    ),
+                ),
+            },
+            questions=(
+                Question(
+                    "q1",
+                    "Uzupełnij: I ___ my keys yesterday.",
+                    "lost",
+                    ("have lost", "has lost", "lose"),
+                    "Yesterday to konkretny, zakończony czas, więc Past Simple: I lost my keys yesterday.",
+                ),
+                Question(
+                    "q2",
+                    "Uzupełnij: I ___ my keys. I can't open the door!",
+                    "have lost",
+                    ("has lost", "losed", "lose"),
+                    "Nie podajemy czasu, a ważny jest skutek teraz (nie mogę otworzyć drzwi), więc Present Perfect: I have lost.",
+                ),
+                Question(
+                    "q3",
+                    "Uzupełnij pytanie: When ___ you see that film?",
+                    "did",
+                    ("have", "has", "do"),
+                    "When pyta o konkretny czas, więc łączy się z Past Simple: When did you see that film?",
+                ),
+                Question(
+                    "q4",
+                    "Które słówka zwykle wskazują na Past Simple?",
+                    "yesterday, last week, two years ago",
+                    ("ever, never, yet", "for, since, already", "so far, this week, today"),
+                    "Yesterday, last week i ago określają zakończony czas – to sygnały Past Simple. Ever, never, yet, for, since, already i so far pasują do Present Perfect.",
+                ),
+                Question(
+                    "q5",
+                    "Have you ever been to Italy? – Yes, I have. I went there last summer. Dlaczego w odpowiedzi jest went?",
+                    "Bo podano konkretny, zakończony czas: last summer.",
+                    (
+                        "Bo pytanie było w Present Perfect.",
+                        "Bo went to trzecia forma czasownika go.",
+                        "Bo po Yes, I have zawsze jest Past Simple.",
+                    ),
+                    "Pytanie o doświadczenie jest w Present Perfect, ale szczegół z określeniem czasu (last summer) mówimy w Past Simple. Went to druga forma; trzecia to gone.",
+                ),
+                Question(
+                    "q6",
+                    "Które zdanie jest poprawne?",
+                    "She visited Paris in 2019.",
+                    (
+                        "She has visited Paris in 2019.",
+                        "She has visit Paris in 2019.",
+                        "She visit Paris in 2019.",
+                    ),
+                    "In 2019 to zakończony czas, więc Past Simple (V2: visited). Present Perfect nie łączy się z konkretną datą.",
+                ),
+                Question(
+                    "q7",
+                    "Uzupełnij: I ___ three cups of tea so far today.",
+                    "have had",
+                    ("had", "has had", "have have"),
+                    "So far (do tej pory) oznacza, że dzień jeszcze trwa i liczba może wzrosnąć – to Present Perfect: I have had.",
+                ),
+                Question(
+                    "q8",
+                    "Które zdanie jest poprawne?",
+                    "We moved here two years ago.",
+                    (
+                        "We have moved here two years ago.",
+                        "We have moved here since two years.",
+                        "We move here two years ago.",
+                    ),
+                    "Ago (temu) wskazuje zakończony moment w przeszłości, więc zawsze łączy się z Past Simple.",
+                ),
+            ),
+        ),
+    ),
+)
+
+
+COURSES: tuple[Course, ...] = (MATH, ENGLISH)
