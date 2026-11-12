@@ -11,6 +11,7 @@ into the API shape of `app/modules/content/blocks.py`, `Lesson.quiz` gives the q
 """
 
 import random
+import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,28 +24,39 @@ FORMS: tuple[Form, ...] = ("V", "A", "K")
 
 # --- TipTap documents ----------------------------------------------------------------------------
 
-Part = str | tuple[str, bool]  # plain text or (text, bold)
+Node = dict[str, Any]
+Part = str | tuple[str, bool] | Node  # plain text, (text, bold) or a ready node (e.g. `mono`)
 
 
-def _text(content: str, bold: bool = False) -> dict[str, Any]:
-    node: dict[str, Any] = {"type": "text", "text": content}
+def _text(content: str, bold: bool = False) -> Node:
+    node: Node = {"type": "text", "text": content}
     if bold:
         node["marks"] = [{"type": "bold"}]
     return node
 
 
-def heading(content: str, level: int = 2) -> dict[str, Any]:
+def _part(part: Part) -> Node:
+    if isinstance(part, dict):
+        return part
+    return _text(*part) if isinstance(part, tuple) else _text(part)
+
+
+def mono(content: str) -> Node:
+    """Code or a formula inside a sentence (TipTap mark `code`, fixed-width font)."""
+    return {"type": "text", "text": content, "marks": [{"type": "code"}]}
+
+
+def heading(content: str, level: int = 2) -> Node:
     return {"type": "heading", "attrs": {"level": level}, "content": [_text(content)]}
 
 
-def paragraph(*parts: Part) -> dict[str, Any]:
-    """Plain strings; ("text", True) is bold."""
-    nodes = [_text(*part) if isinstance(part, tuple) else _text(part) for part in parts]
-    return {"type": "paragraph", "content": nodes}
+def paragraph(*parts: Part) -> Node:
+    """Plain strings; ("text", True) is bold, `mono("x = 1")` is code inside the sentence."""
+    return {"type": "paragraph", "content": [_part(part) for part in parts]}
 
 
-def _items(items: tuple[str | list[Part], ...]) -> list[dict[str, Any]]:
-    """List items: a string, or a list of parts when some words are bold."""
+def _items(items: tuple[str | list[Part], ...]) -> list[Node]:
+    """List items: a string, or a list of parts when some words are bold or code."""
     return [
         {
             "type": "listItem",
@@ -54,28 +66,26 @@ def _items(items: tuple[str | list[Part], ...]) -> list[dict[str, Any]]:
     ]
 
 
-def bullets(*items: str | list[Part]) -> dict[str, Any]:
+def bullets(*items: str | list[Part]) -> Node:
     return {"type": "bulletList", "content": _items(items)}
 
 
-def ordered(*items: str | list[Part]) -> dict[str, Any]:
+def ordered(*items: str | list[Part]) -> Node:
     """Numbered list (TipTap `orderedList`), e.g. steps of an instruction."""
     return {"type": "orderedList", "attrs": {"start": 1}, "content": _items(items)}
 
 
-def code(*lines: str) -> dict[str, Any]:
-    """Program listing as one paragraph, lines joined with hard breaks (indentation kept)."""
-    nodes: list[dict[str, Any]] = []
-    for index, line in enumerate(lines):
-        if index:
-            nodes.append({"type": "hardBreak"})
-        if line:
-            nodes.append(_text(line))
-    return {"type": "paragraph", "content": nodes}
+def code_block(*lines: str) -> Node:
+    """Program listing or a calculation (TipTap `codeBlock`), indentation kept."""
+    return {
+        "type": "codeBlock",
+        "attrs": {"language": None},
+        "content": [_text("\n".join(lines))],
+    }
 
 
-def table(header: tuple[str, ...], *rows: tuple[str, ...]) -> dict[str, Any]:
-    def row(cells: tuple[str, ...], cell_type: str) -> dict[str, Any]:
+def table(header: tuple[str, ...], *rows: tuple[str, ...]) -> Node:
+    def row(cells: tuple[str, ...], cell_type: str) -> Node:
         return {
             "type": "tableRow",
             "content": [{"type": cell_type, "content": [paragraph(cell)]} for cell in cells],
@@ -87,7 +97,7 @@ def table(header: tuple[str, ...], *rows: tuple[str, ...]) -> dict[str, Any]:
     }
 
 
-def doc(*nodes: dict[str, Any]) -> dict[str, Any]:
+def doc(*nodes: Node) -> Node:
     return {"type": "doc", "content": list(nodes)}
 
 
@@ -97,7 +107,7 @@ def doc(*nodes: dict[str, Any]) -> dict[str, Any]:
 @dataclass(frozen=True)
 class Text:
     id: str
-    doc: dict[str, Any]
+    doc: Node
 
 
 @dataclass(frozen=True)
@@ -117,27 +127,81 @@ class Pdf:
     description: str = ""
 
 
-# One turn of a recording: parts read one after another with a short gap, each by its voice.
-# Voices: "Z" pl-PL-ZofiaNeural (teacher), "M" pl-PL-MarekNeural (student),
-# "EN" / "EN2" British voices for English examples (see `generate_audio.VOICES`).
-# Polish parts spell code words as they are said (e.g. "łajl" for while).
-Turn = tuple[tuple[str, str], ...]
+# Voices (see `generate_audio.VOICES`): "Z" teacher (pl-PL-ZofiaNeural), "M" student Marek
+# (pl-PL-MarekNeural), "EN" / "EN2" British voices for English examples.
+SPEAKERS = {"Z": "Nauczycielka", "M": "Marek", "EN": "Lektorka", "EN2": "Lektor"}
+
+# {written|spoken}: the transcript shows the first part, the voice reads the second
+_SPOKEN = re.compile(r"\{([^{}|]*)\|([^{}|]*)\}")
 
 
-def say(voice: str, *parts: str | tuple[str, str]) -> Turn:
-    """A turn of `voice`; a (voice, text) part is read by another voice, e.g. an English example."""
-    return tuple(part if isinstance(part, tuple) else (voice, part) for part in parts)
+@dataclass(frozen=True)
+class Line:
+    """Text read by one voice in one go.
+
+    Code, formulas and digits are marked `{written|spoken}`, e.g. `{y = 2x|igrek równa się dwa
+    iks}`: the student reads `y = 2x` in the transcript and hears natural Polish.
+    """
+
+    voice: str
+    text: str
+
+    @property
+    def written(self) -> str:
+        return _SPOKEN.sub(r"\1", self.text)
+
+    @property
+    def spoken(self) -> str:
+        return _SPOKEN.sub(r"\2", self.text)
+
+
+@dataclass(frozen=True)
+class Turn:
+    """One turn of a recording: lines read one after another with a short gap."""
+
+    speaker: str
+    lines: tuple[Line, ...]
+
+
+def say(voice: str, *parts: str | Line) -> Turn:
+    """A turn of `voice`; a `Line` part is read by another voice, e.g. `en("I have seen it.")`."""
+    return Turn(
+        voice, tuple(part if isinstance(part, Line) else Line(voice, part) for part in parts)
+    )
+
+
+def en(text: str) -> Line:
+    return Line("EN", text)
+
+
+def en2(text: str) -> Line:
+    return Line("EN2", text)
 
 
 @dataclass(frozen=True)
 class Audio:
-    """Recording (MP3 in `assets/`) generated from `script` by `generate_audio.py`."""
+    """Recording (MP3 in `assets/`) generated from `script` by `generate_audio.py`.
+
+    Version A has 2-3 short recordings (30-50 s) titled like the sections of version V and
+    a recap (20-30 s) at the end; each one carries its transcript (D58).
+    """
 
     id: str
     title: str
     file: str
     script: tuple[Turn, ...]
     description: str = ""
+    recap: bool = False
+
+    def transcript(self) -> str:
+        """What the recording says, as the student reads it under the player; speakers named
+        when more than one voice speaks."""
+        dialog = len({turn.speaker for turn in self.script}) > 1
+        lines = []
+        for turn in self.script:
+            text = " ".join(line.written for line in turn.lines)
+            lines.append(f"{SPEAKERS[turn.speaker]}: {text}" if dialog else text)
+        return "\n".join(lines)
 
 
 Block = Text | Image | Pdf | Audio
@@ -158,7 +222,8 @@ def block_payload(block: Block, file_ids: Mapping[str, int]) -> dict[str, Any]:
         return payload | {"kind": "image", "alt": block.alt}
     if isinstance(block, Pdf):
         return payload | {"kind": "pdf"}
-    return payload | {"kind": "audio"}
+    # the recording and its transcript (expandable under the player, D58)
+    return payload | {"kind": "audio", "transcript": block.transcript()}
 
 
 # --- Questions, lessons, courses -----------------------------------------------------------------
@@ -249,6 +314,12 @@ def audio_blocks(courses: tuple[Course, ...]) -> list[Audio]:
 
 
 WORKSHEET_STEP = "Wykonaj kartę zadania (PDF poniżej). Odpowiedzi są na ostatniej stronie karty – zajrzyj do nich dopiero po rozwiązaniu."
+TRANSCRIPT_TIP = "Pod każdym nagraniem możesz rozwinąć transkrypcję – zapis tego, co słyszysz."
+
+
+def audio_intro(lead: str) -> Text:
+    """Short text of version A (R11 needs a description besides the recordings)."""
+    return Text("a-opis", doc(paragraph(lead), paragraph(TRANSCRIPT_TIP)))
 
 
 # =================================================================================================
@@ -366,87 +437,109 @@ MATH = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy nauczycielki z Markiem o wzorze i wykresie funkcji liniowej. "
-                                "Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "wzór y = ax + b i liczenie y dla danego x,",
-                                "wykres to prosta – wystarczą dwa punkty,",
-                                "prosta przecina oś y w punkcie (0, b),",
-                                "sprawdzanie, czy punkt należy do wykresu, i szukanie x dla danego y.",
-                            ),
-                            paragraph("Zatrzymuj nagranie i licz razem z Markiem."),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie rozmowy nauczycielki z Markiem o wzorze i wykresie funkcji liniowej, a na końcu powtórka. "
+                        "Zatrzymuj nagranie i licz razem z Markiem."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: wzór i wykres funkcji liniowej",
-                        "m1_a_rozmowa.mp3",
+                        "a-1",
+                        "Wzór funkcji liniowej",
+                        "m1_a1_wzor.mp3",
                         (
                             say(
                                 "Z",
-                                "Cześć, Marek! Dzisiaj poznamy funkcję liniową. Jej wzór brzmi: igrek równa się a razy iks plus be.",
+                                "Cześć, Marek! Dziś poznamy funkcję liniową. Jej wzór to {y = ax + b|igrek równa się a iks plus be}.",
                             ),
                             say("M", "A co oznaczają te litery?"),
                             say(
                                 "Z",
-                                "A i be to liczby, które dla danej funkcji się nie zmieniają. Iks to liczba, którą wstawiamy do wzoru, a igrek to wynik. Weźmy przykład: igrek równa się dwa iks plus jeden. Tutaj a równa się dwa, a be równa się jeden.",
+                                "{a i b|A i be} to liczby, które w danej funkcji się nie zmieniają. {x|Iks} to liczba, którą wstawiamy do wzoru, a {y|igrek} to wynik. "
+                                "Weźmy przykład: {y = 2x + 1|igrek równa się dwa iks plus jeden}. Tutaj {a = 2|a równa się dwa}, a {b = 1|be równa się jeden}.",
                             ),
                             say(
                                 "M",
-                                "Czyli jeśli wstawię iks równe trzy, to liczę dwa razy trzy plus jeden. Wychodzi siedem.",
+                                "Czyli jeśli wstawię {x = 3|iks równe trzy}, liczę {2 · 3 + 1|dwa razy trzy plus jeden}. Wychodzi {7|siedem}.",
                             ),
                             say(
                                 "Z",
-                                "Brawo. Dla każdego iksa wychodzi dokładnie jeden igrek. Policzmy kilka wartości i zapiszmy je w tabelce. Ile wychodzi dla iksa równego minus jeden?",
-                            ),
-                            say(
-                                "M",
-                                "Dwa razy minus jeden to minus dwa, plus jeden, czyli minus jeden.",
-                            ),
-                            say("Z", "A dla zera?"),
-                            say("M", "Jeden. Dla jedynki wychodzi trzy, a dla dwójki pięć."),
-                            say(
-                                "Z",
-                                "Świetnie. Każda para liczb to punkt w układzie współrzędnych: minus jeden i minus jeden, zero i jeden, jeden i trzy, dwa i pięć. Kiedy zaznaczysz te punkty, zobaczysz, że wszystkie leżą na jednej prostej.",
-                            ),
-                            say("M", "Zawsze wychodzi prosta?"),
-                            say(
-                                "Z",
-                                "Zawsze. Wykres funkcji liniowej to prosta. Dlatego do narysowania wystarczą dwa punkty. Trzeci warto policzyć, żeby sprawdzić, czy nie ma pomyłki.",
-                            ),
-                            say(
-                                "M",
-                                "Zauważyłem coś. Dla iksa równego zero wyszło jeden, czyli tyle, ile wynosi be.",
-                            ),
-                            say(
-                                "Z",
-                                "Właśnie. Gdy iks to zero, zostaje samo be. Dlatego prosta zawsze przecina oś igrek w punkcie zero, be. W naszym przykładzie to punkt zero, jeden.",
-                            ),
-                            say("M", "A skąd mam wiedzieć, czy jakiś punkt leży na wykresie?"),
-                            say(
-                                "Z",
-                                "Wstaw iks do wzoru i porównaj wynik z igrekiem. Sprawdźmy punkt jeden, cztery.",
-                            ),
-                            say(
-                                "M",
-                                "Dwa razy jeden plus jeden to trzy. A miało być cztery, więc ten punkt nie należy do wykresu.",
-                            ),
-                            say(
-                                "Z",
-                                "Dokładnie. Można też szukać w drugą stronę: dla jakiego iksa igrek równa się pięć? Rozwiązujemy równanie dwa iks plus jeden równa się pięć. Odejmujemy jeden: dwa iks równa się cztery, więc iks równa się dwa.",
-                            ),
-                            say("M", "Czyli wzór działa w obie strony."),
-                            say(
-                                "Z",
-                                "Tak. Zapamiętaj trzy rzeczy: wzór igrek równa się a iks plus be, wykres to prosta, a prosta przecina oś igrek w punkcie zero, be.",
+                                "Brawo. I zapamiętaj: dla każdego {x|iksa} wychodzi dokładnie jeden {y|igrek}.",
                             ),
                         ),
-                        "Nauczycielka i Marek liczą wartości funkcji y = 2x + 1 i rysują jej wykres.",
+                        "Co oznaczają litery we wzorze y = ax + b i jak policzyć y dla danego x.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "Tabela wartości i wykres",
+                        "m1_a2_wykres.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Policzmy kilka wartości funkcji {y = 2x + 1|igrek równa się dwa iks plus jeden} i zapiszmy je w tabelce. Ile wychodzi dla {x = −1|iksa równego minus jeden}?",
+                            ),
+                            say(
+                                "M",
+                                "{2 · (−1) = −2|Dwa razy minus jeden to minus dwa}, plus jeden, czyli {−1|minus jeden}.",
+                            ),
+                            say("Z", "A dla zera?"),
+                            say(
+                                "M",
+                                "{1|Jeden}. Dla {x = 1|jedynki} wychodzi {3|trzy}, a dla {x = 2|dwójki} – {5|pięć}.",
+                            ),
+                            say(
+                                "Z",
+                                "Każda para to punkt: {(−1, −1), (0, 1), (1, 3) i (2, 5)|minus jeden i minus jeden, zero i jeden, jeden i trzy, dwa i pięć}. "
+                                "Wszystkie leżą na jednej prostej. Wykres funkcji liniowej to zawsze prosta, więc wystarczą dwa punkty.",
+                            ),
+                            say(
+                                "M",
+                                "Dla {x = 0|iksa równego zero} wyszło {1|jeden}, czyli tyle, ile wynosi {b|be}.",
+                            ),
+                            say(
+                                "Z",
+                                "Właśnie. Prosta przecina oś {y|igrek} w punkcie {(0, b)|zero, be}.",
+                            ),
+                        ),
+                        "Tabela wartości funkcji y = 2x + 1, punkty na jednej prostej i punkt (0, b).",
+                    ),
+                    Audio(
+                        "a-3",
+                        "Czy punkt należy do wykresu?",
+                        "m1_a3_punkt.mp3",
+                        (
+                            say("M", "Skąd mam wiedzieć, czy jakiś punkt leży na wykresie?"),
+                            say(
+                                "Z",
+                                "Wstaw {x|iks} do wzoru i porównaj wynik z {y|igrekiem}. Sprawdźmy punkt {(1, 4)|jeden, cztery}.",
+                            ),
+                            say(
+                                "M",
+                                "{2 · 1 + 1 = 3|Dwa razy jeden plus jeden to trzy}, a miało być {4|cztery}. Ten punkt nie należy do wykresu.",
+                            ),
+                            say("Z", "Dokładnie. A punkt {(2, 5)|dwa, pięć}?"),
+                            say("M", "{2 · 2 + 1 = 5|Dwa razy dwa plus jeden to pięć}. Należy."),
+                            say(
+                                "Z",
+                                "Można też szukać w drugą stronę: dla jakiego {x|iksa} mamy {y = 5|igrek równy pięć}? Rozwiązujemy równanie {2x + 1 = 5|dwa iks plus jeden równa się pięć}. "
+                                "Odejmujemy jeden: {2x = 4|dwa iks równa się cztery}, więc {x = 2|iks równa się dwa}.",
+                            ),
+                            say("M", "Czyli wzór działa w obie strony."),
+                        ),
+                        "Sprawdzanie punktów (1, 4) i (2, 5) oraz szukanie x, gdy znamy y.",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "m1_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórzmy najważniejsze. Funkcja liniowa ma wzór {y = ax + b|igrek równa się a iks plus be}. Jej wykres to prosta, więc wystarczą dwa punkty. "
+                                "Prosta przecina oś {y|igrek} w punkcie {(0, b)|zero, be}. Punkt należy do wykresu, gdy po wstawieniu {x|iksa} do wzoru wychodzi jego {y|igrek}. "
+                                "Na przykład dla {y = 2x + 1|igrek równa się dwa iks plus jeden} i {x = 3|iksa równego trzy} wychodzi {7|siedem}.",
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -605,71 +698,90 @@ MATH = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy o współczynniku kierunkowym a. Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "a mówi, o ile zmienia się y, gdy x rośnie o 1,",
-                                "a > 0 – funkcja rośnie, a < 0 – maleje, a = 0 – jest stała,",
-                                "stromość zależy od wartości a bez znaku,",
-                                "a z dwóch punktów: zmiana y podzielona przez zmianę x; to samo a – proste równoległe.",
-                            ),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie rozmowy o liczbie a we wzorze y = ax + b – kierunek, stromość i obliczanie a z dwóch punktów – a na końcu powtórka."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: co robi liczba a",
-                        "m2_a_rozmowa.mp3",
+                        "a-1",
+                        "Co mówi liczba a?",
+                        "m2_a1_liczba_a.mp3",
                         (
                             say(
                                 "Z",
-                                "Marek, dziś zajmiemy się liczbą a we wzorze igrek równa się a iks plus be. Nazywamy ją współczynnikiem kierunkowym, bo decyduje, w którą stronę biegnie prosta.",
+                                "Marek, dziś zajmiemy się liczbą a we wzorze {y = ax + b|igrek równa się a iks plus be}. To współczynnik kierunkowy. "
+                                "Mówi, o ile zmienia się {y|igrek}, gdy {x|iks} rośnie o jeden. Weźmy {y = 3x − 1|igrek równa się trzy iks minus jeden}. "
+                                "Dla zera mamy {−1|minus jeden}, dla jedynki {2|dwa}, a dla dwójki {5|pięć}.",
                             ),
-                            say("M", "To znaczy?"),
+                            say(
+                                "M", "Za każdym razem {y|igrek} rośnie o trzy. Tyle, ile wynosi a."
+                            ),
                             say(
                                 "Z",
-                                "Liczba a mówi, o ile zmienia się igrek, gdy iks rośnie o jeden. Weźmy igrek równa się trzy iks minus jeden. Dla iksa równego zero mamy minus jeden, dla jedynki dwa, a dla dwójki pięć.",
+                                "Właśnie. Gdy {a > 0|a jest dodatnie}, funkcja jest rosnąca. Gdy {a < 0|a jest ujemne} – malejąca, jak {y = −x + 2|igrek równa się minus iks plus dwa}. "
+                                "A gdy {a = 0|a równa się zero}, zostaje samo {b|be}, na przykład {y = 4|igrek równa się cztery}. To funkcja stała, a jej wykres to pozioma prosta.",
                             ),
-                            say("M", "Za każdym razem igrek rośnie o trzy. Tyle, ile wynosi a."),
+                        ),
+                        "O ile zmienia się y, gdy x rośnie o 1, i kiedy funkcja rośnie, maleje albo jest stała.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "Jak stroma jest prosta?",
+                        "m2_a2_stromosc.mp3",
+                        (
+                            say("M", "A od czego zależy, czy prosta jest stroma?"),
                             say(
                                 "Z",
-                                "Właśnie. Gdy a jest dodatnie, prosta idzie w górę, jeśli patrzysz od lewej do prawej. Mówimy, że funkcja jest rosnąca.",
+                                "Od tego, jak duża jest liczba a, gdy pominiesz jej znak. Prosta {y = −5x|igrek równa się minus pięć iks} jest bardziej stroma niż {y = 3x|igrek równa się trzy iks}, bo pięć to więcej niż trzy.",
                             ),
-                            say("M", "A jeśli a jest ujemne?"),
+                            say("M", "Ale ona opada, a tamta rośnie."),
                             say(
                                 "Z",
-                                "Wtedy prosta opada, a funkcja jest malejąca. Na przykład w funkcji igrek równa się minus iks plus dwa: im większy iks, tym mniejszy igrek.",
+                                "Tak. Znak mówi o kierunku, a wielkość liczby – o stromości. I jeszcze jedno: proste o tym samym a są równoległe. "
+                                "Proste {y = 2x + 5|igrek równa się dwa iks plus pięć} i {y = 2x − 3|igrek równa się dwa iks minus trzy} nigdy się nie przetną.",
                             ),
-                            say("M", "A gdy a równa się zero?"),
-                            say(
-                                "Z",
-                                "Zostaje samo be, na przykład igrek równa się cztery. Igrek jest zawsze taki sam, więc wykres to pozioma prosta. To funkcja stała.",
-                            ),
-                            say("M", "Rozumiem. A od czego zależy, czy prosta jest stroma?"),
-                            say(
-                                "Z",
-                                "Od tego, jak duża jest liczba a, kiedy pominiesz jej znak. Prosta igrek równa się minus pięć iks jest bardziej stroma niż igrek równa się trzy iks, bo pięć to więcej niż trzy. Tylko że ona opada, a tamta rośnie.",
-                            ),
+                            say("M", "Bo obie rosną tak samo szybko."),
+                        ),
+                        "Stromość prostej i proste równoległe.",
+                    ),
+                    Audio(
+                        "a-3",
+                        "Jak obliczyć a z dwóch punktów?",
+                        "m2_a3_dwa_punkty.mp3",
+                        (
                             say("M", "A jak policzyć a, gdy mam tylko dwa punkty?"),
                             say(
                                 "Z",
-                                "Dzielisz zmianę igreka przez zmianę iksa. Weźmy punkty zero, jeden oraz dwa, siedem. Igrek zmienił się z jednego na siedem, czyli o sześć. Iks zmienił się z zera na dwa, czyli o dwa.",
+                                "Dzielisz zmianę {y|igreka} przez zmianę {x|iksa}. Weźmy punkty {(0, 1)|zero, jeden} i {(2, 7)|dwa, siedem}. "
+                                "{y|Igrek} zmienił się z jednego na siedem, czyli o sześć.",
                             ),
-                            say("M", "Sześć podzielić przez dwa to trzy. Czyli a równa się trzy."),
+                            say("M", "A {x|iks} z zera na dwa, czyli o dwa."),
                             say(
                                 "Z",
-                                "Brawo. I jeszcze jedno: proste o tym samym a są równoległe. Proste igrek równa się dwa iks plus pięć i igrek równa się dwa iks minus trzy nigdy się nie przetną.",
+                                "Więc {a = 6 : 2 = 3|a równa się sześć podzielić przez dwa, czyli trzy}. Wzór ogólny: "
+                                "{a = (y₂ − y₁) : (x₂ − x₁)|a równa się igrek dwa minus igrek jeden, podzielone przez iks dwa minus iks jeden}.",
                             ),
                             say(
                                 "M",
-                                "Podsumuję: a dodatnie – funkcja rośnie, a ujemne – maleje, a równe zero – jest stała. Im większe a bez znaku, tym bardziej stromo.",
+                                "Sprawdzę: od punktu {(0, 1)|zero, jeden} w prawo o jeden i w górę o trzy daje {(1, 4)|jeden, cztery}. Jeszcze raz to samo i jestem w {(2, 7)|dwa, siedem}. Zgadza się.",
                             ),
-                            say("Z", "Doskonale. Tak właśnie działa współczynnik kierunkowy."),
                         ),
-                        "Rozmowa o tym, jak liczba a zmienia wykres i jak obliczyć ją z dwóch punktów.",
+                        "Zmiana y podzielona przez zmianę x na przykładzie punktów (0, 1) i (2, 7).",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "m2_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka. Liczba a mówi, o ile zmienia się {y|igrek}, gdy {x|iks} rośnie o jeden. "
+                                "{a > 0|A większe od zera} – funkcja rośnie, {a < 0|a mniejsze od zera} – maleje, {a = 0|a równe zero} – jest stała. "
+                                "Im większe a bez znaku, tym bardziej stroma prosta, a proste o tym samym a są równoległe. "
+                                "Z dwóch punktów liczysz a, dzieląc zmianę {y|igreka} przez zmianę {x|iksa}.",
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -826,74 +938,104 @@ MATH = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy o miejscu zerowym. Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "miejsce zerowe to x, dla którego y = 0 – punkt (x₀, 0) na osi x,",
-                                "liczymy je z równania ax + b = 0, a ≠ 0: x₀ = −b : a,",
-                                "y = 5 nie ma miejsca zerowego, y = 0 ma ich nieskończenie wiele,",
-                                "gdzie funkcja y = 2x − 4 ma wartości dodatnie, a gdzie ujemne.",
-                            ),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie rozmowy o miejscu zerowym – jak je obliczyć, przypadki szczególne i znak wartości funkcji – a na końcu powtórka. "
+                        "Zatrzymuj nagranie i rozwiązuj równania razem z Markiem."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: szukamy miejsca zerowego",
-                        "m3_a_rozmowa.mp3",
+                        "a-1",
+                        "Jak obliczyć miejsce zerowe?",
+                        "m3_a1_obliczanie.mp3",
                         (
                             say(
                                 "Z",
-                                "Dziś poszukamy miejsca, w którym wykres przecina oś iks. Nazywamy je miejscem zerowym funkcji.",
-                            ),
-                            say("M", "Dlaczego zerowym?"),
-                            say(
-                                "Z",
-                                "Bo w tym miejscu igrek równa się zero. Miejsce zerowe to taki iks, dla którego wartość funkcji wynosi zero. Na wykresie to punkt iks zero, zero, który leży na osi poziomej.",
-                            ),
-                            say("M", "Czyli to coś innego niż punkt zero, be na osi igrek?"),
-                            say(
-                                "Z",
-                                "Tak, nie myl ich. Punkt zero, be leży na osi pionowej, a miejsce zerowe na poziomej. Policzmy przykład: igrek równa się dwa iks minus cztery. Zamiast igreka wpisujemy zero.",
+                                "Dziś poszukamy miejsca, w którym wykres przecina oś {x|iks}. To miejsce zerowe funkcji – taki {x|iks}, dla którego {y = 0|igrek równa się zero}.",
                             ),
                             say(
                                 "M",
-                                "Dwa iks minus cztery równa się zero. Dodaję cztery: dwa iks równa się cztery. Dzielę przez dwa: iks równa się dwa.",
+                                "Czyli to coś innego niż punkt {(0, b)|zero, be} na osi {y|igrek}?",
                             ),
                             say(
                                 "Z",
-                                "Świetnie. Miejsce zerowe to dwa, a wykres przechodzi przez punkt dwa, zero. Ogólnie, gdy a nie jest zerem, miejsce zerowe to minus be podzielone przez a.",
+                                "Tak, nie myl ich. Policzmy przykład: {y = 2x − 4|igrek równa się dwa iks minus cztery}. Zamiast {y|igreka} wpisujemy zero.",
                             ),
                             say(
                                 "M",
-                                "Sprawdzę. Be to minus cztery, więc minus be to cztery. Cztery podzielić przez dwa daje dwa. Zgadza się.",
+                                "{2x − 4 = 0|Dwa iks minus cztery równa się zero}. Dodaję cztery: {2x = 4|dwa iks równa się cztery}. Dzielę przez dwa: {x = 2|iks równa się dwa}.",
                             ),
                             say(
                                 "Z",
-                                "A teraz zagadka. Ile miejsc zerowych ma funkcja igrek równa się pięć?",
-                            ),
-                            say("M", "Igrek jest zawsze równy pięć, nigdy zero. Czyli żadnego?"),
-                            say(
-                                "Z",
-                                "Dokładnie. Prosta jest pozioma i biegnie nad osią iks, więc jej nie przecina. Za to funkcja igrek równa się zero leży na osi iks i każdy iks jest jej miejscem zerowym. Jest ich nieskończenie wiele.",
-                            ),
-                            say("M", "Ciekawe. A co się dzieje obok miejsca zerowego?"),
-                            say(
-                                "Z",
-                                "Wróćmy do funkcji dwa iks minus cztery. Jest rosnąca, bo a równa się dwa. Na lewo od dwójki wykres jest pod osią iks, więc wartości są ujemne. Na przykład dla zera wychodzi minus cztery. Na prawo od dwójki wykres jest nad osią i wartości są dodatnie. Dla trójki wychodzi dwa.",
-                            ),
-                            say(
-                                "M", "Czyli dla iksów większych od dwóch ta funkcja jest dodatnia."
-                            ),
-                            say(
-                                "Z",
-                                "Tak. Zapamiętaj: miejsce zerowe liczysz, wpisując zero zamiast igreka i rozwiązując równanie. Na wykresie to punkt przecięcia prostej z osią iks.",
+                                "Świetnie. Miejsce zerowe to dwa, a wykres przechodzi przez punkt {(2, 0)|dwa, zero}.",
                             ),
                         ),
-                        "Rozmowa o liczeniu miejsca zerowego, przypadkach szczególnych i znaku wartości funkcji.",
+                        "Miejsce zerowe funkcji y = 2x − 4 z równania 2x − 4 = 0.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "Szczególne przypadki",
+                        "m3_a2_przypadki.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Ogólnie, gdy {a ≠ 0|a nie jest zerem}, miejsce zerowe to {x₀ = −b : a|minus be podzielone przez a}. Sprawdź to na naszym przykładzie.",
+                            ),
+                            say(
+                                "M",
+                                "{b = −4|Be to minus cztery}, więc {−b = 4|minus be to cztery}. {4 : 2 = 2|Cztery podzielić przez dwa daje dwa}. Zgadza się.",
+                            ),
+                            say(
+                                "Z",
+                                "A teraz zagadka. Ile miejsc zerowych ma funkcja {y = 5|igrek równa się pięć}?",
+                            ),
+                            say(
+                                "M", "{y|Igrek} jest zawsze równy pięć, nigdy zero. Czyli żadnego?"
+                            ),
+                            say(
+                                "Z",
+                                "Dokładnie. Ta pozioma prosta biegnie nad osią {x|iks} i jej nie przecina. Za to {y = 0|igrek równa się zero} leży na osi {x|iks}, "
+                                "więc każdy {x|iks} jest miejscem zerowym. Jest ich nieskończenie wiele.",
+                            ),
+                        ),
+                        "Wzór x₀ = −b : a oraz funkcje y = 5 i y = 0.",
+                    ),
+                    Audio(
+                        "a-3",
+                        "Gdzie wartości są dodatnie?",
+                        "m3_a3_znak.mp3",
+                        (
+                            say("M", "A co się dzieje obok miejsca zerowego?"),
+                            say(
+                                "Z",
+                                "Wróćmy do {y = 2x − 4|igrek równa się dwa iks minus cztery}. Funkcja jest rosnąca, bo {a = 2|a równa się dwa}. "
+                                "Na lewo od dwójki wykres leży pod osią {x|iks}, więc wartości są ujemne. Dla zera wychodzi {−4|minus cztery}.",
+                            ),
+                            say("M", "A na prawo od dwójki?"),
+                            say(
+                                "Z",
+                                "Tam wykres jest nad osią i wartości są dodatnie. Dla trójki wychodzi {2|dwa}.",
+                            ),
+                            say(
+                                "M",
+                                "Czyli {y > 0|igrek jest dodatni} dla {x > 2|iksów większych od dwóch}, a ujemny dla mniejszych.",
+                            ),
+                            say("Z", "Tak. Miejsce zerowe dzieli oś {x|iks} na dwie części."),
+                        ),
+                        "Gdzie funkcja y = 2x − 4 ma wartości dodatnie, a gdzie ujemne.",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "m3_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka. Miejsce zerowe to {x|iks}, dla którego {y = 0|igrek równa się zero}. Na wykresie to punkt przecięcia prostej z osią {x|iks}. "
+                                "Liczysz je, wpisując zero zamiast {y|igreka} i rozwiązując równanie: {2x − 4 = 0|dwa iks minus cztery równa się zero}, więc {x = 2|iks równa się dwa}. "
+                                "Funkcja {y = 5|igrek równa się pięć} nie ma miejsca zerowego, a {y = 0|igrek równa się zero} ma ich nieskończenie wiele.",
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -1056,81 +1198,103 @@ MATH = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj, jak Marek układa wzory do zadań z życia. Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "b to wartość na starcie, a to zmiana na jednostkę,",
-                                "taksówka: y = 3x + 8 – koszt 5 km i liczba km za 32 zł,",
-                                "świeca: y = −2x + 20 – kiedy się wypali (miejsce zerowe),",
-                                "porównanie dwóch firm: kiedy kurs kosztuje tyle samo i która jest tańsza.",
-                            ),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie rozmowy o zadaniach z życia – taksówka, świeca i porównanie dwóch firm – a na końcu powtórka. "
+                        "Zatrzymuj nagranie i licz razem z Markiem."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: taksówka, świeca i porównanie ofert",
-                        "m4_a_rozmowa.mp3",
+                        "a-1",
+                        "Taksówka: od opisu do wzoru",
+                        "m4_a1_taksowka.mp3",
                         (
                             say(
                                 "Z",
-                                "Marek, czas na zadania z życia. Wsiadasz do taksówki. Opłata na start to osiem złotych, a każdy kilometr kosztuje trzy złote. Jak zapisać to wzorem?",
+                                "Marek, wsiadasz do taksówki. Opłata na start to {8 zł|osiem złotych}, a każdy kilometr kosztuje {3 zł|trzy złote}. Jak to zapisać wzorem?",
                             ),
                             say(
                                 "M",
-                                "Trzy złote razy liczba kilometrów i do tego osiem złotych. Igrek równa się trzy iks plus osiem.",
+                                "Trzy złote razy liczba kilometrów i do tego osiem złotych. {y = 3x + 8|Igrek równa się trzy iks plus osiem}.",
                             ),
                             say(
                                 "Z",
-                                "Doskonale. Zwróć uwagę: be, czyli osiem, to wartość na starcie, a a, czyli trzy, to zmiana na każdy kilometr. Tak wygląda większość takich zadań. Ile zapłacisz za pięć kilometrów?",
+                                "Doskonale. {b|Be} to wartość na starcie, a a to zmiana na każdy kilometr. Ile zapłacisz za {5 km|pięć kilometrów}?",
                             ),
                             say(
                                 "M",
-                                "Trzy razy pięć to piętnaście, plus osiem. Dwadzieścia trzy złote.",
+                                "{3 · 5 + 8 = 23|Trzy razy pięć to piętnaście, plus osiem – dwadzieścia trzy}. {23 zł|Dwadzieścia trzy złote}.",
                             ),
                             say(
                                 "Z",
-                                "A jeśli masz trzydzieści dwa złote, ile kilometrów przejedziesz?",
+                                "A ile kilometrów przejedziesz za {32 zł|trzydzieści dwa złote}?",
                             ),
                             say(
                                 "M",
-                                "Trzy iks plus osiem równa się trzydzieści dwa. Odejmuję osiem: trzy iks równa się dwadzieścia cztery. Czyli iks równa się osiem kilometrów.",
+                                "{3x + 8 = 32|Trzy iks plus osiem równa się trzydzieści dwa}, więc {3x = 24|trzy iks równa się dwadzieścia cztery} i {x = 8|iks równa się osiem}. {8 km|Osiem kilometrów}.",
                             ),
+                        ),
+                        "Wzór y = 3x + 8: koszt 5 km i liczba kilometrów za 32 zł.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "Świeca, która się wypala",
+                        "m4_a2_swieca.mp3",
+                        (
                             say(
                                 "Z",
-                                "Brawo. Teraz coś, co maleje. Świeca ma dwadzieścia centymetrów i co godzinę ubywa jej dwa centymetry.",
+                                "Teraz coś, co maleje. Świeca ma {20 cm|dwadzieścia centymetrów} i co godzinę ubywa jej {2 cm|dwa centymetry}.",
                             ),
                             say(
                                 "M",
-                                "Tu a będzie ujemne, bo świeca się skraca. Igrek równa się minus dwa iks plus dwadzieścia.",
+                                "Tu a będzie ujemne, bo świeca się skraca. {y = −2x + 20|Igrek równa się minus dwa iks plus dwadzieścia}.",
                             ),
                             say("Z", "Tak. A kiedy świeca się wypali?"),
                             say(
                                 "M",
-                                "Gdy jej wysokość będzie równa zero. To miejsce zerowe: minus dwa iks plus dwadzieścia równa się zero, więc iks równa się dziesięć. Po dziesięciu godzinach.",
+                                "Gdy jej wysokość będzie równa zero. To miejsce zerowe: {−2x + 20 = 0|minus dwa iks plus dwadzieścia równa się zero}, "
+                                "więc {x = 10|iks równa się dziesięć}. Po {10|dziesięciu} godzinach.",
                             ),
                             say(
                                 "Z",
-                                "Dokładnie. Dlatego ten wzór ma sens tylko od zera do dziesięciu godzin. Na koniec porównajmy dwie firmy. Firma A: igrek równa się trzy iks plus osiem. Firma Be: igrek równa się cztery iks plus dwa. Przy jakiej długości kursu zapłacisz tyle samo?",
+                                "Dokładnie. Dlatego ten wzór ma sens tylko dla {x|iksów} od {0|zera} do {10|dziesięciu}. Później świecy już nie ma.",
+                            ),
+                        ),
+                        "Wzór y = −2x + 20 i miejsce zerowe jako chwila, gdy świeca się wypali.",
+                    ),
+                    Audio(
+                        "a-3",
+                        "Która taksówka jest tańsza?",
+                        "m4_a3_porownanie.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Porównajmy dwie firmy. Firma A: {y = 3x + 8|igrek równa się trzy iks plus osiem}. Firma {B: y = 4x + 2|Be: igrek równa się cztery iks plus dwa}. Kiedy zapłacisz tyle samo?",
                             ),
                             say(
                                 "M",
-                                "Przyrównuję wzory: trzy iks plus osiem równa się cztery iks plus dwa. Po przeniesieniu wychodzi: sześć równa się iks. Przy sześciu kilometrach.",
+                                "Przyrównuję wzory: {3x + 8 = 4x + 2|trzy iks plus osiem równa się cztery iks plus dwa}. Wychodzi {x = 6|iks równa się sześć}. Przy {6 km|sześciu kilometrach}.",
                             ),
                             say(
                                 "Z",
-                                "Wtedy obie firmy biorą po dwadzieścia sześć złotych. Na krótszej trasie tańsza jest firma Be, bo ma niską opłatę na start. Na dłuższej firma A, bo kilometr jest tańszy. Za dziesięć kilometrów zapłacisz w firmie A trzydzieści osiem złotych, a w firmie Be czterdzieści dwa.",
-                            ),
-                            say("M", "Czyli najpierw wzór, potem liczenie."),
-                            say(
-                                "Z",
-                                "Tak. Szukaj wartości na starcie, czyli be, i zmiany na jednostkę, czyli a.",
+                                "Wtedy obie firmy biorą po {26 zł|dwadzieścia sześć złotych}. Na krótszej trasie tańsza jest firma {B|Be}, bo ma niską opłatę na start. "
+                                "Na dłuższej – firma A, bo kilometr jest tańszy. Za {10 km|dziesięć kilometrów} zapłacisz w A {38 zł|trzydzieści osiem złotych}, a w {B 42 zł|Be czterdzieści dwa}.",
                             ),
                         ),
-                        "Rozmowa o układaniu wzorów do zadań z taksówką, świecą i porównaniem dwóch firm.",
+                        "Kiedy dwie oferty kosztują tyle samo: 3x + 8 = 4x + 2.",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "m4_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka. W zadaniu szukaj dwóch liczb: wartości na starcie, czyli {b|be}, i zmiany na jednostkę, czyli a. "
+                                "Taksówka: {y = 3x + 8|igrek równa się trzy iks plus osiem}. Świeca, która maleje: {y = −2x + 20|igrek równa się minus dwa iks plus dwadzieścia}, "
+                                "a miejsce zerowe mówi, kiedy się wypali. Dwie oferty kosztują tyle samo, gdy ich wzory dają równe {y|igreki}.",
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -1346,126 +1510,131 @@ ENGLISH = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy o budowie zdań w Present Perfect. Objaśnienia są po polsku, "
-                                "a angielskie przykłady czytają lektorzy. Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "osoba + have/has + trzecia forma (V3); has tylko z he, she, it,",
-                                "V3: regularne z -ed, nieregularne z tabeli (go – went – gone),",
-                                "przeczenie haven't/hasn't, pytanie Have/Has na początku, krótkie odpowiedzi,",
-                                "skrót 's przed V3 to has.",
-                            ),
-                            paragraph("Powtarzaj angielskie zdania na głos razem z lektorem."),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie nagrania o budowie zdań w Present Perfect i powtórka na końcu. Objaśnienia są po polsku, "
+                        "a angielskie przykłady czytają lektorzy z wymową brytyjską. Powtarzaj zdania na głos razem z lektorem."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: jak zbudować zdanie w Present Perfect",
-                        "e1_a_rozmowa.mp3",
+                        "a-1",
+                        "have / has + trzecia forma",
+                        "e1_a1_budowa.mp3",
                         (
                             say(
                                 "Z",
-                                "Cześć! W tym nagraniu nauczysz się budować zdania w czasie Present Perfect. Ten czas łączy przeszłość z teraźniejszością: mówi o czymś, co się wydarzyło i ma znaczenie teraz. Nie mówimy, kiedy dokładnie to było.",
+                                "Cześć! Present Perfect łączy przeszłość z teraźniejszością: mówi o czymś, co się wydarzyło i ma znaczenie teraz. Nie mówimy, kiedy dokładnie to było.",
                             ),
                             say("M", "A jak zbudować takie zdanie?"),
                             say(
                                 "Z",
-                                "Potrzebujesz dwóch elementów: słówka",
-                                ("EN", "have"),
+                                "Potrzebujesz słówka",
+                                en("have"),
                                 "albo",
-                                ("EN", "has"),
+                                en("has"),
                                 "i trzeciej formy czasownika. Posłuchaj:",
                             ),
                             say("EN2", "I have finished my homework."),
                             say(
                                 "Z",
                                 "Słówko",
-                                ("EN", "has"),
+                                en("has"),
                                 "stawiamy tylko przy osobach",
-                                ("EN", "he, she, it"),
-                                "i przy imionach. Na przykład:",
-                                ("EN", "She has finished her homework. Tom has finished, too."),
+                                en("he, she, it"),
+                                "i przy imionach:",
+                                en("She has finished her homework. Tom has finished, too."),
                             ),
+                        ),
+                        "Budowa zdania: osoba + have/has + trzecia forma czasownika.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "Trzecia forma czasownika (V3)",
+                        "e1_a2_v3.mp3",
+                        (
                             say("M", "A czym jest trzecia forma?"),
                             say(
                                 "Z",
-                                "Przy czasownikach regularnych dodajesz końcówkę e de, tak samo jak w drugiej formie:",
-                                ("EN", "work, worked. Play, played. Stop, stopped."),
+                                "Przy czasownikach regularnych dodajesz końcówkę {-ed|e de}, tak jak w drugiej formie:",
+                                en("work, worked. Play, played. Stop, stopped."),
                             ),
                             say(
                                 "Z",
                                 "Przy nieregularnych bierzesz trzecią kolumnę z tabeli czasowników:",
-                                (
-                                    "EN",
-                                    "go, went, gone. See, saw, seen. Eat, ate, eaten. Write, wrote, written.",
+                                en(
+                                    "go, went, gone. See, saw, seen. Eat, ate, eaten. Write, wrote, written."
                                 ),
                             ),
                             say(
                                 "Z",
                                 "Uważaj, żeby nie pomylić drugiej formy z trzecią. Mówimy",
-                                ("EN", "I have written a letter,"),
+                                en("I have written a letter,"),
                                 "a nie",
-                                ("EN", "I have wrote."),
+                                en("I have wrote."),
                             ),
+                        ),
+                        "Czasowniki regularne z -ed i nieregularne z tabeli.",
+                    ),
+                    Audio(
+                        "a-3",
+                        "Przeczenia, pytania i skróty",
+                        "e1_a3_pytania.mp3",
+                        (
                             say("M", "A jak zrobić przeczenie?"),
                             say(
                                 "Z",
-                                "Dodajesz not do",
-                                ("EN", "have"),
-                                "albo",
-                                ("EN", "has."),
-                                "W mowie prawie zawsze używamy skrótów:",
-                                ("EN2", "I haven't seen this film. She hasn't called."),
+                                "Dodajesz",
+                                en("not"),
+                                "i prawie zawsze używasz skrótu:",
+                                en2("I haven't seen this film. She hasn't called."),
                             ),
                             say("M", "A pytania?"),
                             say(
                                 "Z",
                                 "Przestawiasz",
-                                ("EN", "have"),
+                                en("have"),
                                 "albo",
-                                ("EN", "has"),
-                                "na początek zdania, przed osobę:",
-                                ("EN", "Have you finished? Has she called?"),
+                                en("has"),
+                                "przed osobę:",
+                                en("Have you finished? Has she called?"),
+                                "Krótko odpowiadasz bez trzeciej formy:",
+                                en2("Yes, I have. No, she hasn't."),
                             ),
+                            say("M", "A skrót", en2("she's"), "to zawsze", en2("she is?")),
                             say(
                                 "Z",
-                                "Krótko odpowiadasz samym",
-                                ("EN", "have"),
-                                "albo",
-                                ("EN", "has,"),
-                                "bez trzeciej formy:",
-                                ("EN2", "Yes, I have. No, she hasn't."),
-                            ),
-                            say(
-                                "M",
-                                "Słyszałem też skrót",
-                                ("EN2", "she's."),
-                                "Czy to zawsze znaczy",
-                                ("EN2", "she is?"),
-                            ),
-                            say(
-                                "Z",
-                                "Nie zawsze. Jeśli dalej stoi trzecia forma, to skrót od",
-                                ("EN", "has."),
-                                "Zdanie",
-                                ("EN", "She's visited Rome"),
-                                "znaczy",
-                                ("EN", "She has visited Rome."),
-                            ),
-                            say(
-                                "Z",
-                                "Podsumujmy: osoba, potem",
-                                ("EN", "have"),
-                                "albo",
-                                ("EN", "has,"),
-                                "a na końcu trzecia forma czasownika.",
+                                "Nie. Jeśli dalej stoi trzecia forma, to skrót od",
+                                en("has:"),
+                                en("She's visited Rome."),
                             ),
                         ),
-                        "Nauczycielka objaśnia budowę zdań, a lektorzy czytają angielskie przykłady.",
+                        "haven't / hasn't, pytania z Have / Has, krótkie odpowiedzi i skrót 's.",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "e1_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka. Osoba, potem",
+                                en("have"),
+                                "albo",
+                                en("has,"),
+                                "a na końcu trzecia forma czasownika:",
+                                en2("I have finished. She has finished."),
+                                "Przeczenie:",
+                                en2("I haven't finished."),
+                                "Pytanie:",
+                                en2("Have you finished?"),
+                                "Słówko",
+                                en("has"),
+                                "tylko z",
+                                en("he, she, it."),
+                                "I zawsze trzecia forma, nie druga:",
+                                en2("I have written, not I have wrote."),
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -1637,123 +1806,138 @@ ENGLISH = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy o czterech słówkach Present Perfect. Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "ever – kiedykolwiek, w pytaniach przed V3,",
-                                "never – nigdy, bez not (jedno przeczenie),",
-                                "already – już, w środku zdania twierdzącego,",
-                                "yet – na końcu: w pytaniu „już”, w przeczeniu „jeszcze”.",
-                            ),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie nagrania o słówkach ever, never, already i yet oraz powtórka na końcu. "
+                        "Angielskie przykłady czytają lektorzy – powtarzaj je na głos."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: ever, never, already, yet",
-                        "e2_a_rozmowa.mp3",
+                        "a-1",
+                        "ever i never",
+                        "e2_a1_ever_never.mp3",
                         (
                             say(
                                 "Z",
-                                "W tej lekcji poznasz cztery słówka, które bardzo często towarzyszą czasowi Present Perfect:",
-                                ("EN", "ever, never, already, yet."),
+                                "W tej lekcji poznasz cztery słówka, które często towarzyszą Present Perfect:",
+                                en("ever, never, already, yet."),
+                                "Zaczniemy od dwóch pierwszych.",
                             ),
-                            say("M", "Zacznijmy od pierwszego."),
                             say(
-                                "EN",
-                                "Ever",
-                                (
-                                    "Z",
-                                    "znaczy kiedykolwiek, czyli kiedykolwiek w życiu. Używamy go w pytaniach i stawiamy przed trzecią formą czasownika:",
-                                ),
-                                ("EN2", "Have you ever been to London?"),
+                                "Z",
+                                en("Ever"),
+                                "znaczy kiedykolwiek, czyli kiedykolwiek w życiu. Używamy go w pytaniach, przed trzecią formą:",
+                                en2("Have you ever been to London?"),
                             ),
                             say("M", "Czyli: czy byłeś kiedykolwiek w Londynie?"),
                             say(
                                 "Z",
-                                "Tak. A jeśli odpowiedź brzmi: nigdy, używamy słówka",
-                                ("EN", "never."),
-                                "Stoi w tym samym miejscu, przed trzecią formą:",
-                                ("EN2", "I have never been to London. I have never eaten sushi."),
+                                "Tak. A gdy odpowiedź brzmi: nigdy, mówimy",
+                                en("never."),
+                                "Stoi w tym samym miejscu:",
+                                en2("I have never been to London. I have never eaten sushi."),
                             ),
-                            say(
-                                "M",
-                                "Po polsku mówię: nigdy nie jadłem. Czy po angielsku też dodaję not?",
-                            ),
-                            say(
-                                "Z",
-                                "Nie! To częsty błąd.",
-                                ("EN", "Never"),
-                                "już jest przeczeniem, więc nie dodajesz",
-                                ("EN", "not."),
-                                "Zdanie",
-                                ("EN", "I haven't never eaten sushi"),
-                                "jest błędne. Po angielsku wystarcza jedno przeczenie.",
-                            ),
+                        ),
+                        "ever w pytaniach i never w odpowiedziach, przed trzecią formą.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "already i yet",
+                        "e2_a2_already_yet.mp3",
+                        (
                             say("M", "A jak powiedzieć już i jeszcze?"),
                             say(
                                 "Z",
                                 "Już w zdaniu twierdzącym to",
-                                ("EN", "already."),
+                                en("already."),
                                 "Stoi między",
-                                ("EN", "have"),
+                                en("have"),
                                 "albo",
-                                ("EN", "has"),
+                                en("has"),
                                 "a trzecią formą:",
-                                (
-                                    "EN2",
-                                    "We have already bought the tickets. She has already left.",
-                                ),
+                                en2("We have already bought the tickets."),
                             ),
-                            say("M", "A słówko", ("EN2", "yet?")),
+                            say("M", "A słówko", en2("yet?")),
                             say(
-                                "EN",
-                                "Yet",
-                                ("Z", "stawiamy na końcu zdania. W pytaniu znaczy już:"),
-                                ("EN2", "Have you finished your homework yet?"),
-                                (
-                                    "Z",
-                                    "Czyli: czy już odrobiłeś lekcje? A w przeczeniu znaczy jeszcze:",
-                                ),
-                                ("EN2", "I haven't finished yet."),
-                                ("Z", "Jeszcze nie skończyłem."),
+                                "Z",
+                                en("Yet"),
+                                "stawiamy na końcu zdania. W pytaniu znaczy już:",
+                                en2("Have you finished your homework yet?"),
+                                "A w przeczeniu znaczy jeszcze:",
+                                en2("I haven't finished yet."),
+                                "Czyli: jeszcze nie skończyłem.",
                             ),
                             say(
                                 "M",
                                 "Czyli",
-                                ("EN2", "already"),
+                                en2("already"),
                                 "i",
-                                ("EN2", "yet"),
+                                en2("yet"),
                                 "to po polsku już, ale stoją w innych miejscach.",
                             ),
                             say(
                                 "Z",
                                 "Właśnie.",
-                                ("EN", "Already"),
+                                en("Already"),
                                 "w środku zdania twierdzącego,",
-                                ("EN", "yet"),
-                                "na końcu pytania albo przeczenia. Posłuchaj krótkiej rozmowy:",
+                                en("yet"),
+                                "na końcu pytania albo przeczenia.",
+                            ),
+                        ),
+                        "already w środku zdania twierdzącego, yet na końcu pytań i przeczeń.",
+                    ),
+                    Audio(
+                        "a-3",
+                        "Pułapki",
+                        "e2_a3_pulapki.mp3",
+                        (
+                            say(
+                                "M",
+                                "Po polsku mówię: nigdy nie jadłem. Czy po angielsku też dodaję",
+                                en2("not?"),
+                            ),
+                            say(
+                                "Z",
+                                "Nie! To częsty błąd.",
+                                en("Never"),
+                                "już jest przeczeniem. Zdanie",
+                                en("I haven't never eaten sushi"),
+                                "jest błędne – po angielsku wystarcza jedno przeczenie. Posłuchaj krótkiej rozmowy:",
                             ),
                             say("EN", "Have you ever tried Polish pierogi?"),
                             say("EN2", "No, I've never tried them. Have you made them yet?"),
                             say("EN", "Yes, I've already made twenty!"),
                             say(
                                 "Z",
-                                "Podsumowanie:",
-                                ("EN", "ever"),
-                                "to kiedykolwiek, w pytaniach.",
-                                ("EN", "Never"),
-                                "to nigdy, bez not.",
-                                ("EN", "Already"),
-                                "to już, w środku zdania.",
-                                ("EN", "Yet"),
-                                "stoi na końcu pytań i przeczeń.",
+                                "Usłyszałeś wszystkie cztery słówka, a w każdym zdaniu jest najwyżej jedno przeczenie.",
                             ),
                         ),
-                        "Rozmowa o znaczeniu i miejscu w zdaniu słówek ever, never, already i yet.",
+                        "Jedno przeczenie z never i krótka rozmowa ze wszystkimi czterema słówkami.",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "e2_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka.",
+                                en("Ever"),
+                                "to kiedykolwiek, w pytaniach.",
+                                en("Never"),
+                                "to nigdy, bez",
+                                en("not."),
+                                en("Already"),
+                                "to już, w środku zdania twierdzącego.",
+                                en("Yet"),
+                                "stoi na końcu: w pytaniu znaczy już, a w przeczeniu jeszcze:",
+                                en2("I haven't finished yet."),
+                                "I jeszcze dwa przykłady:",
+                                en2(
+                                    "We have already bought the tickets. Have you ever been to London?"
+                                ),
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -1923,110 +2107,126 @@ ENGLISH = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy o for i since. Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "coś trwa od przeszłości do teraz → Present Perfect,",
-                                "for + okres (ile czasu?), since + początek (od kiedy?),",
-                                "pytanie How long have you…?,",
-                                "dwa typowe błędy: I live here for… i since five years.",
-                            ),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie nagrania o tym, jak mówić, od jak dawna coś trwa – for, since i pytanie How long…? – oraz powtórka na końcu."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: for czy since?",
-                        "e3_a_rozmowa.mp3",
+                        "a-1",
+                        "Od przeszłości do teraz",
+                        "e3_a1_do_teraz.mp3",
                         (
                             say(
                                 "Z",
                                 "Dzisiaj nauczysz się mówić, jak długo coś trwa. Pomogą nam dwa słówka:",
-                                ("EN", "for"),
+                                en("for"),
                                 "i",
-                                ("EN", "since."),
+                                en("since."),
                             ),
                             say("M", "Po polsku mówię po prostu: mieszkam tu od pięciu lat."),
                             say(
                                 "Z",
-                                "No właśnie. Po polsku używasz czasu teraźniejszego, ale po angielsku mówimy w Present Perfect, bo mieszkanie zaczęło się w przeszłości i trwa do teraz:",
-                                ("EN2", "I have lived here for five years."),
+                                "No właśnie. Po polsku używasz czasu teraźniejszego. Po angielsku mówimy w Present Perfect, bo mieszkanie zaczęło się w przeszłości i trwa do teraz:",
+                                en2("I have lived here for five years."),
                             ),
-                            say("M", "Dlaczego tu jest", ("EN2", "for?")),
+                            say("M", "Czyli nie", en2("I live here for five years?")),
                             say(
-                                "EN",
-                                "For",
-                                (
-                                    "Z",
-                                    "stawiamy przed okresem czasu, czyli odpowiedzią na pytanie: ile czasu? Pięć lat, dwa tygodnie, godzina:",
-                                ),
-                                ("EN", "for five years, for two weeks, for an hour."),
+                                "Z",
+                                "Nie. Gdy coś trwa od przeszłości aż do teraz, zawsze używamy Present Perfect.",
                             ),
-                            say("M", "A", ("EN2", "since?")),
+                        ),
+                        "Present Perfect dla czegoś, co trwa od przeszłości do teraz.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "for czy since?",
+                        "e3_a2_for_since.mp3",
+                        (
                             say(
-                                "EN",
-                                "Since",
-                                (
-                                    "Z",
-                                    "stawiamy przed początkiem, czyli odpowiedzią na pytanie: od kiedy? Od dwa tysiące dziewiętnastego roku, od poniedziałku, od ósmej:",
-                                ),
-                                ("EN", "since 2019, since Monday, since eight o'clock."),
+                                "Z",
+                                en("For"),
+                                "stawiamy przed okresem, czyli odpowiedzią na pytanie: ile czasu?",
+                                en("For five years, for two weeks, for an hour."),
                             ),
                             say(
                                 "Z",
-                                "Po",
-                                ("EN", "since"),
-                                "może też stać całe zdanie:",
-                                ("EN2", "We have been friends since we were six."),
+                                en("Since"),
+                                "stawiamy przed początkiem, czyli odpowiedzią na pytanie: od kiedy?",
+                                en("Since 2019, since Monday, since eight o'clock."),
                             ),
                             say(
                                 "M",
                                 "Czyli pytam siebie: ile czasu? To",
-                                ("EN2", "for."),
+                                en2("for."),
                                 "Od kiedy? To",
-                                ("EN2", "since."),
+                                en2("since."),
                             ),
                             say(
                                 "Z",
-                                "Świetny sposób. Uważaj na dwa błędy. Nie mówimy",
-                                ("EN", "I live here for five years,"),
-                                "bo potrzebny jest Present Perfect. I nie mówimy",
-                                ("EN", "since five years,"),
-                                "bo pięć lat to okres, a nie początek.",
+                                "Świetny sposób. Dlatego nie mówimy",
+                                en("since five years,"),
+                                "bo pięć lat to okres, a nie początek. Po",
+                                en("since"),
+                                "może też stać całe zdanie:",
+                                en2("We have been friends since we were six."),
                             ),
+                        ),
+                        "for + okres (ile czasu?), since + początek (od kiedy?).",
+                    ),
+                    Audio(
+                        "a-3",
+                        "Pytanie How long…?",
+                        "e3_a3_how_long.mp3",
+                        (
                             say("M", "A jak zapytać, jak długo ktoś coś robi?"),
+                            say("Z", "Pytaniem", en("How long?"), "Posłuchaj:"),
+                            say("EN", "How long have you had this phone?"),
+                            say("EN2", "I've had it for two years."),
                             say(
                                 "Z",
-                                "Pytaniem",
-                                ("EN", "How long?"),
-                                "Posłuchaj:",
-                                ("EN", "How long have you had this phone?"),
-                                ("EN2", "I've had it for two years."),
-                            ),
-                            say(
-                                "Z",
-                                "Na koniec zagadka. Tom zaczął nową pracę w marcu, a teraz jest czerwiec. Jak długo ma tę pracę?",
+                                "Teraz zagadka. Tom zaczął nową pracę w marcu, a teraz jest czerwiec. Jak długo ma tę pracę?",
                             ),
                             say(
                                 "M",
-                                "Od marca do czerwca to trzy miesiące. Czyli",
-                                ("EN2", "He has had this job for three months."),
-                                "Albo",
-                                ("EN2", "since March."),
+                                "Od marca do czerwca to trzy miesiące.",
+                                en2("He has had this job for three months."),
+                                "Albo:",
+                                en2("since March."),
                             ),
                             say(
                                 "Z",
-                                "Doskonale. Zapamiętaj:",
-                                ("EN", "for"),
-                                "to okres,",
-                                ("EN", "since"),
-                                "to początek, a cały czas trwania opisujemy w Present Perfect.",
+                                "Doskonale. Obie odpowiedzi są poprawne:",
+                                en("for"),
+                                "z okresem,",
+                                en("since"),
+                                "z początkiem.",
                             ),
                         ),
-                        "Rozmowa o tym, kiedy użyć for, a kiedy since, i jak zapytać How long…?",
+                        "Pytanie How long have you…? i zagadka z pracą Toma.",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "e3_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka. Gdy coś trwa od przeszłości do teraz, mówimy w Present Perfect.",
+                                en("For"),
+                                "to okres, czyli ile czasu:",
+                                en("for five years."),
+                                en("Since"),
+                                "to początek, czyli od kiedy:",
+                                en("since Monday."),
+                                "Pytamy:",
+                                en("How long have you had it?"),
+                                "I uważaj:",
+                                en("since five years"),
+                                "to błąd, bo pięć lat to okres. Poprawnie:",
+                                en2("for five years."),
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -2192,99 +2392,115 @@ ENGLISH = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy o wyborze między Present Perfect a Past Simple. Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "konkretny, zakończony czas → Past Simple; czas nieważny albo okres trwa → Present Perfect,",
-                                "słówka-sygnały obu czasów (yesterday, ago… / ever, yet, so far…),",
-                                "When…? zawsze z Past Simple,",
-                                "rozmowa: pytanie w Present Perfect, szczegóły w Past Simple.",
-                            ),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie nagrania o wyborze między Present Perfect a Past Simple – jedno pytanie, typowa rozmowa i pułapki – oraz powtórka na końcu."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: który czas wybrać?",
-                        "e4_a_rozmowa.mp3",
+                        "a-1",
+                        "Jedno pytanie rozstrzyga",
+                        "e4_a1_pytanie.mp3",
                         (
                             say(
                                 "Z",
-                                "W ostatniej lekcji porównamy Present Perfect z Past Simple. Oba czasy mówią o przeszłości, więc jak wybrać właściwy?",
-                            ),
-                            say("M", "No właśnie, jak?"),
-                            say(
-                                "Z",
-                                "Zadaj sobie jedno pytanie: czy podaję konkretny, zakończony czas? Jeśli tak, to Past Simple. Posłuchaj:",
-                                ("EN2", "I lost my keys yesterday."),
-                                "Wczoraj to zakończony czas, więc Past Simple.",
+                                "Oba czasy mówią o przeszłości. Jak wybrać? Zadaj sobie jedno pytanie: czy podaję konkretny, zakończony czas? Jeśli tak, to Past Simple:",
+                                en2("I lost my keys yesterday."),
                             ),
                             say("M", "A gdy nie mówię, kiedy?"),
                             say(
                                 "Z",
                                 "Wtedy Present Perfect. Ważny jest skutek teraz:",
-                                ("EN2", "I have lost my keys. I can't open the door!"),
-                                "Nie wiemy, kiedy ta osoba zgubiła klucze, ale wiemy, że teraz ich nie ma.",
+                                en2("I have lost my keys. I can't open the door!"),
                             ),
-                            say("M", "Są jakieś słówka, które podpowiadają?"),
                             say(
                                 "Z",
-                                "Tak. Do Past Simple pasują:",
-                                ("EN", "yesterday, last week, in 2019, two years ago."),
+                                "Do Past Simple pasują",
+                                en("yesterday, last week, in 2019, two years ago."),
                                 "Do Present Perfect:",
-                                ("EN", "ever, never, already, yet, for, since,"),
-                                "a także",
-                                ("EN", "today, this week"),
+                                en("ever, never, already, yet, for, since"),
                                 "i",
-                                ("EN", "so far,"),
-                                "czyli do tej pory, gdy okres jeszcze trwa:",
-                                ("EN", "I have had three cups of tea so far today."),
+                                en("so far."),
                             ),
-                            say("M", "A pytanie zaczynające się od", ("EN2", "When?")),
-                            say(
-                                "EN",
-                                "When",
-                                (
-                                    "Z",
-                                    "pyta o konkretny czas, więc zawsze łączy się z Past Simple:",
-                                ),
-                                ("EN", "When did you see that film?"),
-                                ("Z", "Nie mówimy"),
-                                ("EN", "When have you seen it?"),
-                            ),
+                        ),
+                        "Konkretny, zakończony czas – Past Simple; czas nieważny albo okres trwa – Present Perfect.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "Typowa rozmowa",
+                        "e4_a2_rozmowa.mp3",
+                        (
                             say("M", "Słyszałem kiedyś taką rozmowę:"),
                             say("EN2", "Have you ever been to Italy?"),
                             say("EN", "Yes, I have. I went there last summer."),
                             say("M", "Dlaczego czas się zmienia?"),
                             say(
                                 "Z",
-                                "Bo najpierw pytamy o doświadczenie w ogóle, bez czasu, więc Present Perfect. Ale gdy podajemy szczegół, kiedy to było,",
-                                ("EN", "last summer,"),
-                                "przechodzimy na Past Simple.",
+                                "Najpierw pytamy o doświadczenie w ogóle, bez czasu, więc w Present Perfect. Gdy podajemy, kiedy to było,",
+                                en("last summer,"),
+                                "przechodzimy na Past Simple. Tak wygląda większość rozmów o doświadczeniach.",
+                            ),
+                            say("M", "Czyli najpierw pytam ogólnie, a potem podaję szczegóły."),
+                            say("Z", "Tak. Posłuchaj jeszcze jednej pary:"),
+                            say("EN2", "Have you seen this film?"),
+                            say("EN", "Yes, I have. I saw it last week."),
+                        ),
+                        "Pytanie w Present Perfect, szczegóły w Past Simple.",
+                    ),
+                    Audio(
+                        "a-3",
+                        "Pułapki",
+                        "e4_a3_pulapki.mp3",
+                        (
+                            say("M", "A pytanie zaczynające się od", en2("When?")),
+                            say(
+                                "Z",
+                                en("When"),
+                                "pyta o konkretny czas, więc zawsze łączy się z Past Simple:",
+                                en("When did you see that film?"),
+                                "Nie mówimy",
+                                en("When have you seen it?"),
                             ),
                             say(
                                 "M",
                                 "Czyli zdanie",
-                                ("EN2", "She has visited Paris in 2019"),
+                                en2("She has visited Paris in 2019"),
                                 "jest błędne?",
                             ),
                             say(
                                 "Z",
-                                "Tak, bo rok dwa tysiące dziewiętnasty to zakończony czas. Poprawnie:",
-                                ("EN", "She visited Paris in 2019."),
+                                "Tak, bo rok {2019|dwa tysiące dziewiętnasty} to zakończony czas. Poprawnie:",
+                                en("She visited Paris in 2019."),
                                 "Tak samo ze słówkiem",
-                                ("EN", "ago:"),
-                                ("EN2", "We moved here two years ago."),
+                                en("ago:"),
+                                en2("We moved here two years ago."),
                             ),
                             say(
-                                "Z",
-                                "Zapamiętaj: konkretny, zakończony czas to Past Simple. Brak czasu, skutek teraz albo okres, który trwa, to Present Perfect.",
+                                "M",
+                                "Czyli",
+                                en2("ago,"),
+                                en2("yesterday"),
+                                "albo rok w zdaniu to sygnał: Past Simple.",
                             ),
                         ),
-                        "Rozmowa o tym, jak wybrać między Present Perfect a Past Simple, z przykładami czytanymi po angielsku.",
+                        "When…?, ago i rok w zdaniu – zawsze Past Simple.",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "e4_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka. Konkretny, zakończony czas, na przykład",
+                                en("yesterday"),
+                                "albo",
+                                en("two years ago,"),
+                                "to Past Simple. Brak czasu, skutek teraz albo okres, który trwa, to Present Perfect. Po",
+                                en("When"),
+                                "zawsze Past Simple. W rozmowie: pytanie w Present Perfect, szczegóły w Past Simple.",
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -2459,7 +2675,7 @@ PYTHON = Course(
                                 ("for zmienna in sekwencja:", True),
                                 " – na końcu linii dwukropek, a instrukcje do powtarzania piszemy niżej z wcięciem (4 spacje).",
                             ),
-                            code(
+                            code_block(
                                 'owoce = ["jabłko", "gruszka", "śliwka"]',
                                 "for owoc in owoce:",
                                 "    print(owoc)",
@@ -2477,7 +2693,7 @@ PYTHON = Course(
                             paragraph(
                                 "Przed pętlą ustaw suma = 0, a w pętli dodawaj kolejne liczby:"
                             ),
-                            code(
+                            code_block(
                                 "suma = 0",
                                 "for liczba in [2, 4, 6]:",
                                 "    suma = suma + liczba",
@@ -2502,75 +2718,88 @@ PYTHON = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy o pętli for. Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "for zmienna in lista: – dwukropek na końcu, ciało z wcięciem,",
-                                "zmienna pętli po kolei przyjmuje każdy element; pętla po napisie idzie po literach,",
-                                "linia bez wcięcia wykona się raz, po pętli,",
-                                "sumowanie: suma = 0 przed pętlą, suma = suma + liczba w pętli.",
-                            ),
-                            paragraph("Po wysłuchaniu przepisz przykład z owocami i uruchom go."),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie rozmowy o pętli for – zapis, wcięcia i sumowanie – a na końcu powtórka. "
+                        "Po wysłuchaniu przepisz przykład z owocami i uruchom go."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: pętla for",
-                        "p1_a_rozmowa.mp3",
+                        "a-1",
+                        "Jak zapisać pętlę for",
+                        "p1_a1_zapis.mp3",
                         (
                             say(
                                 "Z",
-                                "Marek, wyobraź sobie, że masz wypisać na ekranie sto imion. Pisałbyś sto razy print?",
+                                "Marek, masz wypisać na ekranie sto imion. Pisałbyś sto razy {print|print}?",
                             ),
                             say("M", "Wolałbym nie."),
                             say(
                                 "Z",
-                                "Do tego służy pętla. Dziś poznasz pętlę for. Działa tak: dla każdego elementu z listy wykonaj te same instrukcje.",
-                            ),
-                            say("M", "Jak to zapisać?"),
-                            say(
-                                "Z",
-                                "Mamy listę owoce, a w niej: jabłko, gruszka i śliwka. Piszemy: for owoc in owoce, a na końcu dwukropek. W następnej linii, z wcięciem na cztery spacje: print, a w nawiasie owoc.",
+                                "Do tego służy pętla {for|for}: dla każdego elementu listy wykonuje te same instrukcje. Mamy listę owoce: jabłko, gruszka i śliwka. "
+                                "Piszemy {for owoc in owoce:|for owoc in owoce, a na końcu dwukropek}. W następnej linii, z wcięciem na cztery spacje: {print(owoc)|print, a w nawiasie owoc}.",
                             ),
                             say("M", "I co się stanie?"),
                             say(
                                 "Z",
-                                "W pierwszym obrocie zmienna owoc ma wartość jabłko i program je wypisuje. W drugim obrocie owoc to gruszka, w trzecim śliwka. Elementy się skończyły, więc pętla też.",
+                                "W pierwszym obrocie zmienna {owoc|owoc} ma wartość jabłko, w drugim gruszka, a w trzecim śliwka. Elementy się skończyły, więc pętla też.",
                             ),
-                            say("M", "Czyli trzy elementy, trzy obroty, trzy linie na ekranie."),
-                            say(
-                                "Z",
-                                "Dokładnie. A jeśli zamiast listy dasz napis, na przykład słowo kot w cudzysłowie, pętla przejdzie po literach. Wypisze ka, o i te, każdą w osobnej linii.",
-                            ),
+                        ),
+                        "Zapis for owoc in owoce: i to, co dzieje się w kolejnych obrotach.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "Wcięcie decyduje",
+                        "p1_a2_wciecie.mp3",
+                        (
                             say("M", "Po czym Python poznaje, co jest w środku pętli?"),
                             say(
                                 "Z",
-                                "Po wcięciu. Wszystkie linie przesunięte w prawo pod linią z dwukropkiem to ciało pętli. Linia bez wcięcia wykona się tylko raz, kiedy pętla się skończy. Bez dwukropka albo bez wcięcia Python zgłosi błąd.",
+                                "Po wcięciu. Linie przesunięte w prawo pod linią z dwukropkiem to ciało pętli. Linia bez wcięcia wykona się tylko raz, kiedy pętla się skończy.",
                             ),
-                            say("M", "A czy pętla umie coś policzyć?"),
+                            say("M", "A jeśli zapomnę dwukropka?"),
                             say(
                                 "Z",
-                                "Jasne. Policzmy sumę liczb dwa, cztery i sześć. Przed pętlą piszemy: suma równa się zero. Potem: for liczba in lista, dwukropek, a w środku: suma równa się suma plus liczba.",
+                                "To częsty błąd. Bez dwukropka albo bez wcięcia Python zgłosi błąd i nie uruchomi programu. "
+                                'Pętla przejdzie też po napisie: {for litera in "kot":|for litera in kot} wypisze {k, o i t|ka, o i te}, każdą literę w osobnej linii.',
                             ),
-                            say(
-                                "M",
-                                "Prześledzę to. Najpierw suma to zero. Po pierwszym obrocie zero plus dwa, czyli dwa. Potem dwa plus cztery, czyli sześć. Na końcu sześć plus sześć, czyli dwanaście.",
-                            ),
-                            say(
-                                "Z",
-                                "Świetnie. Gdy po pętli, bez wcięcia, napiszesz print suma, program wypisze dwanaście. Tylko raz.",
-                            ),
-                            say(
-                                "M",
-                                "Czyli: dwukropek, wcięcie, a zmienna pętli po kolei bierze każdy element.",
-                            ),
-                            say("Z", "Tak. To najważniejsze zasady pętli for."),
+                            say("M", "Czyli wcięcie to nie ozdoba, tylko część programu."),
                         ),
-                        "Rozmowa o zapisie pętli for, wcięciach i sumowaniu liczb z listy.",
+                        "Ciało pętli, częsty błąd i pętla po literach napisu.",
+                    ),
+                    Audio(
+                        "a-3",
+                        "Przykład: suma liczb z listy",
+                        "p1_a3_suma.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Policzmy sumę liczb {2, 4 i 6|dwa, cztery i sześć}. Przed pętlą piszemy {suma = 0|suma równa się zero}. "
+                                "Potem {for liczba in [2, 4, 6]:|for liczba in lista, dwukropek}, a w środku {suma = suma + liczba|suma równa się suma plus liczba}.",
+                            ),
+                            say(
+                                "M",
+                                "Prześledzę to. Najpierw suma to {0|zero}. Po pierwszym obrocie {2|dwa}, potem {6|sześć}, a na końcu {12|dwanaście}.",
+                            ),
+                            say(
+                                "Z",
+                                "Świetnie. Gdy po pętli, bez wcięcia, napiszesz {print(suma)|print suma}, program wypisze {12|dwanaście}. Tylko raz, bo ta linia nie należy do pętli.",
+                            ),
+                        ),
+                        "Sumowanie listy [2, 4, 6] obrót po obrocie.",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "p1_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka. Pętla {for|for} wykonuje ciało dla każdego elementu listy albo napisu. Na końcu pierwszej linii stawiamy dwukropek, "
+                                "a ciało piszemy z wcięciem na cztery spacje. Zmienna pętli po kolei przyjmuje każdy element. Linia bez wcięcia wykona się raz, po pętli. "
+                                "Sumowanie: {suma = 0|suma równa się zero} przed pętlą, a w pętli {suma = suma + liczba|suma równa się suma plus liczba}.",
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -2714,7 +2943,7 @@ PYTHON = Course(
                                 " Dlatego liczby od 1 do 10 to range(1, 11).",
                             ),
                             heading("Przykład: suma"),
-                            code(
+                            code_block(
                                 "suma = 0",
                                 "for i in range(1, 5):",
                                 "    suma = suma + i",
@@ -2734,80 +2963,93 @@ PYTHON = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy o funkcji range(). Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "range(n) – n liczb od 0 do n − 1,",
-                                "range(start, stop) – liczba stop nie jest wliczana, więc 1–10 to range(1, 11),",
-                                "trzecia liczba to krok, ujemny krok liczy w dół,",
-                                "suma 1 + 2 + 3 + 4 z range(1, 5) to 10.",
-                            ),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie rozmowy o funkcji range() – powtarzanie n razy, start, stop i krok, przykład z sumą – a na końcu powtórka."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: funkcja range",
-                        "p2_a_rozmowa.mp3",
+                        "a-1",
+                        "range(n) – powtórz n razy",
+                        "p2_a1_powtorz.mp3",
                         (
                             say(
                                 "Z",
-                                "W poprzedniej lekcji pętla for przechodziła po liście. A co, jeśli chcesz coś powtórzyć na przykład pięć razy?",
+                                "Pętla {for|for} przechodziła po liście. A co, jeśli chcesz coś powtórzyć na przykład pięć razy?",
                             ),
                             say("M", "Mogę zrobić listę z pięcioma elementami."),
                             say(
                                 "Z",
-                                "Możesz, ale wygodniej użyć funkcji rejndż. Piszesz: for i in rejndż, w nawiasie pięć, i dwukropek. Ciało pętli wykona się pięć razy.",
+                                "Wygodniej użyć funkcji {range|rejndż}. Piszesz {for i in range(5):|for i in rejndż, w nawiasie pięć, dwukropek}. Ciało pętli wykona się pięć razy.",
                             ),
-                            say("M", "A jakie wartości ma wtedy i?"),
+                            say("M", "A jakie wartości ma wtedy {i|i}?"),
                             say(
                                 "Z",
-                                "Tu jest haczyk. Rejndż od pięciu daje liczby od zera do czterech: zero, jeden, dwa, trzy, cztery. Pięć liczb, ale bez piątki.",
-                            ),
-                            say("M", "Dlaczego bez piątki?"),
-                            say(
-                                "Z",
-                                "Taka jest zasada w Pythonie: liczba końcowa nigdy nie należy do ciągu. Można też podać początek. Rejndż od dwóch do sześciu daje dwa, trzy, cztery i pięć.",
-                            ),
-                            say(
-                                "M",
-                                "Czyli jeśli chcę liczby od jednego do dziesięciu, piszę rejndż od jednego do jedenastu.",
-                            ),
-                            say(
-                                "Z",
-                                "Brawo, właśnie tak. Trzecia liczba w nawiasie to krok. Rejndż od zera do dziesięciu z krokiem trzy daje zero, trzy, sześć i dziewięć.",
-                            ),
-                            say("M", "Dwunastki już nie ma, bo przekracza dziesięć."),
-                            say(
-                                "Z",
-                                "Zgadza się. A jak zapisać liczby parzyste od dwóch do dwudziestu?",
-                            ),
-                            say(
-                                "M",
-                                "Start dwa, krok dwa, a koniec dwadzieścia jeden, żeby dwudziestka się zmieściła.",
-                            ),
-                            say(
-                                "Z",
-                                "Doskonale. Krok może być też ujemny, wtedy liczymy w dół. Rejndż od pięciu do zera z krokiem minus jeden daje pięć, cztery, trzy, dwa, jeden. Zero się nie mieści, bo to liczba końcowa.",
-                            ),
-                            say("M", "Jak odliczanie przed startem rakiety."),
-                            say(
-                                "Z",
-                                "Właśnie. Na koniec policzmy sumę. Suma równa się zero, potem for i in rejndż od jednego do pięciu, a w środku dodajemy i do sumy.",
-                            ),
-                            say(
-                                "M",
-                                "Rejndż od jednego do pięciu to jeden, dwa, trzy i cztery. Razem dziesięć.",
-                            ),
-                            say(
-                                "Z",
-                                "Świetnie. Jeśli chcesz zobaczyć, jakie liczby daje rejndż, wypisz je poleceniem print z funkcją list w środku. Zapamiętaj: koniec zakresu nigdy nie jest wliczany.",
+                                "Tu jest haczyk: {0, 1, 2, 3, 4|zero, jeden, dwa, trzy, cztery}. Pięć liczb, ale bez piątki. W Pythonie liczba końcowa nigdy nie należy do ciągu.",
                             ),
                         ),
-                        "Rozmowa o tym, jakie liczby daje range() z jednym, dwoma i trzema argumentami.",
+                        "for i in range(5): – pięć obrotów, i od 0 do 4.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "Start, stop i krok",
+                        "p2_a2_krok.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Można też podać początek. {range(2, 6)|Rejndż od dwóch do sześciu} daje {2, 3, 4 i 5|dwa, trzy, cztery i pięć}.",
+                            ),
+                            say(
+                                "M",
+                                "Czyli liczby od jednego do dziesięciu to {range(1, 11)|rejndż od jednego do jedenastu}.",
+                            ),
+                            say(
+                                "Z",
+                                "Właśnie. Trzecia liczba to krok. {range(0, 10, 3)|Rejndż od zera do dziesięciu z krokiem trzy} daje {0, 3, 6 i 9|zero, trzy, sześć i dziewięć}. "
+                                "Krok może być ujemny, wtedy liczymy w dół: {range(5, 0, -1)|rejndż od pięciu do zera z krokiem minus jeden} daje {5, 4, 3, 2, 1|pięć, cztery, trzy, dwa, jeden}.",
+                            ),
+                            say("M", "Jak odliczanie przed startem rakiety."),
+                        ),
+                        "range(start, stop, krok) i liczenie w dół.",
+                    ),
+                    Audio(
+                        "a-3",
+                        "Przykład: suma",
+                        "p2_a3_suma.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Policzmy sumę. Na początku {suma = 0|suma równa się zero}, potem {for i in range(1, 5):|for i in rejndż od jednego do pięciu}, "
+                                "a w środku {suma = suma + i|suma równa się suma plus i}.",
+                            ),
+                            say(
+                                "M",
+                                "{range(1, 5)|Rejndż od jednego do pięciu} to {1, 2, 3 i 4|jeden, dwa, trzy i cztery}. Razem {10|dziesięć}.",
+                            ),
+                            say(
+                                "Z",
+                                "Świetnie. Liczby z {range|rejndż} zobaczysz naraz, gdy napiszesz {print(list(range(2, 6)))|print, a w środku list z rejndż od dwóch do sześciu}. "
+                                "Częsty błąd to oczekiwanie, że wypisze się też szóstka.",
+                            ),
+                            say(
+                                "M",
+                                "A przecież szóstka to koniec zakresu, a koniec nigdy nie jest wliczany.",
+                            ),
+                        ),
+                        "Suma 1 + 2 + 3 + 4 z range(1, 5) i podgląd liczb przez list().",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "p2_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka. {range(n)|Rejndż od en} daje {n|en} liczb od zera do {n − 1|en minus jeden}, więc {for i in range(n):|for i in rejndż en} powtarza ciało {n|en} razy. "
+                                "Liczba końcowa nigdy nie jest wliczana, dlatego od jednego do dziesięciu to {range(1, 11)|rejndż od jednego do jedenastu}. "
+                                "Trzecia liczba to krok, a ujemny krok liczy w dół. Na przykład {range(4)|rejndż cztery} daje {0, 1, 2, 3|zero, jeden, dwa, trzy}.",
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -2925,7 +3167,7 @@ PYTHON = Course(
                                 ("dopóki warunek jest prawdziwy", True),
                                 ". Przed każdym obrotem Python sprawdza warunek: prawdziwy – wykonuje ciało; fałszywy – kończy pętlę i przechodzi dalej.",
                             ),
-                            code(
+                            code_block(
                                 "licznik = 1",
                                 "while licznik <= 5:",
                                 "    print(licznik)",
@@ -2945,7 +3187,7 @@ PYTHON = Course(
                                 "for – gdy znasz liczbę powtórzeń albo przechodzisz po liście. while – gdy nie wiesz, ile razy trzeba powtórzyć, "
                                 "np. pytanie o hasło albo podwajanie liczby, aż przekroczy 100:"
                             ),
-                            code(
+                            code_block(
                                 "n = 1",
                                 "while n < 100:",
                                 "    n = n * 2",
@@ -2970,69 +3212,91 @@ PYTHON = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy o pętli while. Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "while powtarza, dopóki warunek jest prawdziwy; warunek jest sprawdzany przed każdym obrotem,",
-                                "w ciele trzeba zmieniać zmienną z warunku – inaczej pętla nieskończona (Ctrl+C),",
-                                "warunek fałszywy od początku – ciało nie wykona się ani razu,",
-                                "while, gdy nie znasz liczby powtórzeń (hasło, podwajanie aż do 128).",
-                            ),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie rozmowy o pętli while – jak działa, pętla nieskończona i wybór między while a for – a na końcu powtórka."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: pętla while",
-                        "p3_a_rozmowa.mp3",
+                        "a-1",
+                        "Powtarzaj, dopóki…",
+                        "p3_a1_dopoki.mp3",
                         (
                             say(
                                 "Z",
-                                "Marek, wyobraź sobie, że program ma pytać o hasło, aż użytkownik wpisze poprawne. Ile razy będzie pytał?",
+                                "Marek, program ma pytać o hasło, aż użytkownik wpisze poprawne. Ile razy będzie pytał?",
                             ),
                             say("M", "Nie wiadomo. Może raz, a może dziesięć razy."),
                             say(
                                 "Z",
-                                "Właśnie. Gdy nie znamy liczby powtórzeń, używamy pętli łajl. Łajl po angielsku znaczy dopóki. Pętla powtarza instrukcje, dopóki warunek jest prawdziwy.",
+                                "Gdy nie znamy liczby powtórzeń, używamy pętli {while|łajl}, czyli dopóki. Powtarza ciało, dopóki warunek jest prawdziwy. "
+                                "Na przykład: {licznik = 1|licznik równa się jeden}, potem {while licznik <= 5:|łajl licznik mniejsze lub równe pięć, dwukropek}, "
+                                "a w ciele {print(licznik)|print licznik} i {licznik = licznik + 1|licznik równa się licznik plus jeden}.",
                             ),
-                            say("M", "Jak to wygląda w kodzie?"),
+                            say(
+                                "M",
+                                "Wypisze {1, 2, 3, 4, 5|jeden, dwa, trzy, cztery, pięć}. Gdy licznik dojdzie do {6|sześciu}, warunek będzie fałszywy i pętla się skończy.",
+                            ),
+                        ),
+                        "while licznik <= 5: – warunek sprawdzany przed każdym obrotem.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "Uwaga na pętlę nieskończoną",
+                        "p3_a2_nieskonczona.mp3",
+                        (
+                            say(
+                                "M",
+                                "A gdybym zapomniał o linii {licznik = licznik + 1|licznik plus jeden}?",
+                            ),
                             say(
                                 "Z",
-                                "Na przykład tak: licznik równa się jeden. Potem: łajl licznik mniejsze lub równe pięć, dwukropek. W ciele, z wcięciem, piszemy print licznik oraz licznik równa się licznik plus jeden.",
-                            ),
-                            say("M", "Czyli wypisze jeden, dwa, trzy, cztery, pięć?"),
-                            say(
-                                "Z",
-                                "Tak. Przed każdym obrotem Python sprawdza warunek. Po piątym obrocie licznik ma wartość sześć, warunek jest fałszywy i pętla się kończy.",
-                            ),
-                            say("M", "A gdybym zapomniał o linii licznik plus jeden?"),
-                            say(
-                                "Z",
-                                "To bardzo częsty błąd. Licznik zostałby równy jeden, warunek byłby zawsze prawdziwy i program wypisywałby jedynkę bez końca. To pętla nieskończona. Zatrzymasz ją skrótem kontrol ce.",
+                                "To bardzo częsty błąd. Licznik zostałby równy jeden, warunek byłby zawsze prawdziwy i program wypisywałby jedynkę bez końca. "
+                                "To pętla nieskończona. Zatrzymasz ją skrótem {Ctrl+C|kontrol ce}.",
                             ),
                             say("M", "Czyli w ciele zawsze muszę zmienić zmienną z warunku."),
                             say(
                                 "Z",
-                                "Dokładnie. Jest też odwrotna sytuacja. Jeśli iks równa się dziesięć, a warunek brzmi: łajl iks większe od dziesięciu, to ciało nie wykona się ani razu, bo warunek jest fałszywy od początku.",
+                                "Dokładnie. Jest też odwrotna sytuacja. Gdy {x = 10|iks równa się dziesięć}, a warunek to {while x > 10:|łajl iks większe od dziesięciu}, "
+                                "ciało nie wykona się ani razu.",
                             ),
-                            say("M", "A kiedy wybrać łajl, a kiedy for?"),
+                        ),
+                        "Częsty błąd: brak zmiany zmiennej z warunku; warunek fałszywy od początku.",
+                    ),
+                    Audio(
+                        "a-3",
+                        "while czy for?",
+                        "p3_a3_while_for.mp3",
+                        (
                             say(
                                 "Z",
-                                "For, gdy wiesz, ile razy powtarzać, albo przechodzisz po liście. Łajl, gdy nie wiesz, na przykład przy haśle. Albo w takiej zagadce: zaczynamy od n równego jeden i podwajamy n, dopóki jest mniejsze od stu. Jaka liczba wyjdzie?",
+                                "{for|For} wybierasz, gdy wiesz, ile razy powtarzać, albo przechodzisz po liście. {while|Łajl} – gdy tego nie wiesz. "
+                                "Zagadka: {n = 1|en równa się jeden}, a potem podwajamy {n|en}, dopóki jest mniejsze od stu. Co wypisze program?",
                             ),
                             say(
                                 "M",
-                                "Dwa, cztery, osiem, szesnaście, trzydzieści dwa, sześćdziesiąt cztery… Sześćdziesiąt cztery jest jeszcze mniejsze od stu, więc pętla robi kolejny obrót. Wyjdzie sto dwadzieścia osiem.",
+                                "{2, 4, 8, 16, 32, 64|Dwa, cztery, osiem, szesnaście, trzydzieści dwa, sześćdziesiąt cztery}. "
+                                "{64|Sześćdziesiąt cztery} jest jeszcze mniejsze od stu, więc pętla robi kolejny obrót. Wyjdzie {128|sto dwadzieścia osiem}.",
                             ),
                             say(
                                 "Z",
-                                "Brawo. Po pętli program wypisze sto dwadzieścia osiem. Zapamiętaj: łajl sprawdza warunek przed każdym obrotem i działa, dopóki ten warunek jest prawdziwy.",
+                                "Brawo. Nikt nie musiał z góry liczyć obrotów – o końcu zdecydował warunek.",
                             ),
                         ),
-                        "Rozmowa o działaniu pętli while, pętli nieskończonej i wyborze między while a for.",
+                        "Kiedy while, a kiedy for; podwajanie liczby, aż przekroczy 100.",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "p3_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka. Pętla {while|łajl} powtarza ciało, dopóki warunek jest prawdziwy, a warunek sprawdza przed każdym obrotem. "
+                                "W ciele zmieniaj zmienną z warunku, inaczej powstanie pętla nieskończona. Gdy warunek jest fałszywy od początku, ciało nie wykona się ani razu. "
+                                "{while|Łajl} wybierasz, gdy nie znasz liczby powtórzeń.",
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
@@ -3159,7 +3423,7 @@ PYTHON = Course(
                                 " natychmiast kończy całą pętlę. Program przechodzi do pierwszej linii po pętli. "
                                 "Przydaje się przy szukaniu: gdy znajdziesz to, czego szukasz, dalsze obroty są niepotrzebne.",
                             ),
-                            code(
+                            code_block(
                                 "for n in [3, 8, -1, 5]:",
                                 "    if n < 0:",
                                 "        break",
@@ -3175,7 +3439,7 @@ PYTHON = Course(
                                 " przerywa tylko bieżący obrót: pomija resztę ciała i przechodzi do następnego elementu. "
                                 "Operator % daje resztę z dzielenia (7 % 2 = 1, 6 % 2 = 0), więc n % 2 == 0 oznacza liczbę parzystą.",
                             ),
-                            code(
+                            code_block(
                                 "for n in range(1, 7):",
                                 "    if n % 2 == 0:",
                                 "        continue",
@@ -3187,7 +3451,7 @@ PYTHON = Course(
                                 "while True: to pętla, której warunek jest zawsze prawdziwy. Kończy ją dopiero break, "
                                 "np. gdy użytkownik wpisze poprawne hasło:"
                             ),
-                            code(
+                            code_block(
                                 "while True:",
                                 '    haslo = input("Hasło: ")',
                                 '    if haslo == "python":',
@@ -3204,75 +3468,94 @@ PYTHON = Course(
                     ),
                 ),
                 "A": (
-                    Text(
-                        "a-opis",
-                        doc(
-                            paragraph(
-                                "Posłuchaj rozmowy o instrukcjach break i continue. Najważniejsze do zapamiętania:"
-                            ),
-                            bullets(
-                                "break kończy całą pętlę, program działa dalej od linii po pętli,",
-                                "continue pomija resztę bieżącego obrotu, pętla działa dalej,",
-                                "% to reszta z dzielenia: n % 2 == 0 – liczba parzysta,",
-                                "while True: kończy się dopiero przez break.",
-                            ),
-                        ),
+                    audio_intro(
+                        "Trzy krótkie rozmowy o instrukcjach break i continue oraz pętli while True, a na końcu powtórka."
                     ),
                     Audio(
-                        "a-nagranie",
-                        "Rozmowa: break i continue",
-                        "p4_a_rozmowa.mp3",
+                        "a-1",
+                        "break – wyjdź z pętli",
+                        "p4_a1_break.mp3",
                         (
                             say(
                                 "Z",
-                                "Dziś poznasz dwie instrukcje, które zmieniają działanie pętli: brejk i kontinju.",
-                            ),
-                            say("M", "Brejk brzmi jak przerwa."),
-                            say(
-                                "Z",
-                                "Bo to jest przerwanie. Brejk natychmiast kończy całą pętlę, a program przechodzi do pierwszej linii po niej. Przykład: pętla przechodzi po liście: trzy, osiem, minus jeden, pięć. W ciele jest warunek: jeśli liczba jest mniejsza od zera, to brejk. W przeciwnym razie wypisz liczbę.",
+                                "Dziś poznasz dwie instrukcje: {break|brejk} i {continue|kontinju}. {break|Brejk} natychmiast kończy całą pętlę. "
+                                "Przykład: pętla przechodzi po liście {[3, 8, -1, 5]|trzy, osiem, minus jeden, pięć}. W ciele: {if n < 0: break|jeśli en jest mniejsze od zera, to brejk}, a potem {print(n)|print en}.",
                             ),
                             say(
                                 "M",
-                                "Wypisze trzy i osiem. Przy minus jeden pętla się kończy, więc piątka się nie pojawi.",
-                            ),
-                            say(
-                                "Z", "Doskonale. A jeśli po pętli, bez wcięcia, stoi print koniec?"
-                            ),
-                            say(
-                                "M", "Wykona się, bo brejk kończy tylko pętlę, a nie cały program."
+                                "Wypisze {3 i 8|trzy i osiem}. Przy {-1|minus jedynce} pętla się kończy, więc piątka się nie pojawi.",
                             ),
                             say(
                                 "Z",
-                                "Właśnie. Brejk przydaje się przy szukaniu. Szukasz pierwszej liczby od dwudziestu w górę, która dzieli się przez siedem. Gdy ją znajdziesz, czyli dwadzieścia jeden, przerywasz pętlę.",
-                            ),
-                            say("M", "A kontinju?"),
-                            say(
-                                "Z",
-                                "Kontinju przerywa tylko bieżący obrót. Pomija resztę ciała i od razu przechodzi do następnego elementu. Pętla działa dalej.",
-                            ),
-                            say("M", "Do czego to się przydaje?"),
-                            say(
-                                "Z",
-                                "Na przykład do pomijania liczb parzystych. Potrzebny jest operator procent, który daje resztę z dzielenia. Siedem procent dwa to jeden, a sześć procent dwa to zero. Jeśli reszta z dzielenia przez dwa wynosi zero, liczba jest parzysta.",
+                                'A jeśli po pętli, bez wcięcia, stoi {print("koniec")|print koniec}?',
                             ),
                             say(
                                 "M",
-                                "Czyli: for n in rejndż od jednego do siedmiu. Jeśli n procent dwa równa się zero, to kontinju. Potem print n.",
-                            ),
-                            say("Z", "Co wypisze ten program?"),
-                            say("M", "Jeden, trzy i pięć. Liczby parzyste zostaną pominięte."),
-                            say(
-                                "Z",
-                                "Świetnie. Jest jeszcze jeden ważny wzór: łajl tru. Warunek tru jest zawsze prawdziwy, więc taka pętla sama się nie skończy. Kończymy ją przez brejk, gdy spełni się warunek, na przykład gdy użytkownik wpisze poprawne hasło.",
-                            ),
-                            say("M", "Czyli bez brejk to byłaby pętla nieskończona."),
-                            say(
-                                "Z",
-                                "Tak. Zapamiętaj: brejk kończy całą pętlę, a kontinju pomija tylko bieżący obrót.",
+                                "Wykona się, bo {break|brejk} kończy tylko pętlę, a nie cały program.",
                             ),
                         ),
-                        "Rozmowa o tym, jak break i continue zmieniają działanie pętli, oraz o pętli while True.",
+                        "break kończy pętlę, ale linia po pętli wykonuje się normalnie.",
+                    ),
+                    Audio(
+                        "a-2",
+                        "continue – pomiń ten obrót",
+                        "p4_a2_continue.mp3",
+                        (
+                            say(
+                                "Z",
+                                "{continue|Kontinju} przerywa tylko bieżący obrót: pomija resztę ciała i przechodzi do następnego elementu. "
+                                "Przyda się operator {%|procent}, czyli reszta z dzielenia: {7 % 2|siedem procent dwa} to {1|jeden}, a {6 % 2|sześć procent dwa} to {0|zero}.",
+                            ),
+                            say(
+                                "M",
+                                "Czyli {for n in range(1, 7):|for en in rejndż od jednego do siedmiu}, a w ciele {if n % 2 == 0: continue|jeśli en procent dwa równa się zero, to kontinju}. Potem {print(n)|print en}.",
+                            ),
+                            say("Z", "Co wypisze ten program?"),
+                            say(
+                                "M",
+                                "{1, 3 i 5|Jeden, trzy i pięć}. Liczby parzyste zostaną pominięte.",
+                            ),
+                            say(
+                                "Z",
+                                "Dobrze. Pętla działała do końca, pominęła tylko resztę niektórych obrotów.",
+                            ),
+                        ),
+                        "continue i reszta z dzielenia: pomijanie liczb parzystych.",
+                    ),
+                    Audio(
+                        "a-3",
+                        "while True i break",
+                        "p4_a3_while_true.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Jest jeszcze ważny wzór: {while True:|łajl tru}. Warunek {True|tru} jest zawsze prawdziwy, więc ta pętla sama się nie skończy. "
+                                'Kończy ją {break|brejk}, na przykład gdy użytkownik wpisze poprawne hasło: {if haslo == "python": break|jeśli hasło równa się pyton, to brejk}.',
+                            ),
+                            say("M", "Czyli bez {break|brejk} to byłaby pętla nieskończona."),
+                            say(
+                                "Z",
+                                "Tak. {break|Brejk} przydaje się też przy szukaniu. Szukasz pierwszej liczby od {20|dwudziestu} w górę, która dzieli się przez siedem. "
+                                "Gdy znajdziesz {21|dwadzieścia jeden}, przerywasz pętlę.",
+                            ),
+                            say("M", "Czyli dalszych liczb pętla już nie sprawdza."),
+                        ),
+                        "Pętla while True zakończona przez break i szukanie liczby.",
+                    ),
+                    Audio(
+                        "a-powtorka",
+                        "Powtórka",
+                        "p4_a4_powtorka.mp3",
+                        (
+                            say(
+                                "Z",
+                                "Powtórka. {break|Brejk} kończy całą pętlę, a program działa dalej od pierwszej linii po niej. "
+                                "{continue|Kontinju} pomija tylko resztę bieżącego obrotu i pętla działa dalej. Operator {%|procent} daje resztę z dzielenia, "
+                                "więc {n % 2 == 0|en procent dwa równa się zero} oznacza liczbę parzystą. Pętlę {while True|łajl tru} kończy dopiero {break|brejk}.",
+                            ),
+                        ),
+                        "Najważniejsze z lekcji jeszcze raz – posłuchaj przed quizem.",
+                        recap=True,
                     ),
                 ),
                 "K": (
