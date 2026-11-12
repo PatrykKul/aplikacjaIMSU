@@ -25,7 +25,8 @@ FORMS: tuple[Form, ...] = ("V", "A", "K")
 # --- TipTap documents ----------------------------------------------------------------------------
 
 Node = dict[str, Any]
-Part = str | tuple[str, bool] | Node  # plain text, (text, bold) or a ready node (e.g. `mono`)
+# plain text (code in `backticks`), (text, bold) or a ready node (e.g. `mono`)
+Part = str | tuple[str, bool] | Node
 
 
 def _text(content: str, bold: bool = False) -> Node:
@@ -35,15 +36,19 @@ def _text(content: str, bold: bool = False) -> Node:
     return node
 
 
-def _part(part: Part) -> Node:
-    if isinstance(part, dict):
-        return part
-    return _text(*part) if isinstance(part, tuple) else _text(part)
-
-
 def mono(content: str) -> Node:
     """Code or a formula inside a sentence (TipTap mark `code`, fixed-width font)."""
     return {"type": "text", "text": content, "marks": [{"type": "code"}]}
+
+
+def _nodes(part: Part) -> list[Node]:
+    """Text nodes of one part; in plain strings `backticks` mark code, as in Markdown."""
+    if isinstance(part, dict):
+        return [part]
+    if isinstance(part, tuple):
+        return [_text(*part)]
+    pieces = part.split("`")
+    return [mono(piece) if odd % 2 else _text(piece) for odd, piece in enumerate(pieces) if piece]
 
 
 def heading(content: str, level: int = 2) -> Node:
@@ -51,8 +56,8 @@ def heading(content: str, level: int = 2) -> Node:
 
 
 def paragraph(*parts: Part) -> Node:
-    """Plain strings; ("text", True) is bold, `mono("x = 1")` is code inside the sentence."""
-    return {"type": "paragraph", "content": [_part(part) for part in parts]}
+    """Plain strings (code in `backticks`); ("text", True) is bold; `mono(...)` is code too."""
+    return {"type": "paragraph", "content": [node for part in parts for node in _nodes(part)]}
 
 
 def _items(items: tuple[str | list[Part], ...]) -> list[Node]:
@@ -389,13 +394,13 @@ MATH = Course(
                             heading("Wzór funkcji liniowej"),
                             paragraph(
                                 "Funkcja liniowa ma wzór ",
-                                ("y = ax + b", True),
+                                mono("y = ax + b"),
                                 ", gdzie a i b to dowolne liczby. Wstawiasz liczbę x (argument), wykonujesz działania "
                                 "i dostajesz wartość y. Dla każdego x wychodzi dokładnie jedno y.",
                             ),
                             paragraph(
                                 "Przykład: ",
-                                ("y = 2x + 1", True),
+                                mono("y = 2x + 1"),
                                 ". Tu a = 2 i b = 1. Dla x = 3: y = 2 · 3 + 1 = 7.",
                             ),
                             heading("Tabela wartości i wykres"),
@@ -678,7 +683,7 @@ MATH = Course(
                             heading("Jak obliczyć a z dwóch punktów?"),
                             paragraph(
                                 "Podziel zmianę y przez zmianę x: ",
-                                ("a = (y₂ − y₁) : (x₂ − x₁)", True),
+                                mono("a = (y₂ − y₁) : (x₂ − x₁)"),
                                 ". Dla punktów (0, 1) i (2, 7): a = (7 − 1) : (2 − 0) = 6 : 2 = 3.",
                             ),
                         ),
@@ -905,11 +910,11 @@ MATH = Course(
                             ),
                             heading("Jak je obliczyć?"),
                             paragraph("Zamiast y wpisz 0 i rozwiąż równanie. Dla y = 2x − 4:"),
-                            bullets("2x − 4 = 0", "2x = 4", "x = 2"),
+                            code_block("2x − 4 = 0", "2x = 4", "x = 2"),
                             paragraph(
                                 "Miejsce zerowe to x₀ = 2, a wykres przechodzi przez punkt (2, 0). Ogólnie, gdy a ≠ 0: "
                                 "z ax + b = 0 wychodzi ",
-                                ("x₀ = −b : a", True),
+                                mono("x₀ = −b : a"),
                                 ". Sprawdź: −(−4) : 2 = 2.",
                             ),
                             heading("Szczególne przypadki"),
@@ -1154,13 +1159,13 @@ MATH = Course(
                             paragraph(
                                 "Wiele sytuacji wygląda podobnie: jest wartość na starcie i stała zmiana na każdą jednostkę "
                                 "(kilometr, godzinę, minutę). Wtedy wzór to ",
-                                ("y = ax + b", True),
+                                mono("y = ax + b"),
                                 ": b – wartość na starcie, a – zmiana na jednostkę, x – liczba jednostek.",
                             ),
                             heading("Przykład 1: taksówka"),
                             paragraph(
                                 "Opłata początkowa 8 zł i 3 zł za każdy kilometr. Wzór: ",
-                                ("y = 3x + 8", True),
+                                mono("y = 3x + 8"),
                                 " (x – kilometry, y – koszt w zł).",
                             ),
                             bullets(
@@ -1170,7 +1175,7 @@ MATH = Course(
                             heading("Przykład 2: świeca"),
                             paragraph(
                                 "Świeca ma 20 cm i co godzinę ubywa jej 2 cm. Wzór: ",
-                                ("y = −2x + 20", True),
+                                mono("y = −2x + 20"),
                                 " (x – godziny, y – wysokość w cm). a jest ujemne, bo świeca się skraca. "
                                 "Wypali się, gdy y = 0: −2x + 20 = 0, więc x = 10 godzin. Wzór ma sens tylko dla x od 0 do 10.",
                             ),
@@ -2637,10 +2642,10 @@ PYTHON = Course(
     summary=doc(
         heading("Podsumowanie i wnioski"),
         bullets(
-            "for przechodzi po kolejnych elementach listy, napisu albo range(); zmienna pętli w każdym obrocie przyjmuje następny element.",
-            "range(start, stop, krok) daje liczby od start do stop − 1; range(n) – n liczb od 0.",
-            "while powtarza, dopóki warunek jest prawdziwy – w ciele zmieniaj zmienną z warunku, inaczej pętla nie skończy się sama.",
-            "break kończy pętlę natychmiast, continue pomija resztę bieżącego obrotu; instrukcje należące do pętli rozpoznajemy po wcięciu.",
+            "`for` przechodzi po kolejnych elementach listy, napisu albo `range()`; zmienna pętli w każdym obrocie przyjmuje następny element.",
+            "`range(start, stop, krok)` daje liczby od start do stop − 1; `range(n)` – n liczb od 0.",
+            "`while` powtarza, dopóki warunek jest prawdziwy – w ciele zmieniaj zmienną z warunku, inaczej pętla nie skończy się sama.",
+            "`break` kończy pętlę natychmiast, `continue` pomija resztę bieżącego obrotu; instrukcje należące do pętli rozpoznajemy po wcięciu.",
         ),
         paragraph(
             "Co dalej: połącz pętle z warunkami w małej grze – np. zgadywanie liczby z while True i break."
@@ -2658,10 +2663,10 @@ PYTHON = Course(
             ),
             conclusions=doc(
                 bullets(
-                    "for element in sekwencja: – powtarza wcięte instrukcje dla każdego elementu; zmienna pętli przyjmuje po kolei wszystkie wartości.",
+                    "`for element in sekwencja:` – powtarza wcięte instrukcje dla każdego elementu; zmienna pętli przyjmuje po kolei wszystkie wartości.",
                     "Ciało pętli to linie z wcięciem (4 spacje) pod linią zakończoną dwukropkiem. Linia bez wcięcia wykona się raz, po pętli.",
-                    'Pętla po napisie przechodzi po literach: for litera in "kot" wypisze k, o, t.',
-                    "Sumowanie: suma = 0 przed pętlą, w pętli suma = suma + liczba (dla [2, 4, 6] wyjdzie 12).",
+                    'Pętla po napisie przechodzi po literach: `for litera in "kot":` wypisze k, o, t.',
+                    "Sumowanie: `suma = 0` przed pętlą, w pętli `suma = suma + liczba` (dla `[2, 4, 6]` wyjdzie 12).",
                 )
             ),
             versions={
@@ -2672,7 +2677,7 @@ PYTHON = Course(
                             heading("Powtórz dla każdego elementu"),
                             paragraph(
                                 "Pętla for wykonuje te same instrukcje dla każdego elementu listy albo napisu. Zapis: ",
-                                ("for zmienna in sekwencja:", True),
+                                mono("for zmienna in sekwencja:"),
                                 " – na końcu linii dwukropek, a instrukcje do powtarzania piszemy niżej z wcięciem (4 spacje).",
                             ),
                             code_block(
@@ -2681,8 +2686,8 @@ PYTHON = Course(
                                 "    print(owoc)",
                             ),
                             paragraph(
-                                'W pierwszym obrocie owoc = "jabłko", w drugim "gruszka", w trzecim "śliwka" – program wypisze trzy linie. '
-                                'Pętla po napisie przechodzi po literach: for litera in "kot": print(litera) wypisze k, o i t, każdą w osobnej linii.'
+                                'W pierwszym obrocie `owoc = "jabłko"`, w drugim `"gruszka"`, w trzecim `"śliwka"` – program wypisze trzy linie. '
+                                'Pętla po napisie przechodzi po literach: `for litera in "kot": print(litera)` wypisze k, o i t, każdą w osobnej linii.'
                             ),
                             heading("Wcięcie decyduje"),
                             paragraph(
@@ -2691,7 +2696,7 @@ PYTHON = Course(
                             ),
                             heading("Suma liczb z listy"),
                             paragraph(
-                                "Przed pętlą ustaw suma = 0, a w pętli dodawaj kolejne liczby:"
+                                "Przed pętlą ustaw `suma = 0`, a w pętli dodawaj kolejne liczby:"
                             ),
                             code_block(
                                 "suma = 0",
@@ -2700,7 +2705,7 @@ PYTHON = Course(
                                 "print(suma)",
                             ),
                             paragraph(
-                                "Po kolejnych obrotach suma wynosi 2, 6, 12. Program wypisze 12."
+                                "Po kolejnych obrotach `suma` wynosi 2, 6, 12. Program wypisze 12."
                             ),
                         ),
                     ),
@@ -2811,14 +2816,14 @@ PYTHON = Course(
                                 "co według Ciebie wypisze, a na końcu uruchom i porównaj."
                             ),
                             ordered(
-                                'Wpisz listę: owoce = ["jabłko", "gruszka", "śliwka"].',
-                                "Pod spodem napisz linię pętli z dwukropkiem na końcu: for owoc in owoce:",
-                                "W następnej linii zrób wcięcie (4 spacje albo klawisz Tab) i wpisz print(owoc). Wcięte linie to ciało pętli – wykonują się dla każdego elementu.",
+                                'Wpisz listę: `owoce = ["jabłko", "gruszka", "śliwka"]`.',
+                                "Pod spodem napisz linię pętli z dwukropkiem na końcu: `for owoc in owoce:`",
+                                "W następnej linii zrób wcięcie (4 spacje albo klawisz Tab) i wpisz `print(owoc)`. Wcięte linie to ciało pętli – wykonują się dla każdego elementu.",
                                 "Zapisz przewidywanie i uruchom program. Każdy owoc pojawi się w osobnej linii: zmienna owoc przyjmuje po kolei wartość każdego elementu.",
-                                'Dopisz na końcu linię bez wcięcia: print("koniec"). Uruchom – słowo koniec pojawi się tylko raz, po pętli.',
-                                "Usuń dwukropek z linii for i uruchom program. Przeczytaj komunikat błędu (SyntaxError), a potem przywróć dwukropek.",
-                                'Napisz pętlę po napisie: for litera in "kot": i w ciele print(litera). Program wypisze k, o, t w osobnych liniach.',
-                                "Policz sumę: suma = 0, potem for liczba in [2, 4, 6]: i w ciele suma = suma + liczba. Po pętli (bez wcięcia) print(suma). Przed uruchomieniem zapisz w tabelce wartość sumy po każdym obrocie: 2, 6, 12.",
+                                'Dopisz na końcu linię bez wcięcia: `print("koniec")`. Uruchom – słowo koniec pojawi się tylko raz, po pętli.',
+                                "Usuń dwukropek z linii `for` i uruchom program. Przeczytaj komunikat błędu (`SyntaxError`), a potem przywróć dwukropek.",
+                                'Napisz pętlę po napisie: `for litera in "kot":` i w ciele `print(litera)`. Program wypisze k, o, t w osobnych liniach.',
+                                "Policz sumę: `suma = 0`, potem `for liczba in [2, 4, 6]:` i w ciele `suma = suma + liczba`. Po pętli (bez wcięcia) `print(suma)`. Przed uruchomieniem zapisz w tabelce wartość sumy po każdym obrocie: 2, 6, 12.",
                                 WORKSHEET_STEP,
                             ),
                         ),
@@ -2909,10 +2914,10 @@ PYTHON = Course(
             ),
             conclusions=doc(
                 bullets(
-                    "range(n) daje n liczb: 0, 1, …, n − 1 (range(4) → 0, 1, 2, 3), więc for i in range(n) powtarza n razy.",
-                    "range(start, stop) zaczyna od start i kończy przed stop: range(2, 6) → 2, 3, 4, 5. Liczby od 1 do 10: range(1, 11).",
-                    "Trzecia liczba to krok: range(0, 10, 3) → 0, 3, 6, 9; range(2, 21, 2) – parzyste od 2 do 20.",
-                    "Ujemny krok liczy w dół: range(5, 0, -1) → 5, 4, 3, 2, 1.",
+                    "`range(n)` daje n liczb: 0, 1, …, n − 1 (`range(4)` → 0, 1, 2, 3), więc `for i in range(n):` powtarza n razy.",
+                    "`range(start, stop)` zaczyna od start i kończy przed stop: `range(2, 6)` → 2, 3, 4, 5. Liczby od 1 do 10: `range(1, 11)`.",
+                    "Trzecia liczba to krok: `range(0, 10, 3)` → 0, 3, 6, 9; `range(2, 21, 2)` – parzyste od 2 do 20.",
+                    "Ujemny krok liczy w dół: `range(5, 0, -1)` → 5, 4, 3, 2, 1.",
                 )
             ),
             versions={
@@ -2922,25 +2927,25 @@ PYTHON = Course(
                         doc(
                             heading("range() – ciąg liczb dla pętli"),
                             paragraph(
-                                "Funkcja range() tworzy ciąg liczb całkowitych. Razem z for pozwala powtórzyć instrukcje określoną liczbę razy: ",
-                                ("for i in range(5):", True),
-                                " wykona ciało 5 razy, a i przyjmie wartości 0, 1, 2, 3, 4.",
+                                "Funkcja `range()` tworzy ciąg liczb całkowitych. Razem z for pozwala powtórzyć instrukcje określoną liczbę razy: ",
+                                mono("for i in range(5):"),
+                                " wykona ciało 5 razy, a `i` przyjmie wartości 0, 1, 2, 3, 4.",
                             ),
                             table(
                                 ("zapis", "liczby", "zasada"),
-                                ("range(4)", "0, 1, 2, 3", "od 0, 4 liczby, bez 4"),
-                                ("range(2, 6)", "2, 3, 4, 5", "od start do stop − 1"),
-                                ("range(1, 11)", "1, 2, …, 10", "liczby od 1 do 10"),
-                                ("range(0, 10, 3)", "0, 3, 6, 9", "krok 3"),
-                                ("range(2, 21, 2)", "2, 4, …, 20", "parzyste od 2 do 20"),
-                                ("range(5, 0, -1)", "5, 4, 3, 2, 1", "w dół (krok ujemny)"),
+                                ("`range(4)`", "0, 1, 2, 3", "od 0, 4 liczby, bez 4"),
+                                ("`range(2, 6)`", "2, 3, 4, 5", "od start do stop − 1"),
+                                ("`range(1, 11)`", "1, 2, …, 10", "liczby od 1 do 10"),
+                                ("`range(0, 10, 3)`", "0, 3, 6, 9", "krok 3"),
+                                ("`range(2, 21, 2)`", "2, 4, …, 20", "parzyste od 2 do 20"),
+                                ("`range(5, 0, -1)`", "5, 4, 3, 2, 1", "w dół (krok ujemny)"),
                             ),
                             paragraph(
                                 (
                                     "Najważniejsza zasada: liczba stop nigdy nie należy do ciągu.",
                                     True,
                                 ),
-                                " Dlatego liczby od 1 do 10 to range(1, 11).",
+                                " Dlatego liczby od 1 do 10 to `range(1, 11)`.",
                             ),
                             heading("Przykład: suma"),
                             code_block(
@@ -2950,8 +2955,8 @@ PYTHON = Course(
                                 "print(suma)",
                             ),
                             paragraph(
-                                "i przyjmuje 1, 2, 3, 4, więc suma = 1 + 2 + 3 + 4 = 10. "
-                                "Aby zobaczyć wszystkie liczby z range naraz, wpisz print(list(range(2, 6)))."
+                                "`i` przyjmuje 1, 2, 3, 4, więc `suma` = 1 + 2 + 3 + 4 = 10. "
+                                "Aby zobaczyć wszystkie liczby z `range` naraz, wpisz `print(list(range(2, 6)))`."
                             ),
                         ),
                     ),
@@ -3060,14 +3065,14 @@ PYTHON = Course(
                                 "Otwórz edytor Pythona. Najpierw zapisuj przewidywania na kartce, potem uruchamiaj kod."
                             ),
                             ordered(
-                                "Wpisz i uruchom: for i in range(5): z wciętym print(i). Policz linie wyniku: 5 liczb, od 0 do 4. Zapisz: range(n) daje n liczb od 0 do n − 1.",
-                                "Zmień na range(2, 6) i uruchom. Wyjdzie 2, 3, 4, 5 – zapisz: koniec (stop) nie jest wliczany.",
-                                "Spróbuj wypisać liczby od 1 do 10. Jeśli wyszło tylko do 9, popraw na range(1, 11).",
-                                "Dodaj krok: range(0, 10, 3). Zanim uruchomisz, zapisz przewidywanie (0, 3, 6, 9).",
-                                "Wypisz liczby parzyste od 2 do 20: range(2, 21, 2).",
-                                "Zrób odliczanie: range(5, 0, -1) – wyjdzie 5, 4, 3, 2, 1. Ujemny krok liczy w dół.",
-                                "Napisz program sumy: suma = 0, for i in range(1, 5): i w ciele suma = suma + i, a po pętli print(suma). Przed uruchomieniem policz na kartce: 1 + 2 + 3 + 4 = 10.",
-                                "Sprawdzaj ciągi poleceniem print(list(range(…))) – pokazuje wszystkie liczby naraz.",
+                                "Wpisz i uruchom: `for i in range(5):` z wciętym `print(i)`. Policz linie wyniku: 5 liczb, od 0 do 4. Zapisz: `range(n)` daje n liczb od 0 do n − 1.",
+                                "Zmień na `range(2, 6)` i uruchom. Wyjdzie 2, 3, 4, 5 – zapisz: koniec (stop) nie jest wliczany.",
+                                "Spróbuj wypisać liczby od 1 do 10. Jeśli wyszło tylko do 9, popraw na `range(1, 11)`.",
+                                "Dodaj krok: `range(0, 10, 3)`. Zanim uruchomisz, zapisz przewidywanie (0, 3, 6, 9).",
+                                "Wypisz liczby parzyste od 2 do 20: `range(2, 21, 2)`.",
+                                "Zrób odliczanie: `range(5, 0, -1)` – wyjdzie 5, 4, 3, 2, 1. Ujemny krok liczy w dół.",
+                                "Napisz program sumy: `suma = 0`, `for i in range(1, 5):` i w ciele `suma = suma + i`, a po pętli `print(suma)`. Przed uruchomieniem policz na kartce: 1 + 2 + 3 + 4 = 10.",
+                                "Sprawdzaj ciągi poleceniem `print(list(range(…)))` – pokazuje wszystkie liczby naraz.",
                                 WORKSHEET_STEP,
                             ),
                         ),
@@ -3150,10 +3155,10 @@ PYTHON = Course(
             ),
             conclusions=doc(
                 bullets(
-                    "while warunek: – przed każdym obrotem Python sprawdza warunek; gdy jest fałszywy, pętla się kończy (czasem już przed pierwszym obrotem).",
-                    "W ciele trzeba zmieniać zmienną z warunku (np. x = x + 1), inaczej powstanie pętla nieskończona.",
-                    "while wybieramy, gdy nie wiemy z góry, ile będzie powtórzeń: pytanie o hasło, podwajanie liczby, aż przekroczy 100.",
-                    "x = 1, potem while x < 4: z wciętymi print(x) i x = x + 1 – wypisze 1, 2, 3.",
+                    "`while warunek:` – przed każdym obrotem Python sprawdza warunek; gdy jest fałszywy, pętla się kończy (czasem już przed pierwszym obrotem).",
+                    "W ciele trzeba zmieniać zmienną z warunku (np. `x = x + 1`), inaczej powstanie pętla nieskończona.",
+                    "`while` wybieramy, gdy nie wiemy z góry, ile będzie powtórzeń: pytanie o hasło, podwajanie liczby, aż przekroczy 100.",
+                    "`x = 1`, potem `while x < 4:` z wciętymi `print(x)` i `x = x + 1` – wypisze 1, 2, 3.",
                 )
             ),
             versions={
@@ -3163,7 +3168,7 @@ PYTHON = Course(
                         doc(
                             heading("Powtarzaj, dopóki…"),
                             paragraph(
-                                "Pętla while powtarza swoje ciało, ",
+                                "Pętla `while` powtarza swoje ciało, ",
                                 ("dopóki warunek jest prawdziwy", True),
                                 ". Przed każdym obrotem Python sprawdza warunek: prawdziwy – wykonuje ciało; fałszywy – kończy pętlę i przechodzi dalej.",
                             ),
@@ -3174,17 +3179,17 @@ PYTHON = Course(
                                 "    licznik = licznik + 1",
                             ),
                             paragraph(
-                                "Program wypisze 1, 2, 3, 4, 5. Po piątym obrocie licznik = 6, warunek 6 <= 5 jest fałszywy i pętla się kończy."
+                                "Program wypisze 1, 2, 3, 4, 5. Po piątym obrocie `licznik = 6`, warunek `6 <= 5` jest fałszywy i pętla się kończy."
                             ),
                             heading("Uwaga na pętlę nieskończoną"),
                             paragraph(
                                 "Jeśli w ciele nie zmienisz zmiennej z warunku, warunek będzie zawsze prawdziwy i pętla nigdy się nie skończy "
-                                "(przerwiesz ją skrótem Ctrl+C). Gdy warunek jest fałszywy od początku (np. x = 10, a potem while x > 10:), "
+                                "(przerwiesz ją skrótem Ctrl+C). Gdy warunek jest fałszywy od początku (np. `x = 10`, a potem `while x > 10:`), "
                                 "ciało nie wykona się ani razu."
                             ),
                             heading("while czy for?"),
                             paragraph(
-                                "for – gdy znasz liczbę powtórzeń albo przechodzisz po liście. while – gdy nie wiesz, ile razy trzeba powtórzyć, "
+                                "`for` – gdy znasz liczbę powtórzeń albo przechodzisz po liście. `while` – gdy nie wiesz, ile razy trzeba powtórzyć, "
                                 "np. pytanie o hasło albo podwajanie liczby, aż przekroczy 100:"
                             ),
                             code_block(
@@ -3194,7 +3199,7 @@ PYTHON = Course(
                                 "print(n)",
                             ),
                             paragraph(
-                                "n przyjmuje kolejno 2, 4, 8, 16, 32, 64, 128 – program wypisze 128."
+                                "`n` przyjmuje kolejno 2, 4, 8, 16, 32, 64, 128 – program wypisze 128."
                             ),
                         ),
                     ),
@@ -3307,14 +3312,14 @@ PYTHON = Course(
                                 "Otwórz edytor Pythona. Przy każdym programie prowadź na kartce tabelkę: wartość zmiennej i czy warunek jest prawdziwy."
                             ),
                             ordered(
-                                "Wpisz: licznik = 1, a pod spodem while licznik <= 5: (z dwukropkiem na końcu).",
-                                "W ciele, z wcięciem, wpisz dwie linie: print(licznik) oraz licznik = licznik + 1.",
-                                "Zanim uruchomisz, zrób tabelkę: licznik | czy licznik <= 5? | co wypisze. Wypełniaj ją, aż warunek będzie fałszywy (licznik = 6).",
-                                "Uruchom i porównaj z tabelką: 1, 2, 3, 4, 5. While sprawdza warunek przed każdym obrotem i kończy się, gdy jest fałszywy.",
-                                "Usuń linię licznik = licznik + 1 i uruchom. Program wypisuje 1 bez końca – to pętla nieskończona. Zatrzymaj ją skrótem Ctrl+C i przywróć usuniętą linię.",
-                                "Zmień początek na licznik = 10 i uruchom – nic się nie wypisze, bo warunek jest fałszywy od początku i ciało nie wykona się ani razu.",
-                                "Napisz program z podwajaniem: n = 1, while n < 100: z wciętym n = n * 2, a po pętli print(n). Przewidź wynik na kartce (128) i sprawdź.",
-                                "Zapisz zasadę: for – gdy znasz liczbę powtórzeń, while – gdy jej nie znasz (np. pytanie o hasło).",
+                                "Wpisz: `licznik = 1`, a pod spodem `while licznik <= 5:` (z dwukropkiem na końcu).",
+                                "W ciele, z wcięciem, wpisz dwie linie: `print(licznik)` oraz `licznik = licznik + 1`.",
+                                "Zanim uruchomisz, zrób tabelkę z kolumnami: `licznik`, czy `licznik <= 5`, co wypisze. Wypełniaj ją, aż warunek będzie fałszywy (`licznik = 6`).",
+                                "Uruchom i porównaj z tabelką: 1, 2, 3, 4, 5. `while` sprawdza warunek przed każdym obrotem i kończy się, gdy jest fałszywy.",
+                                "Usuń linię `licznik = licznik + 1` i uruchom. Program wypisuje 1 bez końca – to pętla nieskończona. Zatrzymaj ją skrótem Ctrl+C i przywróć usuniętą linię.",
+                                "Zmień początek na `licznik = 10` i uruchom – nic się nie wypisze, bo warunek jest fałszywy od początku i ciało nie wykona się ani razu.",
+                                "Napisz program z podwajaniem: `n = 1`, `while n < 100:` z wciętym `n = n * 2`, a po pętli `print(n)`. Przewidź wynik na kartce (128) i sprawdź.",
+                                "Zapisz zasadę: `for` – gdy znasz liczbę powtórzeń, `while` – gdy jej nie znasz (np. pytanie o hasło).",
                                 WORKSHEET_STEP,
                             ),
                         ),
@@ -3405,10 +3410,10 @@ PYTHON = Course(
             ),
             conclusions=doc(
                 bullets(
-                    "break natychmiast kończy całą pętlę; program przechodzi do pierwszej instrukcji po pętli.",
-                    "continue przerywa tylko bieżący obrót i przechodzi do następnego (pętla działa dalej).",
-                    "Obie zwykle stoją w if, np. if n % 2 == 0: continue pomija liczby parzyste (% to reszta z dzielenia: 7 % 2 = 1).",
-                    "while True: z break w środku – pętla działa, aż spełni się warunek wyjścia (np. poprawne hasło).",
+                    "`break` natychmiast kończy całą pętlę; program przechodzi do pierwszej instrukcji po pętli.",
+                    "`continue` przerywa tylko bieżący obrót i przechodzi do następnego (pętla działa dalej).",
+                    "Obie zwykle stoją w `if`, np. `if n % 2 == 0: continue` pomija liczby parzyste (`%` to reszta z dzielenia: `7 % 2` = 1).",
+                    "`while True:` z `break` w środku – pętla działa, aż spełni się warunek wyjścia (np. poprawne hasło).",
                 )
             ),
             versions={
@@ -3419,7 +3424,7 @@ PYTHON = Course(
                             heading("break – wyjdź z pętli"),
                             paragraph(
                                 "Instrukcja ",
-                                ("break", True),
+                                mono("break"),
                                 " natychmiast kończy całą pętlę. Program przechodzi do pierwszej linii po pętli. "
                                 "Przydaje się przy szukaniu: gdy znajdziesz to, czego szukasz, dalsze obroty są niepotrzebne.",
                             ),
@@ -3435,9 +3440,9 @@ PYTHON = Course(
                             ),
                             heading("continue – pomiń ten obrót"),
                             paragraph(
-                                ("continue", True),
+                                mono("continue"),
                                 " przerywa tylko bieżący obrót: pomija resztę ciała i przechodzi do następnego elementu. "
-                                "Operator % daje resztę z dzielenia (7 % 2 = 1, 6 % 2 = 0), więc n % 2 == 0 oznacza liczbę parzystą.",
+                                "Operator `%` daje resztę z dzielenia (`7 % 2` = 1, `6 % 2` = 0), więc `n % 2 == 0` oznacza liczbę parzystą.",
                             ),
                             code_block(
                                 "for n in range(1, 7):",
@@ -3448,7 +3453,7 @@ PYTHON = Course(
                             paragraph("Wypisze 1, 3, 5 – liczby parzyste zostały pominięte."),
                             heading("while True i break"),
                             paragraph(
-                                "while True: to pętla, której warunek jest zawsze prawdziwy. Kończy ją dopiero break, "
+                                "`while True:` to pętla, której warunek jest zawsze prawdziwy. Kończy ją dopiero `break`, "
                                 "np. gdy użytkownik wpisze poprawne hasło:"
                             ),
                             code_block(
@@ -3566,13 +3571,13 @@ PYTHON = Course(
                                 "Otwórz edytor Pythona. Przepisuj programy, przewiduj wynik na kartce, potem uruchamiaj."
                             ),
                             ordered(
-                                'Wpisz pętlę for n in [3, 8, -1, 5]:, a w jej ciele: if n < 0: z jeszcze głębiej wciętym break, potem (na poziomie if) print(n). Na końcu, bez wcięcia, print("koniec").',
-                                "Przewidź wynik i uruchom: 3, 8, koniec. break kończy całą pętlę natychmiast, ale linia po pętli wykonuje się normalnie.",
-                                "Sprawdź operator reszty z dzielenia: w konsoli wpisz 7 % 2 (wynik 1) i 6 % 2 (wynik 0). n % 2 == 0 oznacza, że n jest parzyste.",
-                                "Napisz: for n in range(1, 7):, w ciele if n % 2 == 0: z wciętym continue, a potem print(n). Uruchom – wyjdzie 1, 3, 5. continue pominęło resztę obrotu dla liczb parzystych, ale pętla działała dalej.",
-                                "Zamień continue na break i uruchom ponownie. Wyjdzie tylko 1 – porównaj: break kończy pętlę, continue pomija jeden obrót.",
-                                "Napisz szukanie: for n in range(20, 40):, w ciele if n % 7 == 0:, a w nim print(n) i break. Wypisze 21 – pierwszą liczbę podzielną przez 7.",
-                                'Napisz pętlę z hasłem: while True:, w ciele haslo = input("Hasło: ") oraz if haslo == "python": z wciętym break. Po pętli print("Witaj!"). Bez break ta pętla nigdy by się nie skończyła.',
+                                'Wpisz pętlę `for n in [3, 8, -1, 5]:`, a w jej ciele: `if n < 0:` z jeszcze głębiej wciętym `break`, potem (na poziomie `if`) `print(n)`. Na końcu, bez wcięcia, `print("koniec")`.',
+                                "Przewidź wynik i uruchom: 3, 8, koniec. `break` kończy całą pętlę natychmiast, ale linia po pętli wykonuje się normalnie.",
+                                "Sprawdź operator reszty z dzielenia: w konsoli wpisz `7 % 2` (wynik 1) i `6 % 2` (wynik 0). `n % 2 == 0` oznacza, że n jest parzyste.",
+                                "Napisz: `for n in range(1, 7):`, w ciele `if n % 2 == 0:` z wciętym `continue`, a potem `print(n)`. Uruchom – wyjdzie 1, 3, 5. `continue` pominęło resztę obrotu dla liczb parzystych, ale pętla działała dalej.",
+                                "Zamień `continue` na `break` i uruchom ponownie. Wyjdzie tylko 1 – porównaj: `break` kończy pętlę, `continue` pomija jeden obrót.",
+                                "Napisz szukanie: `for n in range(20, 40):`, w ciele `if n % 7 == 0:`, a w nim `print(n)` i `break`. Wypisze 21 – pierwszą liczbę podzielną przez 7.",
+                                'Napisz pętlę z hasłem: `while True:`, w ciele `haslo = input("Hasło: ")` oraz `if haslo == "python":` z wciętym `break`. Po pętli `print("Witaj!")`. Bez `break` ta pętla nigdy by się nie skończyła.',
                                 WORKSHEET_STEP,
                             ),
                         ),
