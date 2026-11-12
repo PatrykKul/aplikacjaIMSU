@@ -23,6 +23,7 @@ import { PasswordInput } from "@/shared/ui/password-input";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { useLogin } from "../hooks";
+import { homePath } from "../roles";
 import type { LoginInput } from "../types";
 import { emailRules, loginPasswordRules } from "../validation";
 
@@ -36,7 +37,7 @@ export function LoginForm() {
   } = useForm<LoginInput>({ defaultValues: { email: "", password: "" } });
 
   const onSubmit = handleSubmit((data) =>
-    login.mutate(data, { onSuccess: () => router.replace("/dashboard") }),
+    login.mutate(data, { onSuccess: (user) => router.replace(homePath(user)) }),
   );
 
   return (

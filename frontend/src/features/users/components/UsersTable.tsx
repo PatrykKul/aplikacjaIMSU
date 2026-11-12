@@ -4,9 +4,11 @@ import { CloudOffIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { approvalLabels } from "@/features/auth/roles";
 import type { ManagedRole, User } from "@/features/auth/types";
 import { errorMessage } from "@/shared/api/error-messages";
 import { PageMessage } from "@/shared/layout/page-states";
+import { cn } from "@/shared/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +19,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
-import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 import {
@@ -29,7 +30,7 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 
-import { useUpdateUser, useUsers } from "../hooks";
+import { useDecideApproval, useUpdateUser, useUsers } from "../hooks";
 import { type FormTarget, UserFormDialog } from "./UserFormDialog";
 
 const texts: Record<ManagedRole, { add: string; empty: string }> = {
@@ -42,19 +43,74 @@ const texts: Record<ManagedRole, { add: string; empty: string }> = {
 
 const dateFormat = new Intl.DateTimeFormat("pl-PL", { dateStyle: "medium" });
 
-function StatusBadge({ isActive }: { isActive: boolean }) {
+type Filter = "all" | "pending";
+
+// States as plain text: the words carry the meaning, not a coloured badge
+function StatusText({ isActive }: { isActive: boolean }) {
   return (
-    <Badge variant={isActive ? "secondary" : "destructive"}>
-      {isActive ? "Aktywny" : "Zablokowany"}
-    </Badge>
+    <span className={cn(!isActive && "font-medium text-destructive")}>
+      {isActive ? "Aktywne" : "Zablokowane"}
+    </span>
+  );
+}
+
+function ApprovalText({ user }: { user: User }) {
+  return (
+    <span
+      className={cn(
+        user.approval_status === "approved"
+          ? "text-muted-foreground"
+          : "font-medium",
+      )}
+    >
+      {approvalLabels[user.approval_status]}
+    </span>
+  );
+}
+
+type FilterButtonsProps = {
+  filter: Filter;
+  total: number;
+  pending: number;
+  onChange: (filter: Filter) => void;
+};
+
+/** Two-state filter of the teacher list: buttons with aria-pressed. */
+function FilterButtons({
+  filter,
+  total,
+  pending,
+  onChange,
+}: FilterButtonsProps) {
+  const options: { value: Filter; label: string }[] = [
+    { value: "all", label: `Wszyscy (${total})` },
+    { value: "pending", label: `Czekające (${pending})` },
+  ];
+  return (
+    <div role="group" aria-label="Pokaż konta" className="flex gap-1">
+      {options.map((option) => (
+        <Button
+          key={option.value}
+          variant={filter === option.value ? "secondary" : "ghost"}
+          aria-pressed={filter === option.value}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </div>
   );
 }
 
 export function UsersTable({ role }: { role: ManagedRole }) {
   const { data: users, isPending, isError, refetch } = useUsers(role);
   const updateUser = useUpdateUser();
+  const decide = useDecideApproval();
   const [formTarget, setFormTarget] = useState<FormTarget | null>(null);
   const [blockTarget, setBlockTarget] = useState<User | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<User | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
+  const isTeachers = role === "teacher";
 
   if (isPending) {
     return (
@@ -74,6 +130,12 @@ export function UsersTable({ role }: { role: ManagedRole }) {
     );
   }
 
+  const pendingUsers = users.filter(
+    (user) => user.approval_status === "pending",
+  );
+  const showPending = isTeachers && filter === "pending";
+  const shown = showPending ? pendingUsers : users;
+
   function toggleActive(user: User) {
     updateUser.mutate(
       { id: user.id, data: { is_active: !user.is_active } },
@@ -91,21 +153,49 @@ export function UsersTable({ role }: { role: ManagedRole }) {
     );
   }
 
+  function decideApproval(user: User, approve: boolean) {
+    decide.mutate(
+      { id: user.id, approve },
+      {
+        onSuccess: (updated) => {
+          toast.success(
+            approve
+              ? `Zatwierdzono konto nauczyciela: ${updated.display_name}.`
+              : `Odrzucono konto nauczyciela: ${updated.display_name}.`,
+          );
+          setRejectTarget(null);
+        },
+        onError: (error) => toast.error(errorMessage(error)),
+      },
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Liczba kont: {users.length}
-        </p>
+        {isTeachers ? (
+          <FilterButtons
+            filter={filter}
+            total={users.length}
+            pending={pendingUsers.length}
+            onChange={setFilter}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Liczba kont: {users.length}
+          </p>
+        )}
         <Button onClick={() => setFormTarget({ role })}>
           <PlusIcon data-icon="inline-start" />
           {texts[role].add}
         </Button>
       </div>
 
-      {users.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="py-12 text-center text-muted-foreground">
-          {texts[role].empty}
+          {showPending
+            ? "Żadne konto nauczyciela nie czeka na zatwierdzenie."
+            : texts[role].empty}
         </p>
       ) : (
         <Table>
@@ -113,26 +203,53 @@ export function UsersTable({ role }: { role: ManagedRole }) {
             <TableRow>
               <TableHead>Imię</TableHead>
               <TableHead>E-mail</TableHead>
-              <TableHead>Status</TableHead>
+              {isTeachers && <TableHead>Konto</TableHead>}
+              <TableHead>Dostęp</TableHead>
               <TableHead>Założone</TableHead>
               <TableHead className="text-right">Akcje</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
+            {shown.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">
                   {user.display_name}
                 </TableCell>
                 <TableCell>{user.email}</TableCell>
+                {isTeachers && (
+                  <TableCell>
+                    <ApprovalText user={user} />
+                  </TableCell>
+                )}
                 <TableCell>
-                  <StatusBadge isActive={user.is_active} />
+                  <StatusText isActive={user.is_active} />
                 </TableCell>
                 <TableCell>
                   {dateFormat.format(new Date(user.created_at))}
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-2">
+                    {isTeachers && user.approval_status !== "approved" && (
+                      <Button
+                        size="sm"
+                        disabled={decide.isPending}
+                        onClick={() => decideApproval(user, true)}
+                        aria-label={`Zatwierdź konto: ${user.display_name}`}
+                      >
+                        Zatwierdź
+                      </Button>
+                    )}
+                    {isTeachers && user.approval_status === "pending" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={decide.isPending}
+                        onClick={() => setRejectTarget(user)}
+                        aria-label={`Odrzuć konto: ${user.display_name}`}
+                      >
+                        Odrzuć
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -162,6 +279,41 @@ export function UsersTable({ role }: { role: ManagedRole }) {
         target={formTarget}
         onClose={() => setFormTarget(null)}
       />
+
+      <AlertDialog
+        open={rejectTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejectTarget(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          {rejectTarget && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Odrzucić konto nauczyciela?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {rejectTarget.display_name} ({rejectTarget.email}) nie utworzy
+                  kursów, a po zalogowaniu zobaczy, że konto nie zostało
+                  zatwierdzone. Możesz je zatwierdzić później.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  disabled={decide.isPending}
+                  onClick={() => decideApproval(rejectTarget, false)}
+                >
+                  {decide.isPending && <Spinner data-icon="inline-start" />}
+                  Odrzuć konto
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={blockTarget !== null}

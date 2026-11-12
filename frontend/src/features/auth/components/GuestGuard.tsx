@@ -6,6 +6,7 @@ import { type ReactNode, useEffect } from "react";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { useCurrentUser } from "../hooks";
+import { homePath } from "../roles";
 
 export function GuestGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -13,7 +14,7 @@ export function GuestGuard({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user) {
-      router.replace("/dashboard");
+      router.replace(homePath(user));
     }
   }, [user, router]);
 

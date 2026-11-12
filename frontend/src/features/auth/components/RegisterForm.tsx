@@ -24,6 +24,7 @@ import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { useRegister } from "../hooks";
+import { homePath } from "../roles";
 import type { ManagedRole, RegisterInput } from "../types";
 import { displayNameRules, emailRules, newPasswordRules } from "../validation";
 
@@ -61,7 +62,7 @@ export function RegisterForm() {
 
   const onSubmit = handleSubmit((data) =>
     registerUser.mutate(data, {
-      onSuccess: () => router.replace("/dashboard"),
+      onSuccess: (user) => router.replace(homePath(user)),
     }),
   );
 
