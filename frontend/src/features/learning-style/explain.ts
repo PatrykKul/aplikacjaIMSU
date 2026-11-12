@@ -95,9 +95,12 @@ export function inForm(form: Form): string {
   return `w formie ${FORM_ADJ_LOC[form]}`;
 }
 
-/** "Wzrokowej (A)" for "Przerabiasz tę lekcję w formie: …" */
-export function inFormLabel(form: Form): string {
-  return `${capitalize(FORM_ADJ_LOC[form])} (${form})`;
+/**
+ * D57, the line above a lesson: "Wzrokowa (Twój styl)" or
+ * "Słuchowa (wybrana dla tej lekcji)".
+ */
+export function lessonFormText(form: Form, chosen: boolean): string {
+  return `${capitalize(FORM_ADJ[form])} (${chosen ? "wybrana dla tej lekcji" : "Twój styl"})`;
 }
 
 /** "wzrokowy (V)" */
