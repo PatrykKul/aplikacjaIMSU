@@ -1,0 +1,79 @@
+\section{Technologie}
+
+\subsection{Architektura}
+
+System jest aplikacją internetową złożoną z trzech części: klienta działającego w przeglądarce, serwera udostępniającego REST API oraz bazy danych. Serwer to \textbf{modularny monolit} -- jedna aplikacja podzielona na moduły domenowe, które korzystają ze siebie wyłącznie przez publiczne funkcje serwisów:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|p{10cm}|}
+\hline
+\textbf{Moduł} & \textbf{Odpowiedzialność} \\ \hline
+\texttt{identity} & konta, role, logowanie, sesja, administracja kont \\ \hline
+\texttt{curriculum} & kursy, lekcje, publikacja, klasy i widoczność kursów \\ \hline
+\texttt{content} & bloki lekcji (tekst, załączniki z formami V/A/K), pliki \\ \hline
+\texttt{learning\_style} & ankieta VAK, profil ucznia, personalizacja lekcji, adaptacja wag \\ \hline
+\texttt{assessment} & quiz lekcji, ocenianie odpowiedzi, edytor quizu \\ \hline
+\end{tabular}
+\caption{Moduły serwera}
+\end{table}
+
+Reguły personalizacji, adaptacji i oceniania są czystymi funkcjami, niezależnymi od frameworka i bazy danych. Wynik quizu trafia do modelu ucznia tylko przez jedną funkcję modułu \texttt{learning\_style}, a klient nie ma możliwości samodzielnego zgłoszenia wyniku.
+
+\subsection{Technologie oprogramowania}
+
+\textbf{Klient:}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Next.js 16} i \textbf{React 19} -- aplikacja internetowa z routingiem opartym na katalogach
+    \item \textbf{TypeScript} -- typowany JavaScript
+    \item \textbf{Tailwind CSS 4} i \textbf{shadcn/ui} (Base UI) -- style i komponenty interfejsu
+    \item \textbf{TanStack Query} -- pobieranie i buforowanie danych z serwera
+    \item \textbf{TipTap} -- edytor tekstu lekcji (formatowanie, tabele, wklejanie z Worda)
+    \item \textbf{KaTeX} -- wyświetlanie wzorów matematycznych
+    \item \textbf{React Hook Form}, \textbf{react-dropzone}, \textbf{Lucide} -- formularze, wgrywanie plików, ikony
+\end{itemize}
+
+\textbf{Serwer:}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Python 3.12} i \textbf{FastAPI} -- REST API
+    \item \textbf{SQLAlchemy 2} i \textbf{psycopg 3} -- dostęp do bazy danych
+    \item \textbf{Alembic} -- migracje schematu bazy
+    \item \textbf{Pydantic} -- walidacja danych wejściowych i wyjściowych
+    \item \textbf{PyJWT} i \textbf{bcrypt} -- sesja i haszowanie haseł
+\end{itemize}
+
+\textbf{Baza danych:}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{PostgreSQL 17} uruchamiany w kontenerze \textbf{Docker} (Docker Compose); kolumny \textbf{JSONB} dla treści lekcji i quizów
+    \item Pliki wgrane przez nauczycieli przechowywane na dysku serwera, poza repozytorium
+\end{itemize}
+
+\textbf{Narzędzia deweloperskie:}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Git} i \textbf{GitHub} -- kontrola wersji
+    \item \textbf{pytest} -- testy serwera; \textbf{Ruff} -- lint i formatowanie kodu Python
+    \item \textbf{ESLint} i \textbf{Prettier} -- lint i formatowanie kodu klienta
+    \item \textbf{npm} i \textbf{pip} -- menedżery pakietów
+\end{itemize}
+
+\subsection{Bezpieczeństwo}
+
+\begin{itemize}[leftmargin=*]
+    \item Sesja jako token JWT w ciasteczku \texttt{HttpOnly} (niedostępnym z JavaScriptu), \texttt{SameSite=Lax}
+    \item Rola i aktywność konta odczytywane z bazy przy każdym żądaniu -- blokada konta działa natychmiast
+    \item Hasła haszowane algorytmem bcrypt
+    \item Uprawnienia sprawdzane na serwerze; zasób niedostępny dla użytkownika zwraca 404, bez zdradzania jego istnienia
+    \item Wgrywane pliki: biała lista rozszerzeń (bez SVG i HTML), limit 50 MB, losowe nazwy na dysku
+    \item Ankieta i quiz wysyłane do klienta bez klucza odpowiedzi; punkty i wynik liczy serwer
+    \item CORS tylko dla adresu klienta, sekrety wyłącznie w plikach \texttt{.env} poza repozytorium
+\end{itemize}
+
+\subsection{Licencje}
+
+Wszystkie wykorzystane technologie są dostępne na licencjach otwartych, pozwalających na swobodne użycie:
+
+\begin{itemize}[leftmargin=*]
+    \item Next.js, React, Tailwind CSS, shadcn/ui, TanStack Query, TipTap, KaTeX -- MIT License
+    \item FastAPI, SQLAlchemy, Alembic, Pydantic, pytest -- MIT License
+    \item PostgreSQL -- PostgreSQL License (podobna do MIT)
+\end{itemize}

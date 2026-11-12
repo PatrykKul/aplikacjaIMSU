@@ -1,0 +1,221 @@
+\section{Instrukcja uruchomienia aplikacji lokalnie}
+
+Baza danych działa w kontenerze Docker, a serwer i klient są uruchamiane lokalnie. Polecenia podano dla systemu Windows (wiersz poleceń \texttt{cmd}); każde polecenie należy wykonać osobno.
+
+\subsection{Wymagania}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Docker Desktop} -- baza danych PostgreSQL (\url{https://www.docker.com/products/docker-desktop/})
+    \item \textbf{Python 3.12} lub nowszy -- serwer (\url{https://www.python.org/downloads/})
+    \item \textbf{Node.js 20} lub nowszy wraz z \textbf{npm} -- klient (\url{https://nodejs.org/})
+    \item \textbf{Git} -- pobranie repozytorium (\url{https://git-scm.com/downloads})
+\end{itemize}
+
+Sprawdzenie zainstalowanych narzędzi:
+
+\begin{lstlisting}
+docker --version
+python --version
+node --version
+git --version
+\end{lstlisting}
+
+\subsection{Krok 1: Pobranie repozytorium}
+
+\begin{lstlisting}
+git clone https://github.com/PatrykKul/aplikacjaIMSU.git
+cd aplikacjaIMSU
+\end{lstlisting}
+
+\subsection{Krok 2: Zmienne środowiskowe}
+
+Projekt korzysta z trzech plików ze zmiennymi środowiskowymi. Każdy powstaje przez skopiowanie dołączonego wzoru (pliki \texttt{.env} nie trafiają do repozytorium):
+
+\begin{lstlisting}
+copy .env.example .env
+copy backend\.env.example backend\.env
+copy frontend\.env.example frontend\.env.local
+\end{lstlisting}
+
+\textbf{Baza danych} (\texttt{.env} w katalogu głównym):
+\begin{lstlisting}
+POSTGRES_USER=imsu
+POSTGRES_PASSWORD=imsu
+POSTGRES_DB=imsu
+POSTGRES_PORT=5433
+\end{lstlisting}
+
+\textbf{Serwer} (\texttt{backend\textbackslash.env}):
+\begin{lstlisting}
+DATABASE_URL=postgresql+psycopg://imsu:imsu@localhost:5433/imsu
+TEST_DATABASE_URL=postgresql+psycopg://imsu:imsu@localhost:5433/imsu_test
+CORS_ORIGINS=["http://localhost:3001"]
+JWT_SECRET=change_me_to_a_random_string_of_at_least_32_chars
+UPLOAD_DIR=uploads
+\end{lstlisting}
+
+\textbf{Klient} (\texttt{frontend\textbackslash.env.local}):
+\begin{lstlisting}
+NEXT_PUBLIC_API_URL=http://localhost:8001
+\end{lstlisting}
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=orange!75!black,title=\faExclamationTriangle\ Klucz JWT]
+\texttt{JWT\_SECRET} musi mieć co najmniej 32 znaki -- bez niego serwer się nie uruchomi. Wartość ze wzoru wystarcza do uruchomienia lokalnego; własny losowy klucz można wygenerować poleceniem \texttt{python -c "import secrets; print(secrets.token\_hex(32))"}.
+\end{tcolorbox}
+
+\subsection{Krok 3: Baza danych}
+
+Uruchom Docker Desktop, a następnie w katalogu głównym repozytorium:
+
+\begin{lstlisting}
+docker compose up -d
+\end{lstlisting}
+
+Polecenie uruchamia PostgreSQL 17 na porcie \textbf{5433}. Przy pierwszym starcie kontener tworzy dwie bazy: \texttt{imsu} (aplikacja) i \texttt{imsu\_test} (testy).
+
+\subsection{Krok 4: Serwer}
+
+Instalacja zależności w środowisku wirtualnym (tylko przy pierwszym uruchomieniu):
+
+\begin{lstlisting}
+cd backend
+python -m venv venv
+venv\Scripts\python.exe -m pip install -r requirements.txt
+\end{lstlisting}
+
+Utworzenie tabel i wstawienie pytań ankiety (migracje), a następnie wczytanie danych demonstracyjnych:
+
+\begin{lstlisting}
+venv\Scripts\python.exe -m alembic upgrade head
+venv\Scripts\python.exe -m app.demo.seed
+\end{lstlisting}
+
+Uruchomienie serwera:
+
+\begin{lstlisting}
+venv\Scripts\python.exe -m uvicorn app.main:app --reload --reload-dir app --port 8001
+\end{lstlisting}
+
+Serwer działa pod adresem \url{http://localhost:8001}, a dokumentacja API (Swagger) pod \url{http://localhost:8001/docs}.
+
+\subsection{Krok 5: Klient}
+
+W drugim oknie wiersza poleceń, z katalogu głównego repozytorium:
+
+\begin{lstlisting}
+cd frontend
+npm install
+npm run dev
+\end{lstlisting}
+
+Aplikacja jest dostępna pod adresem \url{http://localhost:3001}. Wersję produkcyjną klienta uruchamia się poleceniami \texttt{npm run build} i \texttt{npm run start} (ten sam port).
+
+\subsection{Krok 6: Weryfikacja}
+
+\begin{enumerate}[leftmargin=*]
+    \item Adres \url{http://localhost:8001/health} zwraca odpowiedź:\\ \texttt{\{"status": "ok", "database": "ok"\}}
+    \item Pod adresem \url{http://localhost:3001} widać stronę startową z przyciskami ,,Zaloguj się'' i ,,Załóż konto''
+    \item Logowanie na konto demonstracyjne działa (hasło wszystkich kont: \texttt{Demo123!}):
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|l|p{6cm}|}
+\hline
+\textbf{Konto} & \textbf{Rola} & \textbf{Stan} \\ \hline
+\texttt{nauczyciel.demo@imsu.pl} & nauczyciel & 3 kursy z materiałami i quizami, klasa ,,Klasa 7a'' \\ \hline
+\texttt{uczen.nowy@imsu.pl} & uczeń & bez ankiety (pokaz wymuszenia ankiety) \\ \hline
+\texttt{uczen.demo@imsu.pl} & uczeń & historia quizów, propozycja zmiany stylu \\ \hline
+\texttt{admin.demo@imsu.pl} & administrator & zarządzanie kontami \\ \hline
+\end{tabular}
+\caption{Konta demonstracyjne}
+\end{table}
+
+Stan startowy obu kont uczniów przywraca polecenie (z katalogu \texttt{backend}):
+\begin{lstlisting}
+venv\Scripts\python.exe -m app.demo.seed --reset-students
+\end{lstlisting}
+
+Własne konto administratora tworzy się w konsoli (hasło jest podawane interaktywnie):
+\begin{lstlisting}
+venv\Scripts\python.exe -m app.modules.identity.cli create-admin --email admin@example.com --name "Administrator"
+\end{lstlisting}
+
+\subsection{Uruchomienie testów i kontrola kodu}
+
+Serwer (katalog \texttt{backend}, baza danych musi działać):
+\begin{lstlisting}
+venv\Scripts\python.exe -m pytest
+venv\Scripts\python.exe -m ruff check .
+venv\Scripts\python.exe -m ruff format --check .
+\end{lstlisting}
+
+Klient (katalog \texttt{frontend}):
+\begin{lstlisting}
+npm run lint
+npm run format:check
+npm run build
+\end{lstlisting}
+
+\subsection{Rozwiązywanie problemów}
+
+\subsubsection{\texttt{/health} zwraca \texttt{"database": "error"}}
+Baza danych nie działa. Uruchom Docker Desktop i ponownie wykonaj \texttt{docker compose up -d} w katalogu głównym repozytorium (konieczne także po restarcie komputera).
+
+\subsubsection{Serwer nie startuje: błąd \texttt{jwt\_secret}}
+W pliku \texttt{backend\textbackslash.env} brakuje zmiennej \texttt{JWT\_SECRET} lub ma ona mniej niż 32 znaki.
+
+\subsubsection{Port 3001, 8001 lub 5433 jest zajęty}
+Błąd \texttt{EADDRINUSE} przy \texttt{npm run dev} oznacza zwykle, że klient już działa w innym oknie. Port bazy można zmienić zmienną \texttt{POSTGRES\_PORT} (i odpowiednio adresy w \texttt{backend\textbackslash.env}).
+
+\subsubsection{Brak pytań ankiety lub kursów demonstracyjnych}
+Wykonaj migracje (\texttt{alembic upgrade head}), a potem seed (\texttt{app.demo.seed}). Seed można uruchamiać wielokrotnie -- dokłada tylko brakujące dane.
+
+\subsection{Struktura projektu}
+
+\begin{lstlisting}
+aplikacjaIMSU/
+  docker-compose.yml        # baza danych PostgreSQL
+  docker/                   # skrypt tworzacy baze testowa
+  backend/                  # serwer - FastAPI
+    requirements.txt        # zaleznosci Python
+    alembic/                # migracje bazy danych
+    app/
+      main.py               # punkt wejscia aplikacji
+      core/                 # konfiguracja, sesja bazy, bledy
+      modules/
+        identity/           # konta, role, logowanie
+        curriculum/         # kursy, lekcje, klasy
+        content/            # bloki lekcji, pliki
+        learning_style/     # ankieta, profil, personalizacja, adaptacja
+        assessment/         # quiz lekcji, ocenianie
+      demo/                 # dane demonstracyjne (seed, materialy)
+    tests/                  # testy pytest
+  frontend/                 # klient - Next.js
+    src/
+      app/                  # trasy (strony)
+      features/             # funkcje: auth, courses, teach, classes,
+                            #   content, learning-style, assessment...
+      shared/               # komponenty UI, klient API, uklad strony
+  docs/                     # dokumentacja projektu
+\end{lstlisting}
+
+\subsection{Przydatne polecenia}
+
+\begin{lstlisting}
+# Baza danych (katalog glowny)
+docker compose up -d                                   # start bazy
+docker compose down                                    # zatrzymanie bazy
+
+# Serwer (katalog backend)
+venv\Scripts\python.exe -m alembic upgrade head        # migracje
+venv\Scripts\python.exe -m app.demo.seed               # dane demo
+venv\Scripts\python.exe -m uvicorn app.main:app --port 8001   # start
+venv\Scripts\python.exe -m pytest                      # testy
+
+# Klient (katalog frontend)
+npm install                                            # zaleznosci
+npm run dev                                            # start (deweloperski)
+npm run build                                          # build produkcyjny
+npm run start                                          # start (produkcyjny)
+\end{lstlisting}

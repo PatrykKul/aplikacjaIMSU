@@ -1,0 +1,206 @@
+\section{Dokumentacja testów}
+
+\subsection{Cel i zakres testowania}
+
+Celem testów jest sprawdzenie reguł systemu (personalizacji, adaptacji, oceniania) oraz uprawnień i poprawności wszystkich endpointów serwera. Testy obejmują wszystkie moduły serwera: konta, kursy i klasy, treść lekcji i pliki, model ucznia oraz quizy, a także dane demonstracyjne.
+
+\subsection{Strategia testowania}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Poziom} & Jednostkowy & Integracyjny \\
+\midrule
+\textbf{Typ} & white-box & black-box HTTP \\
+\textbf{Narzędzie} & pytest & pytest + FastAPI TestClient \\
+\textbf{Zakres} & czyste funkcje reguł & endpointy REST z bazą danych \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\bigskip
+
+\textbf{Testy jednostkowe} sprawdzają czyste funkcje (punktacja ankiety, zwijanie materiałów, styl efektywny, aktualizacja wag, propozycja stylu, ocenianie quizu) -- bez bazy danych i bez frameworka.
+
+\textbf{Testy integracyjne} wysyłają żądania HTTP do aplikacji przez \texttt{TestClient} i korzystają z prawdziwej bazy PostgreSQL (osobna baza \texttt{imsu\_test}). Schemat bazy testowej jest budowany tymi samymi migracjami Alembic co baza aplikacji, a każdy test działa w transakcji wycofywanej po jego zakończeniu, więc testy są od siebie niezależne. Wspólne dane (uczeń, nauczyciel, administrator, kurs z lekcjami) dostarczają fixture'y pytest.
+
+Interfejs użytkownika sprawdzany jest ręcznie według scenariusza na kontach demonstracyjnych; kod klienta przechodzi lint (ESLint), kontrolę formatowania (Prettier) i build produkcyjny.
+
+\subsection{Środowisko testowe}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Narzędzie} & \textbf{Wersja / uwagi} \\
+\midrule
+Python & 3.12+ \\
+pytest & testy jednostkowe i integracyjne \\
+FastAPI TestClient (httpx) & żądania HTTP do aplikacji \\
+PostgreSQL & 17, baza \texttt{imsu\_test} w kontenerze Docker \\
+Alembic & budowa schematu bazy testowej \\
+Ruff & lint i formatowanie kodu serwera \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Przypadki testowe}
+
+Poniższa tabela zawiera reprezentatywne przypadki testowe. Kolumna \emph{Typ}: \textbf{J} -- jednostkowy, \textbf{I} -- integracyjny (HTTP).
+
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\begin{longtable}{p{1cm} p{3.2cm} p{1.6cm} p{0.6cm} p{4.3cm} p{4.3cm}}
+\toprule
+\textbf{ID} & \textbf{Nazwa} & \textbf{Moduł} & \textbf{Typ} & \textbf{Dane wejściowe / warunki} & \textbf{Oczekiwany wynik} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Nazwa} & \textbf{Moduł} & \textbf{Typ} & \textbf{Dane wejściowe / warunki} & \textbf{Oczekiwany wynik} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{6}{r}{\footnotesize Kontynuacja na następnej stronie\ldots} \\
+\endfoot
+\bottomrule
+\endlastfoot
+
+TC-01 & Rejestracja ucznia & identity & I &
+  \texttt{POST /auth/register}: rola \emph{student} &
+  201; ciasteczko sesji \texttt{HttpOnly} \faCheck \\
+\addlinespace
+TC-02 & Rejestracja jako administrator & identity & I &
+  \texttt{POST /auth/register}: rola \emph{admin} &
+  422; konto nie powstaje \faCheck \\
+\addlinespace
+TC-03 & Blokada konta działa od razu & identity & I &
+  administrator blokuje zalogowanego użytkownika &
+  kolejne żądanie \texttt{GET /auth/me}: 401 \faCheck \\
+\addlinespace
+\midrule
+TC-04 & Katalog kursów ucznia & curriculum & I &
+  \texttt{GET /courses}: kursy prywatne i opublikowane &
+  uczeń widzi tylko kursy opublikowane \faCheck \\
+\addlinespace
+TC-05 & Kurs prywatny przez klasę & curriculum & I &
+  kurs prywatny przypisany do klasy ucznia &
+  uczeń otwiera kurs, lekcję i quiz; po usunięciu z klasy -- 404 \faCheck \\
+\addlinespace
+TC-06 & Cudzy kurs & curriculum & I &
+  nauczyciel otwiera kurs innego nauczyciela &
+  404 (bez zdradzania istnienia kursu) \faCheck \\
+\addlinespace
+\midrule
+TC-07 & Plik niedozwolonego typu & content & I &
+  \texttt{POST /files}: plik \texttt{.svg} lub \texttt{.exe} &
+  400 \texttt{FILE\_TYPE\_NOT\_ALLOWED} \faCheck \\
+\addlinespace
+TC-08 & Plik innego nauczyciela w lekcji & content & I &
+  \texttt{PUT /lessons/\{id\}/blocks}: załącznik z cudzym plikiem &
+  400 \texttt{FILE\_NOT\_FOUND} \faCheck \\
+\addlinespace
+\midrule
+TC-09 & Ankieta bez klucza & learning\_style & I &
+  \texttt{GET /survey/questions} &
+  odpowiedzi bez informacji o formie V/A/K \faCheck \\
+\addlinespace
+TC-10 & Remis w ankiecie & learning\_style & I &
+  tyle samo punktów V i A &
+  styl mieszany \texttt{VA} \faCheck \\
+\addlinespace
+TC-11 & Zwinięte materiały & learning\_style & I &
+  uczeń o stylu V otwiera lekcję z materiałami A i K &
+  wszystkie bloki; materiały A i K na liście zwiniętych \faCheck \\
+\addlinespace
+TC-12 & Uczeń bez ankiety & learning\_style & I &
+  \texttt{GET /lessons/\{id\}/personalized-blocks} &
+  403 \texttt{SURVEY\_REQUIRED} \faCheck \\
+\addlinespace
+TC-13 & Pierwszy sukces i pierwsza porażka & learning\_style & J &
+  kolejne wyniki quizu w tej samej lekcji &
+  liczy się tylko pierwszy sukces i pierwsza porażka; powtórzenia nie zmieniają wag \faCheck \\
+\addlinespace
+TC-14 & Propozycja zmiany stylu & learning\_style & J &
+  wagi V 6 / A 9 / K 2, styl V &
+  propozycja: A \faCheck \\
+\addlinespace
+TC-15 & Styl ręczny wyłącza propozycje & learning\_style & J &
+  jak TC-14, źródło stylu: ręczne &
+  brak propozycji \faCheck \\
+\addlinespace
+\midrule
+TC-16 & Pytania według stylu & assessment & I &
+  uczeń o stylu V pobiera quiz &
+  pytania wspólne i V, bez klucza odpowiedzi \faCheck \\
+\addlinespace
+TC-17 & Rozwinięty materiał w quizie & assessment & I &
+  uczeń rozwija materiał innej formy i pobiera quiz ponownie &
+  w quizie pojawia się pytanie o ten materiał \faCheck \\
+\addlinespace
+TC-18 & Wielokrotne podejścia & assessment & I &
+  dwa zaliczone podejścia w tej samej lekcji &
+  wagi zmieniają się tylko po pierwszym \faCheck \\
+\addlinespace
+TC-19 & Pytanie spoza stylu & assessment & I &
+  odpowiedź na pytanie formy, której uczeń nie widzi &
+  400 \texttt{QUIZ\_ANSWER\_MISMATCH} \faCheck \\
+\addlinespace
+\midrule
+TC-20 & Idempotentny seed & demo & I &
+  dwukrotne uruchomienie seeda &
+  brak duplikatów kursów, lekcji i klasy \faCheck \\
+
+\end{longtable}
+\endgroup
+
+\subsection{Scenariusze testowe}
+
+\subsubsection{ST-01: Od ankiety do adaptacji}
+\textbf{Cel:} sprawdzenie pełnej ścieżki ucznia.
+\begin{enumerate}[leftmargin=*]
+    \item Uczeń bez ankiety próbuje otworzyć lekcję (TC-12) -- 403 \texttt{SURVEY\_REQUIRED}.
+    \item Uczeń wypełnia ankietę -- powstaje profil ze stylem i wagami (TC-09, TC-10).
+    \item Uczeń otwiera lekcję -- materiały innych stylów są zwinięte (TC-11).
+    \item Uczeń rozwija materiał i rozwiązuje quiz -- pytania odpowiadają stylowi efektywnemu (TC-16, TC-17).
+    \item Wynik quizu zmienia wagi; kolejne podejście już ich nie zmienia (TC-18).
+\end{enumerate}
+
+\subsubsection{ST-02: Propozycja zmiany stylu}
+\textbf{Cel:} sprawdzenie reakcji systemu na wyniki ucznia.
+\begin{enumerate}[leftmargin=*]
+    \item Wagi ucznia o stylu V spadają po niezaliczonych quizach do V 7 / A 8 / K 3.
+    \item Profil ucznia zawiera propozycję zmiany stylu na A z uzasadnieniem (TC-14).
+    \item Uczeń odrzuca propozycję -- nie pojawia się ona ponownie.
+    \item Uczeń wybiera styl ręcznie -- propozycje są wyłączone (TC-15).
+\end{enumerate}
+
+\subsubsection{ST-03: Dostęp do kursów przez klasy}
+\textbf{Cel:} sprawdzenie widoczności kursów prywatnych.
+\begin{enumerate}[leftmargin=*]
+    \item Nauczyciel tworzy klasę, dodaje ucznia i przypisuje kurs prywatny.
+    \item Uczeń nie widzi kursu w katalogu (TC-04), ale otwiera go przez klasę (TC-05).
+    \item Uczeń spoza klasy i inny nauczyciel otrzymują 404 (TC-06).
+    \item Po usunięciu ucznia z klasy kurs przestaje być dla niego dostępny.
+\end{enumerate}
+
+\subsection{Podsumowanie pokrycia testami}
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Moduł} & \textbf{Jednostkowe} & \textbf{Integracyjne} & \textbf{Łącznie} \\
+\midrule
+\texttt{identity}        & 6  & 42  & 48 \\
+\texttt{curriculum}      & -- & 64  & 64 \\
+\texttt{content}         & 2  & 23  & 25 \\
+\texttt{learning\_style} & 23 & 42  & 65 \\
+\texttt{assessment}      & 6  & 15  & 21 \\
+\texttt{demo}            & -- & 10  & 10 \\
+\texttt{core} (błędy, stan serwera) & -- & 5 & 5 \\
+\midrule
+\textbf{Razem}           & \textbf{37} & \textbf{201} & \textbf{238} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Tabela podaje liczbę funkcji testowych. Część testów jest sparametryzowana (ten sam test dla wielu danych wejściowych), dlatego pytest wykonuje łącznie \textbf{349} przypadków testowych.
