@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { useCreateCourse } from "@/features/courses/hooks";
 import { errorMessage } from "@/shared/api/error-messages";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
@@ -24,6 +23,7 @@ import { Input } from "@/shared/ui/input";
 import { Spinner } from "@/shared/ui/spinner";
 import { Textarea } from "@/shared/ui/textarea";
 
+import { useCreateCourse } from "../hooks";
 import { courseDescriptionRules, courseTitleRules } from "./course-form-rules";
 
 type FormValues = { title: string; description: string };

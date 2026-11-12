@@ -5,9 +5,6 @@ import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { useUpdateCourse } from "@/features/courses/hooks";
-import type { Course, CourseUpdateInput } from "@/features/courses/types";
-import { errorMessage } from "@/shared/api/error-messages";
 import { RichTextEditor } from "@/shared/rich-text/RichTextEditor";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
@@ -17,14 +14,22 @@ import { Input } from "@/shared/ui/input";
 import { Spinner } from "@/shared/ui/spinner";
 import { Textarea } from "@/shared/ui/textarea";
 
+import { teachError } from "../errors";
+import { useUpdateCourse } from "../hooks";
+import type { CourseUpdateInput, TeacherCourse } from "../types";
 import { courseDescriptionRules, courseTitleRules } from "./course-form-rules";
 
-type FormValues = Pick<Course, "title" | "description" | "introduction">;
+type FormValues = Pick<
+  TeacherCourse,
+  "title" | "description" | "introduction" | "summary"
+>;
 
 type CourseSettingsFormProps = {
-  course: Course;
+  course: TeacherCourse;
   onDirtyChange: (dirty: boolean) => void;
 };
+
+const MATH_HINT = "Wzór wpiszesz między znakami $, np. $\\frac{1}{2}$.";
 
 export function CourseSettingsForm({
   course,
@@ -42,6 +47,7 @@ export function CourseSettingsForm({
       title: course.title,
       description: course.description,
       introduction: course.introduction,
+      summary: course.summary,
     },
   });
 
@@ -54,18 +60,22 @@ export function CourseSettingsForm({
       title: values.title,
       description: values.description,
     };
+    // Documents only when edited: the editor reports its own normalised JSON
     if (dirtyFields.introduction && values.introduction) {
       data.introduction = values.introduction;
     }
+    if (dirtyFields.summary && values.summary) {
+      data.summary = values.summary;
+    }
     updateCourse.mutate(data, {
       onSuccess: (saved) => {
-        // The editor keeps its own content; only the saved state changes
+        // The editors keep their own content; only the saved state changes
         reset({
           ...values,
           title: saved.title,
           description: saved.description,
         });
-        toast.success("Zapisano zmiany.");
+        toast.success("Zapisano zmiany kursu.");
       },
     });
   });
@@ -78,7 +88,7 @@ export function CourseSettingsForm({
             <AlertCircleIcon />
             <AlertTitle>Nie udało się zapisać</AlertTitle>
             <AlertDescription>
-              {errorMessage(updateCourse.error)}
+              {teachError(updateCourse.error)}
             </AlertDescription>
           </Alert>
         )}
@@ -93,7 +103,7 @@ export function CourseSettingsForm({
         </FormField>
         <FormField
           label="Opis"
-          description="Krótki tekst na karcie kursu."
+          description="Krótki tekst na karcie kursu w katalogu."
           error={errors.description?.message}
         >
           {(field) => (
@@ -106,7 +116,7 @@ export function CourseSettingsForm({
         </FormField>
         <FormField
           label="Wstęp"
-          description="Pierwsza strona kursu: czego uczeń się nauczy i jak pracować z lekcjami. Wzór wpiszesz między znakami $, np. $\frac{1}{2}$."
+          description={`Pierwsza strona kursu: czego uczeń się nauczy i jak pracować z lekcjami. ${MATH_HINT}`}
         >
           {(field) => (
             <Controller
@@ -117,6 +127,25 @@ export function CourseSettingsForm({
                   {...field}
                   label="Wstęp"
                   initialContent={course.introduction}
+                  onChange={onChange}
+                />
+              )}
+            />
+          )}
+        </FormField>
+        <FormField
+          label="Podsumowanie i wnioski"
+          description="Uczeń zobaczy je na stronie kursu pod listą lekcji: najważniejsze rzeczy z całego kursu."
+        >
+          {(field) => (
+            <Controller
+              control={control}
+              name="summary"
+              render={({ field: { onChange } }) => (
+                <RichTextEditor
+                  {...field}
+                  label="Podsumowanie i wnioski"
+                  initialContent={course.summary}
                   onChange={onChange}
                 />
               )}
