@@ -10,9 +10,11 @@ function source(attachment: Attachment): string {
     case "video":
       return attachment.youtube_url ?? attachment.file_name ?? "Plik wideo";
     case "audio":
-      return attachment.transcript
-        ? `Lektor: ${attachment.transcript}`
-        : (attachment.file_name ?? "Plik dźwiękowy");
+      if (attachment.file_id || attachment.file_name) {
+        const name = attachment.file_name ?? "Plik dźwiękowy";
+        return attachment.transcript ? `${name} · z transkrypcją` : name;
+      }
+      return `Lektor: ${attachment.transcript ?? ""}`;
     default:
       return attachment.file_name ?? "Plik";
   }

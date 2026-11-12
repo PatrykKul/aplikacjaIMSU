@@ -13,6 +13,15 @@ export function useUsers(role: ManagedRole) {
   });
 }
 
+/** Candidates for a course owner; refreshed with the teacher list. */
+export function useApprovedTeachers(enabled = true) {
+  return useQuery({
+    queryKey: [...usersKey("teacher"), "approved"],
+    queryFn: usersApi.approvedTeachers,
+    enabled,
+  });
+}
+
 function useRefreshUsers() {
   const queryClient = useQueryClient();
   // The list is sorted by e-mail on the server, so refetch instead of patching the cache

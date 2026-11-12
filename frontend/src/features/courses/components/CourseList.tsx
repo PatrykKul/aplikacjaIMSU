@@ -2,7 +2,7 @@
 
 import { ArrowRightIcon, BookOpenIcon, CloudOffIcon } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { useCurrentUser } from "@/features/auth/hooks";
 import { lessonsText } from "@/features/learning-style/explain";
@@ -14,6 +14,7 @@ import { Spinner } from "@/shared/ui/spinner";
 
 import { useCourses } from "../hooks";
 import type { CourseSummary } from "../types";
+import { ChangeOwnerDialog } from "./ChangeOwnerDialog";
 import { CourseProgressBar } from "./CourseProgressBar";
 import { EnrollmentAction } from "./EnrollmentAction";
 
@@ -87,10 +88,14 @@ function MyCourses({ courses }: { courses: CourseSummary[] }) {
                   }
                   className={cn(
                     buttonVariants({ variant: done ? "outline" : "default" }),
-                    "justify-self-start",
+                    "h-auto min-h-control max-w-full justify-self-start py-2 text-left whitespace-normal sm:max-w-xs",
                   )}
                 >
-                  {done ? "Zobacz kurs" : "Kontynuuj"}
+                  {done
+                    ? "Zobacz kurs"
+                    : next
+                      ? `Kontynuuj: Lekcja ${next.number} – ${next.title}`
+                      : "Kontynuuj"}
                   {!done && <ArrowRightIcon data-icon="inline-end" />}
                 </Link>
               </Row>
@@ -144,20 +149,42 @@ function statusText(course: CourseSummary): string {
   return course.is_published ? "Opublikowany" : "Prywatny";
 }
 
-/** Every course for the admin, read only. */
+/** Every course for the admin; the only change is the owner (D56). */
 function AllCourses({ courses }: { courses: CourseSummary[] }) {
+  const [target, setTarget] = useState<CourseSummary | null>(null);
   return (
-    <ul role="list" className="divide-y border-y">
-      {courses.map((course) => (
-        <Row key={course.id}>
-          <div className="min-w-0 space-y-1.5">
-            <CourseTitle course={course} />
-            <CourseMeta course={course} />
-          </div>
-          <p className="text-sm text-muted-foreground">{statusText(course)}</p>
-        </Row>
-      ))}
-    </ul>
+    <>
+      <ul role="list" className="divide-y border-y">
+        {courses.map((course) => (
+          <Row key={course.id}>
+            <div className="min-w-0 space-y-1.5">
+              <CourseTitle course={course} />
+              <CourseMeta course={course} />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <p className="text-sm text-muted-foreground">
+                {statusText(course)}
+              </p>
+              {!course.is_archived && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTarget(course)}
+                  aria-label={`Zmień właściciela: ${course.title}`}
+                >
+                  Zmień właściciela
+                </Button>
+              )}
+            </div>
+          </Row>
+        ))}
+      </ul>
+      <ChangeOwnerDialog
+        key={target?.id ?? "closed"}
+        course={target}
+        onClose={() => setTarget(null)}
+      />
+    </>
   );
 }
 

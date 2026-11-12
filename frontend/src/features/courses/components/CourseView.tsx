@@ -1,24 +1,27 @@
 "use client";
 
 import {
+  ArrowRightIcon,
   CheckIcon,
   CloudOffIcon,
   LightbulbIcon,
   LockIcon,
+  RotateCcwIcon,
   SearchXIcon,
 } from "lucide-react";
 import Link from "next/link";
 
 import { useCurrentUser } from "@/features/auth/hooks";
 import { hintText, lockedLessonText } from "@/features/learning-style/explain";
-import { useCourseHint } from "@/features/learning-style/hooks";
+import { useCourseHint, useStudyStates } from "@/features/learning-style/hooks";
+import type { StudyState } from "@/features/learning-style/types";
 import { useMyProgress } from "@/features/progress/hooks";
 import { ApiError } from "@/shared/api/client";
 import { PageMessage } from "@/shared/layout/page-states";
 import { cn } from "@/shared/lib/utils";
 import { isEmptyDocument } from "@/shared/rich-text/is-empty";
 import { RichTextView } from "@/shared/rich-text/RichTextView";
-import { Button } from "@/shared/ui/button";
+import { Button, buttonVariants } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { useCourse } from "../hooks";
@@ -50,48 +53,81 @@ function LessonNumber({ lesson }: { lesson: CourseLesson }) {
   );
 }
 
-function LessonStatus({
+/** Author: draft or published. */
+function AuthorStatus({ lesson }: { lesson: CourseLesson }) {
+  return (
+    <span className="text-sm text-muted-foreground">
+      {lesson.is_published ? "Opublikowana" : "Szkic – uczniowie jej nie widzą"}
+    </span>
+  );
+}
+
+/**
+ * D57: how an accepted student enters a lesson. Without `study-states` yet
+ * (loading, error) the lesson state alone decides.
+ */
+function LessonAction({
+  courseId,
   lesson,
-  viewer,
+  study,
   score,
 }: {
+  courseId: number;
   lesson: CourseLesson;
-  viewer: Viewer;
+  study: StudyState | undefined;
   score: number | undefined;
 }) {
-  if (viewer === "author") {
+  if (lesson.state === "locked") {
     return (
-      <span className="text-sm text-muted-foreground">
-        {lesson.is_published
-          ? "Opublikowana"
-          : "Szkic – uczniowie jej nie widzą"}
+      <span className="flex items-center gap-1.5 text-sm text-muted-foreground sm:justify-end">
+        <LockIcon aria-hidden="true" className="size-4 shrink-0" />
+        {lesson.required_lesson_number
+          ? lockedLessonText(lesson.required_lesson_number)
+          : "Zablokowana"}
       </span>
     );
   }
-  if (viewer !== "enrolled") {
-    return null;
-  }
-  switch (lesson.state) {
-    case "passed":
-      return (
-        <span className="text-sm font-medium">
-          Zaliczona{score !== undefined && ` z wynikiem ${score}%`}
+  const href = `/courses/${courseId}/lessons/${lesson.id}`;
+  const name = `lekcję ${lesson.number}: ${lesson.title}`;
+  if (lesson.state === "passed" || study?.passed) {
+    const best = study?.best_percent ?? score;
+    return (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end">
+        <span className="text-sm text-muted-foreground">
+          Zaliczona
+          {best !== null && best !== undefined && ` · najlepszy wynik ${best}%`}
         </span>
-      );
-    case "available":
-      return <span className="text-sm text-muted-foreground">Dostępna</span>;
-    case "locked":
-      return (
-        <span className="flex items-center gap-1.5 text-sm text-muted-foreground sm:justify-end">
-          <LockIcon aria-hidden="true" className="size-4 shrink-0" />
-          {lesson.required_lesson_number
-            ? lockedLessonText(lesson.required_lesson_number)
-            : "Zablokowana"}
-        </span>
-      );
-    default:
-      return null;
+        <Link
+          href={href}
+          aria-label={`Powtórz ${name}`}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+        >
+          <RotateCcwIcon data-icon="inline-start" />
+          Powtórz
+        </Link>
+      </div>
+    );
   }
+  const started = study?.started ?? false;
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end">
+      {started &&
+        study?.last_percent !== null &&
+        study?.last_percent !== undefined && (
+          <span className="text-sm text-muted-foreground">
+            Ostatni wynik {study.last_percent}%
+          </span>
+        )}
+      <Link
+        href={href}
+        aria-label={`${started ? "Kontynuuj" : "Rozpocznij"} ${name}`}
+        className={cn(buttonVariants({ size: "sm" }))}
+      >
+        {started ? "Kontynuuj" : "Rozpocznij"}
+        <ArrowRightIcon data-icon="inline-end" />
+      </Link>
+    </div>
+  );
 }
 
 /** "Streszczenie kursu": numbered lessons with outlines and their state. */
@@ -99,10 +135,12 @@ function CourseOutline({
   course,
   viewer,
   scores,
+  states,
 }: {
   course: Course;
   viewer: Viewer;
   scores: Map<number, number>;
+  states: Map<number, StudyState>;
 }) {
   if (course.lessons.length === 0) {
     return (
@@ -150,13 +188,20 @@ function CourseOutline({
                 />
               )}
             </div>
-            <div className="col-start-2 sm:col-start-3 sm:pt-1.5 sm:text-right">
-              <LessonStatus
-                lesson={lesson}
-                viewer={viewer}
-                score={scores.get(lesson.id)}
-              />
-            </div>
+            {(viewer === "author" || viewer === "enrolled") && (
+              <div className="col-start-2 sm:col-start-3 sm:pt-0.5 sm:text-right">
+                {viewer === "author" ? (
+                  <AuthorStatus lesson={lesson} />
+                ) : (
+                  <LessonAction
+                    courseId={course.id}
+                    lesson={lesson}
+                    study={states.get(lesson.id)}
+                    score={scores.get(lesson.id)}
+                  />
+                )}
+              </div>
+            )}
           </li>
         );
       })}
@@ -170,6 +215,7 @@ export function CourseView({ courseId }: { courseId: number }) {
   const isStudent = user?.role === "student";
   const enrolled = isStudent && course?.enrollment_status === "accepted";
   const progress = useMyProgress(enrolled);
+  const studyStates = useStudyStates(courseId, enrolled);
   const attempted = (progress.data?.lessons ?? []).some(
     (lesson) => lesson.course_id === courseId && lesson.attempts.length > 0,
   );
@@ -231,6 +277,10 @@ export function CourseView({ courseId }: { courseId: number }) {
       );
     }
   }
+
+  const states = new Map(
+    (studyStates.data ?? []).map((state) => [state.lesson_id, state]),
+  );
 
   return (
     <div className="space-y-10">
@@ -322,7 +372,12 @@ export function CourseView({ courseId }: { courseId: number }) {
             </p>
           )}
         </div>
-        <CourseOutline course={course} viewer={viewer} scores={scores} />
+        <CourseOutline
+          course={course}
+          viewer={viewer}
+          scores={scores}
+          states={states}
+        />
       </section>
 
       {!isEmptyDocument(course.summary) && course.summary && (

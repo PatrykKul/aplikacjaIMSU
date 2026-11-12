@@ -3,6 +3,7 @@ import type {
   LearningProfile,
   LessonRef,
   Percentages,
+  Praise,
   ProposalEvidence,
   ProposalKind,
   RetrySuggestion,
@@ -16,6 +17,12 @@ export type HistoryPoint = {
   at: string;
   percentages: Percentages;
   style: Form | null;
+  /**
+   * The journal event that added the point: survey_completed, tie_resolved,
+   * quiz_attempt (counted), manual_style_change, proposal_accepted,
+   * style_change_reverted; null for older points.
+   */
+  event: JournalEntry | null;
 };
 
 export type CourseProgress = {
@@ -123,6 +130,20 @@ export type JournalEvent =
       };
     }
   | {
+      /**
+       * R7a (D60): back to `to` (the starting style of the trial) before any
+       * lesson in `from`; the trial `trial_id` is cancelled.
+       */
+      type: "style_change_reverted";
+      data: {
+        from: Form;
+        to: Form;
+        trial_id: number;
+        source: "manual" | "proposal";
+        cleared_lessons: ClearedLesson[];
+      };
+    }
+  | {
       type: "trial_started";
       data: {
         trial_id: number;
@@ -130,8 +151,11 @@ export type JournalEvent =
         to: Form;
         source: "proposal" | "manual";
         before_average: number | null;
+        /** D60: a third style replaced a trial without lessons; the baseline stays. */
+        replaced_trial_id?: number | null;
       };
     }
+  | { type: "praise"; data: Praise }
   | {
       type: "trial_finished";
       data: {
@@ -150,7 +174,8 @@ export type JournalEntry = JournalEvent & {
   id: number;
   at: string;
   course: { id: number; title: string } | null;
-  lesson: { id: number; title: string } | null;
+  /** `number` only if the server sends it; the chart falls back to a lookup. */
+  lesson: { id: number; title: string; number?: number | null } | null;
 };
 
 /** `GET /courses/{id}/students/{student_id}` - the teacher's view of one student. */

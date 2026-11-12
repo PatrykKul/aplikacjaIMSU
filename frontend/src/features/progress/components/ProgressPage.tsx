@@ -10,6 +10,7 @@ import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 
 import { useMyJournal, useMyProgress } from "../hooks";
+import { lessonNumbers } from "../chart-data";
 import type { CourseProgress } from "../types";
 import { DecisionJournal } from "./DecisionJournal";
 import { LessonResultsTable } from "./LessonResultsTable";
@@ -135,9 +136,12 @@ export function ProgressPage() {
       <Section
         id="chart"
         title="Procenty form w czasie"
-        description="Start z ankiety, potem zmiana po każdym policzonym quizie."
+        description="Start z ankiety, potem zmiana po każdym policzonym quizie. Zmiana stylu nie zmienia procentów – na wykresie to pionowa linia."
       >
-        <PercentChart history={data.history} />
+        <PercentChart
+          history={data.history}
+          lessonNumbers={lessonNumbers(data.lessons)}
+        />
       </Section>
 
       <Section id="courses" title="Kursy">

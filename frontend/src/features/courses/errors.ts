@@ -20,6 +20,8 @@ const messages: Record<string, string> = {
   ENROLLMENT_REQUIRED:
     "Ta lekcja jest dostępna po zapisaniu się na kurs i przyjęciu przez nauczyciela.",
   ALREADY_ENROLLED: "Jesteś już zapisany na ten kurs.",
+  TEACHER_NOT_APPROVED:
+    "Ten nauczyciel nie ma zatwierdzonego konta. Wybierz zatwierdzonego nauczyciela.",
   COURSE_HAS_NO_PUBLISHED_LESSONS:
     "Kurs nie ma jeszcze opublikowanej lekcji, więc nie można go opublikować.",
 };

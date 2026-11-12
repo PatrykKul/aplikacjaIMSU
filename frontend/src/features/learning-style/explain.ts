@@ -4,6 +4,7 @@
  * Used by the student's screens and by the teacher's view of a student.
  */
 import { FORMS, type Form } from "@/features/content/types";
+import type { HistoryEvent } from "@/features/progress/chart-data";
 import type {
   ClearedLesson,
   JournalEntry,
@@ -14,6 +15,7 @@ import { plural } from "@/shared/lib/plural";
 import type {
   CourseHint,
   FormStats,
+  LearningProfile,
   LessonRef,
   Praise,
   Proposal,
@@ -95,9 +97,12 @@ export function inForm(form: Form): string {
   return `w formie ${FORM_ADJ_LOC[form]}`;
 }
 
-/** "Wzrokowej (A)" for "Przerabiasz tę lekcję w formie: …" */
-export function inFormLabel(form: Form): string {
-  return `${capitalize(FORM_ADJ_LOC[form])} (${form})`;
+/**
+ * D57, the line above a lesson: "Wzrokowa (Twój styl)" or
+ * "Słuchowa (wybrana dla tej lekcji)".
+ */
+export function lessonFormText(form: Form, chosen: boolean): string {
+  return `${capitalize(FORM_ADJ[form])} (${chosen ? "wybrana dla tej lekcji" : "Twój styl"})`;
 }
 
 /** "wzrokowy (V)" */
@@ -339,11 +344,27 @@ export function trialProgressText(trial: Trial): string {
   return `${trial.done} z ${trial.needed} lekcji w nowej formie`;
 }
 
+/**
+ * D60: no results in the previous form, e.g. "Brak wyników w formie wzrokowej
+ * do porównania – po 2 lekcjach pokażemy średnią w nowej formie".
+ */
+export function noBaselineText(from: Form): string {
+  return `Brak wyników ${inForm(from)} do porównania – po ${lessonsText(TRIAL_LESSONS)} pokażemy średnią w nowej formie`;
+}
+
+/** D60, a replaced trial keeps its baseline: "… średnia 80% w formie słuchowej" */
+export function keptBaselineText(from: Form, before: number | null): string {
+  return before === null
+    ? noBaselineText(from)
+    : `Punkt odniesienia z poprzedniego okresu: średnia ${before}% ${inForm(from)}`;
+}
+
 /** "Zmiana pomogła: średnia 40% → 90%" */
 export function trialOutcomeText(
   result: TrialResult,
   before: number | null,
   after: number | null,
+  from?: Form,
 ): string {
   switch (result) {
     case "helped":
@@ -353,7 +374,9 @@ export function trialOutcomeText(
     case "worse":
       return `Po zmianie wyniki są słabsze: średnia ${percent(before)} → ${percent(after)}`;
     case "no_baseline":
-      return `Średnia w nowej formie: ${percent(after)}`;
+      return from
+        ? `Brak wyników ${inForm(from)} do porównania. Średnia w nowej formie: ${percent(after)}`
+        : `Średnia w nowej formie: ${percent(after)}`;
   }
 }
 
@@ -369,12 +392,13 @@ export function trialStatusText(trial: Trial): string {
       trial.result,
       trial.before_average,
       trial.after_average,
+      trial.from,
     );
   }
   const before =
     trial.before_average === null
-      ? "Nie ma wcześniejszych wyników do porównania."
-      : `Średnia przed zmianą: ${trial.before_average}%.`;
+      ? `${noBaselineText(trial.from)}.`
+      : `Średnia przed zmianą: ${trial.before_average}% ${inForm(trial.from)}.`;
   return `${capitalize(trialProgressText(trial))}. ${before}`;
 }
 
@@ -421,6 +445,96 @@ export function clearedLessonsText(cleared: ClearedLesson[], to: Form): string {
   return `Wybory formy wyczyszczone ${inLessonsText(cleared.length)} (${titles}) – obowiązuje teraz forma ${FORM_ADJ[to]}.`;
 }
 
+// --- D60: a change of the style undone before the first lesson ---
+
+/** "Zmiana na styl wzrokowy (V) cofnięta przed pierwszą lekcją – wracamy do stylu słuchowego (A)" */
+export function styleChangeRevertedText(from: Form, to: Form): string {
+  return `Zmiana na styl ${styleName(from)} cofnięta przed pierwszą lekcją – wracamy do stylu ${STYLE_ADJ_GEN[to]} (${to})`;
+}
+
+// --- The teacher's view of a student ---
+
+export type SummaryLine = { label: string; text: string };
+
+/** Style and its source, an open proposal and the trial, in a neutral voice. */
+export function profileSummaryLines(profile: LearningProfile): SummaryLine[] {
+  const lines: SummaryLine[] = [];
+  if (!profile.survey_completed) {
+    lines.push({ label: "Styl", text: "uczeń nie wypełnił jeszcze ankiety" });
+  } else if (!profile.style) {
+    lines.push({
+      label: "Styl",
+      text: "remis w ankiecie – uczeń jeszcze nie wybrał stylu",
+    });
+  } else {
+    const source = styleSourceText(profile.style_source);
+    lines.push({
+      label: "Styl",
+      text: source
+        ? `${styleName(profile.style)}, ${source}`
+        : styleName(profile.style),
+    });
+  }
+  if (profile.open_proposal) {
+    const { kind, to, evidence } = profile.open_proposal;
+    const evidenceText = proposalEvidenceText(evidence);
+    lines.push({
+      label: "Otwarta propozycja",
+      text: `${kind === "revert" ? "powrót do stylu" : "zmiana stylu na"} ${styleName(to)}${evidenceText ? ` – ${evidenceText}` : ""}`,
+    });
+  }
+  if (profile.trial) {
+    lines.push({
+      label: profile.trial.result ? "Ostatni okres próbny" : "Okres próbny",
+      text: `${styleName(profile.trial.from)} → ${styleName(profile.trial.to)}: ${trialStatusText(profile.trial)}`,
+    });
+  }
+  return lines;
+}
+
+// --- D62: chart and table of "Moje postępy" ---
+
+/** Under the X axis: "Ankieta", "L1 · A". */
+export function historyAxisLabel(event: HistoryEvent): string {
+  switch (event.kind) {
+    case "survey":
+      return "Ankieta";
+    case "quiz":
+      return event.lessonNumber !== null
+        ? `L${event.lessonNumber} · ${event.form}`
+        : `Quiz · ${event.form}`;
+    default:
+      return "Zmiana";
+  }
+}
+
+/** Column "Zdarzenie": "Quiz: Pętla for – forma A, 100%", "Zmiana stylu na V (ręcznie)". */
+export function historyEventText(event: HistoryEvent): string {
+  switch (event.kind) {
+    case "survey":
+      return "Ankieta";
+    case "quiz":
+      return `Quiz${event.lessonTitle ? `: ${event.lessonTitle}` : ""} – forma ${event.form}, ${event.percent}%`;
+    case "tie":
+      return `Wybór stylu przy remisie: ${event.style}`;
+    case "style":
+      return event.source === "manual"
+        ? `Zmiana stylu na ${event.style} (ręcznie)`
+        : event.source === "proposal"
+          ? `Zmiana stylu na ${event.style} (propozycja systemu)`
+          : `Zmiana stylu na ${event.style}`;
+    case "revert":
+      return `Zmiana cofnięta – znów styl ${event.style}`;
+    case "other":
+      return "Zmiana procentów";
+  }
+}
+
+/** Label of a vertical marker: "styl V". */
+export function styleMarkerText(style: Form): string {
+  return `styl ${style}`;
+}
+
 // --- Decision journal ---
 
 function proposalName(kind: "switch" | "revert", to: Form): string {
@@ -444,8 +558,10 @@ const JOURNAL_LABELS: Record<JournalEntry["type"], string> = {
   proposal_rejected: "Propozycja",
   proposal_expired: "Propozycja",
   manual_style_change: "Zmiana stylu",
+  style_change_reverted: "Zmiana stylu",
   trial_started: "Okres próbny",
   trial_finished: "Okres próbny",
+  praise: "Pochwała",
 };
 
 /** Short kind of the entry, e.g. "Quiz", "Sugestia". */
@@ -505,17 +621,29 @@ export function journalText(entry: JournalEntry): string {
           : "",
         clearedLessonsText(entry.data.cleared_lessons, entry.data.to),
       );
-    case "trial_started":
+    case "style_change_reverted":
       return joinSentences(
-        `Okres próbny stylu ${STYLE_ADJ_GEN[entry.data.to]} (${entry.data.to}): ${lessonsText(TRIAL_LESSONS)}.`,
-        entry.data.before_average === null
-          ? "Brak wcześniejszych wyników do porównania."
-          : `Średnia przed zmianą: ${entry.data.before_average}%.`,
+        `${styleChangeRevertedText(entry.data.from, entry.data.to)}.`,
+        "Okres próbny anulowany, nowy się nie zaczyna.",
+        clearedLessonsText(entry.data.cleared_lessons, entry.data.to),
       );
+    case "trial_started": {
+      const { from, to, before_average, replaced_trial_id } = entry.data;
+      return joinSentences(
+        `Okres próbny stylu ${STYLE_ADJ_GEN[to]} (${to}): ${lessonsText(TRIAL_LESSONS)}.`,
+        replaced_trial_id
+          ? `Zastępuje okres bez lekcji. ${keptBaselineText(from, before_average)}.`
+          : before_average === null
+            ? `${noBaselineText(from)}.`
+            : `Średnia przed zmianą: ${before_average}% ${inForm(from)}.`,
+      );
+    }
+    case "praise":
+      return `Pochwała: ${praiseText(entry.data)}.`;
     case "trial_finished":
       return joinSentences(
         `Koniec okresu próbnego stylu ${STYLE_ADJ_GEN[entry.data.to]} (${entry.data.to}).`,
-        `${trialOutcomeText(entry.data.result, entry.data.before_average, entry.data.after_average)}.`,
+        `${trialOutcomeText(entry.data.result, entry.data.before_average, entry.data.after_average, entry.data.from)}.`,
         entry.data.result === "worse"
           ? `Propozycja powrotu do stylu ${STYLE_ADJ_GEN[entry.data.from]}.`
           : "",

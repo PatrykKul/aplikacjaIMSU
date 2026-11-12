@@ -4,13 +4,9 @@ import { CloudOffIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import {
-  proposalEvidenceText,
-  styleName,
-  styleSourceText,
-  trialStatusText,
-} from "@/features/learning-style/explain";
+import { profileSummaryLines } from "@/features/learning-style/explain";
 import type { LearningProfile } from "@/features/learning-style/types";
+import { lessonNumbers } from "@/features/progress/chart-data";
 import { DecisionJournal } from "@/features/progress/components/DecisionJournal";
 import { FormPercentages } from "@/features/progress/components/FormPercentages";
 import { LessonResultsTable } from "@/features/progress/components/LessonResultsTable";
@@ -52,38 +48,7 @@ function DetailSection({
 
 /** Style, its source, an open proposal and the trial, in the teacher's words. */
 function ProfileSummary({ profile }: { profile: LearningProfile }) {
-  const lines: { label: string; text: string }[] = [];
-  if (!profile.survey_completed) {
-    lines.push({ label: "Styl", text: "uczeń nie wypełnił jeszcze ankiety" });
-  } else if (!profile.style) {
-    lines.push({
-      label: "Styl",
-      text: "remis w ankiecie – uczeń jeszcze nie wybrał stylu",
-    });
-  } else {
-    const source = styleSourceText(profile.style_source);
-    lines.push({
-      label: "Styl",
-      text: source
-        ? `${styleName(profile.style)}, ${source}`
-        : styleName(profile.style),
-    });
-  }
-  if (profile.open_proposal) {
-    const { kind, to, evidence } = profile.open_proposal;
-    const evidenceText = proposalEvidenceText(evidence);
-    lines.push({
-      label: "Otwarta propozycja",
-      text: `${kind === "revert" ? "powrót do stylu" : "zmiana stylu na"} ${styleName(to)}${evidenceText ? ` – ${evidenceText}` : ""}`,
-    });
-  }
-  if (profile.trial) {
-    lines.push({
-      label: profile.trial.result ? "Ostatni okres próbny" : "Okres próbny",
-      text: `${styleName(profile.trial.from)} → ${styleName(profile.trial.to)}: ${trialStatusText(profile.trial)}`,
-    });
-  }
-
+  const lines = profileSummaryLines(profile);
   return (
     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[max-content_minmax(0,1fr)]">
       {lines.map((line) => (
@@ -193,7 +158,10 @@ export function StudentDetailPage({
       </DetailSection>
 
       <DetailSection id="student-chart" title="Procenty w czasie">
-        <PercentChart history={history} />
+        <PercentChart
+          history={history}
+          lessonNumbers={lessonNumbers(lessons)}
+        />
       </DetailSection>
 
       <DetailSection id="student-lessons" title="Wyniki lekcji w tym kursie">

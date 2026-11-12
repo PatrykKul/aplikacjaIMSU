@@ -120,6 +120,32 @@ const zeroLesson = mathDetail.lessons.find((lesson) => lesson.number === 3);
 const firstLesson = mathDetail.lessons.find((lesson) => lesson.number === 1);
 const zeroKey = (await teacherApi(`/lessons/${zeroLesson.id}/quiz/edit`))
   .questions;
+// D55: Programowanie belongs to its own teacher
+const PROG_TEACHER = "nauczyciel.programowanie@imsu.pl";
+const progApi = await apiAs(PROG_TEACHER);
+const prog = (await progApi("/courses")).find((course) =>
+  course.title.startsWith("Programowanie"),
+);
+const progDetail = await progApi(`/courses/${prog.id}`);
+const progFirst = progDetail.lessons.find((lesson) => lesson.number === 1);
+const adminApi = await apiAs("admin.demo@imsu.pl");
+const progTeacher = (await adminApi("/users?role=teacher")).find(
+  (user) => user.email === PROG_TEACHER,
+);
+
+/** Fails the run (without stopping it) when a check does not hold. */
+function expect(condition, message) {
+  if (!condition) problems.push(message);
+}
+
+/** Admin: pick a teacher in "Zmień właściciela" and go to the confirmation. */
+async function changeOwner(page, course, option) {
+  await page
+    .getByRole("button", { name: `Zmień właściciela: ${course.title}` })
+    .click();
+  await page.getByRole("combobox").click();
+  await page.getByRole("option", { name: option }).click();
+}
 
 console.log("Gość");
 {
@@ -190,6 +216,45 @@ console.log("admin.demo: zatwierdzenie nauczyciela");
   await context.close();
 }
 
+console.log(
+  "admin.demo: zmiana właściciela Programowania na Annę i z powrotem",
+);
+{
+  const { context, page } = await session(browser, "admin.demo@imsu.pl");
+  await page.goto(`${APP}/courses`);
+  await changeOwner(page, prog, /Anna Nowak/);
+  await snap(page, "admin-zmiana-wlasciciela-wybor");
+  await page.getByRole("button", { name: "Dalej" }).click();
+  await snap(page, "admin-zmiana-wlasciciela-potwierdzenie");
+  await page
+    .getByRole("button", { name: "Zmień właściciela", exact: true })
+    .click();
+  const row = page.locator("li", { hasText: prog.title });
+  await row.getByText(/^Anna Nowak ·/).waitFor();
+  await snap(page, "admin-zmiana-wlasciciela-po");
+
+  // Anna sees the course in her panel right away
+  const anna = await session(browser, "nauczyciel.demo@imsu.pl");
+  await anna.page.goto(`${APP}/teach`);
+  await anna.page.getByText(prog.title).first().waitFor();
+  await snap(anna.page, "anna-przejety-kurs-programowania");
+  await anna.context.close();
+
+  // And back to the teacher of Programowanie
+  await changeOwner(page, prog, new RegExp(`\\(${PROG_TEACHER}\\)`));
+  await page.getByRole("button", { name: "Dalej" }).click();
+  await page
+    .getByRole("button", { name: "Zmień właściciela", exact: true })
+    .click();
+  await row.getByText(`${progTeacher.display_name} ·`).waitFor();
+  const restored = await adminApi(`/courses/${prog.id}`);
+  expect(
+    restored.owner.id === progTeacher.id,
+    `Programowanie: owner ${restored.owner.id}, expected ${PROG_TEACHER}`,
+  );
+  await context.close();
+}
+
 console.log("nauczyciel.demo: kursy, edytor lekcji, panel kursu");
 {
   const { context, page } = await session(browser, "nauczyciel.demo@imsu.pl");
@@ -224,12 +289,31 @@ console.log("uczen.zapis: podpowiedź z kursu");
 {
   const { context, page } = await session(browser, "uczen.zapis@imsu.pl");
   await page.goto(`${APP}/courses`);
+  await page.getByText(/Kontynuuj: Lekcja 1 – /).waitFor();
   await snap(page, "zosia-moje-kursy");
   await page.goto(`${APP}/courses/${math.id}`);
   await page.getByText(/najlepiej wypada/).waitFor();
+  // D57: the first lesson starts, the second waits for it
+  await page.getByRole("link", { name: /^Rozpocznij lekcję 1:/ }).waitFor();
+  await page.getByText("Najpierw zalicz lekcję 1").first().waitFor();
   await snap(page, "zosia-kurs-z-podpowiedzia");
   await page.goto(`${APP}/courses/${math.id}/lessons/${firstLesson.id}`);
+  await page.getByText(/Słuchowa \(Twój styl\)/).waitFor();
   await snap(page, "zosia-lekcja-1-wersja-a");
+  // D58: several short recordings, each with a collapsed transcript
+  const recordings = await page.locator("audio").count();
+  const transcripts = page.locator("summary", { hasText: "Transkrypcja" });
+  expect(recordings >= 2, `Zosia, lesson 1 (A): ${recordings} recordings`);
+  expect(
+    (await transcripts.count()) === recordings,
+    "Zosia, lesson 1 (A): not every recording has a transcript",
+  );
+  // Opened from the keyboard: Enter on the focused <summary>
+  await transcripts.first().focus();
+  await page.keyboard.press("Enter");
+  await transcripts.first().locator("xpath=..").locator("p").waitFor();
+  await transcripts.first().scrollIntoViewIfNeeded();
+  await snap(page, "zosia-lekcja-1-transkrypcja");
   await context.close();
 }
 
@@ -239,8 +323,11 @@ console.log("uczen.demo: sugestia, zmiana formy, propozycja");
   await page.goto(`${APP}/profile`);
   await snap(page, "kuba-moj-styl-przed");
   await page.goto(`${APP}/courses/${math.id}`);
+  await page.getByRole("link", { name: /^Powtórz lekcję 1:/ }).waitFor();
+  await page.getByRole("link", { name: /lekcję 3:/ }).waitFor();
   await snap(page, "kuba-kurs");
   await page.goto(`${APP}/courses/${math.id}/lessons/${zeroLesson.id}`);
+  await page.getByText(/Wzrokowa \(Twój styl\)/).waitFor();
   await snap(page, "kuba-lekcja-3-wersja-v");
   await answerQuiz(page, zeroKey, 2);
   await snap(page, "kuba-quiz-niezaliczony-sugestia");
@@ -249,7 +336,7 @@ console.log("uczen.demo: sugestia, zmiana formy, propozycja");
     .first()
     .click();
   await page
-    .getByText(/Słuchowej \(A\)/)
+    .getByText(/Słuchowa \(wybrana dla tej lekcji\)/)
     .first()
     .waitFor();
   await snap(page, "kuba-lekcja-3-wersja-a");
@@ -275,6 +362,77 @@ console.log("uczen.zmiana: okres próbny, wykres, dziennik");
   await context.close();
 }
 
+console.log("uczen.zmiana: blok kodu w Programowaniu");
+{
+  const { context, page } = await session(browser, "uczen.zmiana@imsu.pl");
+  await page.goto(`${APP}/courses/${prog.id}/lessons/${progFirst.id}`);
+  await page
+    .getByText(/^Forma:/)
+    .first()
+    .waitFor();
+  // The version Marta gets (her style or her choice) must show code as code
+  const code = page.locator(".rich-text pre").first();
+  const found = await code.waitFor({ timeout: 10_000 }).then(
+    () => true,
+    () => false,
+  );
+  expect(found, "Programowanie, lesson 1: no code block in Marta's version");
+  if (found) {
+    const font = await code.evaluate((el) => getComputedStyle(el).fontFamily);
+    expect(/mono/i.test(font), `code block font: ${font}`);
+    await code.scrollIntoViewIfNeeded();
+  }
+  await snap(page, "marta-programowanie-blok-kodu");
+  await context.close();
+}
+
+console.log("uczen3: styl A → V → A bez lekcji (cofnięcie, D60)");
+{
+  const { context, page } = await session(browser, "uczen3@imsu.pl");
+  await page.goto(`${APP}/profile`);
+  await snap(page, "szymon-moj-styl-a");
+  for (const [label, message, name] of [
+    ["Wzrokowa (V)", "Twój styl: wzrokowy (V)", "szymon-moj-styl-v"],
+    [
+      "Słuchowa (A)",
+      "Twój styl: słuchowy (A)",
+      "szymon-moj-styl-cofniety-do-a",
+    ],
+  ]) {
+    await page
+      .getByRole("radiogroup")
+      .locator("label", { hasText: label })
+      .click();
+    await page.getByRole("button", { name: "Zmień styl", exact: true }).click();
+    await page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Zmień styl" })
+      .click();
+    await page.getByText(message).first().waitFor();
+    await snap(page, name);
+  }
+  // The bug of 12.11: no new trial "V → A" without a baseline after the revert
+  expect(
+    (await page.getByText(/Okres próbny: nauka w formie słuchowej/).count()) ===
+      0,
+    "uczen3: a new trial started after the revert",
+  );
+  await page.goto(`${APP}/progress`);
+  await page
+    .getByText(/cofnięta przed pierwszą lekcją/)
+    .first()
+    .waitFor();
+  await page
+    .getByRole("cell", { name: "Zmiana stylu na V (ręcznie)" })
+    .waitFor();
+  expect(
+    (await page.locator("svg text", { hasText: "cofnięta" }).count()) === 1,
+    "uczen3: the chart has no struck-through marker",
+  );
+  await snap(page, "szymon-moje-postepy");
+  await context.close();
+}
+
 console.log("nauczyciel.demo: szczegóły ucznia");
 {
   const { context, page } = await session(browser, "nauczyciel.demo@imsu.pl");
@@ -297,6 +455,13 @@ console.log("Telefon (390 px)");
   await snap(marta.page, "telefon-marta-moje-postepy");
   await marta.page.goto(`${APP}/courses/${math.id}`);
   await snap(marta.page, "telefon-marta-katalog-kursu");
+  await marta.page.goto(`${APP}/courses/${prog.id}/lessons/${progFirst.id}`);
+  await marta.page
+    .locator(".rich-text pre")
+    .first()
+    .waitFor({ timeout: 10_000 })
+    .catch(() => problems.push("phone: no code block in Marta's lesson"));
+  await snap(marta.page, "telefon-marta-blok-kodu");
   await marta.context.close();
   const kuba = await session(browser, "uczen.demo@imsu.pl", PHONE);
   await kuba.page.goto(`${APP}/courses/${math.id}/lessons/${zeroLesson.id}`);

@@ -123,6 +123,9 @@ const titleRules = {
   validate: (value: string) => value.trim() !== "" || "Wpisz tytuł załącznika.",
   maxLength: { value: 120, message: "Tytuł może mieć najwyżej 120 znaków." },
 };
+const transcriptLimit = {
+  maxLength: { value: 5000, message: "Tekst może mieć najwyżej 5000 znaków." },
+};
 const shortTextRules = {
   maxLength: { value: 500, message: "Tekst może mieć najwyżej 500 znaków." },
 };
@@ -142,7 +145,12 @@ function initialSource(attachment: Attachment | null): Source {
   if (attachment?.kind === "video" && attachment.youtube_url) {
     return "other";
   }
-  if (attachment?.kind === "audio" && attachment.transcript) {
+  // D58: a recording may have a file and a transcript; only text = the reader
+  if (
+    attachment?.kind === "audio" &&
+    attachment.transcript &&
+    !attachment.file_id
+  ) {
     return "other";
   }
   return "file";
@@ -219,7 +227,14 @@ function AttachmentForm({ attachment, onSave }: AttachmentFormProps) {
       case "audio":
         onSave(
           source === "file"
-            ? { ...base, kind, ...fileFields! }
+            ? {
+                ...base,
+                kind,
+                ...fileFields!,
+                ...(values.transcript.trim() && {
+                  transcript: values.transcript.trim(),
+                }),
+              }
             : { ...base, kind, transcript: values.transcript.trim() },
         );
         break;
@@ -313,8 +328,23 @@ function AttachmentForm({ attachment, onSave }: AttachmentFormProps) {
                 {kind === "video" ? "YouTube" : "Tekst dla lektora"}
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="file" className="pt-2">
+            <TabsContent value="file" className="grid gap-4 pt-2">
               {fileField(kind)}
+              {kind === "audio" && (
+                <FormField
+                  label="Transkrypcja (opcjonalnie)"
+                  description="Uczeń rozwinie ją pod odtwarzaczem."
+                  error={errors.transcript?.message}
+                >
+                  {(field) => (
+                    <Textarea
+                      {...field}
+                      rows={4}
+                      {...register("transcript", transcriptLimit)}
+                    />
+                  )}
+                </FormField>
+              )}
             </TabsContent>
             <TabsContent value="other" className="pt-2">
               {kind === "video" ? (
@@ -351,10 +381,7 @@ function AttachmentForm({ attachment, onSave }: AttachmentFormProps) {
                           source !== "other" ||
                           value.trim() !== "" ||
                           "Wpisz tekst, który przeczyta lektor.",
-                        maxLength: {
-                          value: 5000,
-                          message: "Tekst może mieć najwyżej 5000 znaków.",
-                        },
+                        ...transcriptLimit,
                       })}
                     />
                   )}

@@ -15,7 +15,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { Spinner } from "@/shared/ui/spinner";
 
-import { formLabel, inFormLabel } from "../explain";
+import { formLabel, lessonFormText } from "../explain";
 import { FORM_BAR } from "../form-tones";
 import type { Study } from "../types";
 
@@ -25,64 +25,73 @@ type LessonFormBarProps = {
   pending?: boolean;
 };
 
-/** "Przerabiasz tę lekcję w formie: Słuchowej (A)" + a menu with the two other forms. */
+/**
+ * D57: one calm line "Forma: Wzrokowa (Twój styl) · Zmień formę tej lekcji";
+ * the change is a menu with the two other forms, not a big button.
+ */
 export function LessonFormBar({
   study,
   onChange,
   pending,
 }: LessonFormBarProps) {
+  // Only an explicit choice of another form than the style counts as a choice
+  const chosen = study.form_source === "choice" && study.form !== study.style;
   return (
-    <div className="flex flex-col gap-3 border-y py-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden="true"
-          className={cn(
-            "mt-1.5 size-3 shrink-0 rounded-[3px]",
-            FORM_BAR[study.form],
-          )}
-        />
-        <div>
-          <p>
-            Przerabiasz tę lekcję w formie:{" "}
-            <strong className="font-semibold">{inFormLabel(study.form)}</strong>
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {study.form_source === "choice"
-              ? "Forma wybrana dla tej lekcji."
-              : "Forma Twojego stylu uczenia się."}
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+      <span
+        aria-hidden="true"
+        className={cn("size-2.5 shrink-0 rounded-[2px]", FORM_BAR[study.form])}
+      />
+      <p>
+        Forma:{" "}
+        <span className="font-medium text-foreground">
+          {lessonFormText(study.form, chosen)}
+        </span>
+      </p>
       {study.other_forms.length > 0 && (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="outline"
-                disabled={pending}
-                className="self-start sm:self-center"
-              />
-            }
-          >
-            {pending && <Spinner data-icon="inline-start" />}
-            Przerób tę lekcję w innej formie
-            <ChevronDownIcon data-icon="inline-end" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-60">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Wybierz formę</DropdownMenuLabel>
-              {study.other_forms.map((form) => (
-                <DropdownMenuItem key={form} onClick={() => onChange(form)}>
-                  <span
-                    aria-hidden="true"
-                    className={cn("size-2.5 rounded-[2px]", FORM_BAR[form])}
-                  />
-                  {formLabel(form)}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <>
+          {/* On a phone the link wraps to its own line, without a lone dot */}
+          <span aria-hidden="true" className="hidden sm:inline">
+            ·
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="link"
+                  size="sm"
+                  disabled={pending}
+                  className="h-9 px-0 text-sm text-foreground underline underline-offset-4 hover:text-primary"
+                />
+              }
+            >
+              {pending && <Spinner data-icon="inline-start" />}
+              {chosen ? "Zmień formę" : "Zmień formę tej lekcji"}
+              <ChevronDownIcon data-icon="inline-end" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-60">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>
+                  Przerób tę lekcję w formie
+                </DropdownMenuLabel>
+                {study.other_forms.map((form) => (
+                  <DropdownMenuItem key={form} onClick={() => onChange(form)}>
+                    <span
+                      aria-hidden="true"
+                      className={cn("size-2.5 rounded-[2px]", FORM_BAR[form])}
+                    />
+                    {formLabel(form)}
+                    {form === study.style && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        Twój styl
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
       )}
     </div>
   );
