@@ -68,6 +68,7 @@ Stan po poprawkach z 12.11 (szczegóły w sekcji „Poprawki po teście”):
 4. Merge `feat/v3-adaptacja` → `main`, push i powiadomienie Bartka (jego lokalna baza: `alembic downgrade base`, `alembic upgrade head`, seed; starsza baza z danymi v3 — `alembic upgrade head`, seed i `--refresh-demo-media`) — Twoja decyzja.
 5. ~~Drobne ustalenia z przeglądu kodu~~ — **zrobione** (pochwała w dzienniku, zdania w `explain.ts`, semantyka `null`, zestaw pytań a forma lekcji).
 6. ~~Worktree agentów~~ — **usunięte** (`wt/a1`–`a5`, `wt/b1`–`b3` i ich gałęzie).
+8. Twoje prywatne konto ucznia ma też prośbę o zapis do Matematyki — widać ją w panelu kursu. Na zrzutach 22, 23 i 44 wiersz z imieniem i adresem jest zamazany (commit `f58da9f`), ale **niezamazane wersje są w lokalnym commicie `53b9c5e`** — przed pushem zdecyduj, czy przepisać historię, czy zostawić. Przed pokazem tę prośbę warto odrzucić (scenariusz, przygotowanie).
 7. Twoje prywatne konto ucznia (spoza kont demo) ma wyniki w Programowaniu — wlicza się do statystyk tego kursu (np. „A 87%, 1 uczeń”); reset kont demo go nie rusza.
 
 ## Decyzje podjęte samodzielnie
