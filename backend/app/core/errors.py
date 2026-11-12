@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -14,18 +15,19 @@ HTTP_ERROR_CODES = {
 
 
 class AppError(Exception):
-    """Expected business error returned to the client as {"code": ...}."""
+    """Expected business error returned as {"code": ..., **params} (params: JSON-ready data)."""
 
-    def __init__(self, status_code: int, code: str) -> None:
+    def __init__(self, status_code: int, code: str, **params: Any) -> None:
         super().__init__(code)
         self.status_code = status_code
         self.code = code
+        self.params = params
 
 
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
-        return JSONResponse(status_code=exc.status_code, content={"code": exc.code})
+        return JSONResponse(status_code=exc.status_code, content={"code": exc.code, **exc.params})
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(
