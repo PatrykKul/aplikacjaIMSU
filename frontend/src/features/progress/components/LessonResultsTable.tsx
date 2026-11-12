@@ -59,7 +59,8 @@ export function LessonResultsTable({ lessons }: { lessons: LessonProgress[] }) {
                       </TableCell>
                       <TableCell rowSpan={span} className="align-top">
                         <span className="font-medium">
-                          {lesson.number}. {lesson.lesson_title}
+                          {lesson.number !== null && `${lesson.number}. `}
+                          {lesson.lesson_title}
                         </span>
                         <span className="block text-muted-foreground">
                           {lesson.passed ? "zaliczona" : "niezaliczona"}

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { errorMessage } from "@/shared/api/error-messages";
+import { teachError } from "@/features/teach/errors";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
 import {
@@ -79,7 +79,7 @@ function NewCourseForm() {
             <AlertCircleIcon />
             <AlertTitle>Nie udało się utworzyć kursu</AlertTitle>
             <AlertDescription>
-              {errorMessage(createCourse.error)}
+              {teachError(createCourse.error)}
             </AlertDescription>
           </Alert>
         )}

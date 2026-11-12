@@ -31,7 +31,7 @@ export type CourseLesson = {
   /** TipTap document; null until the teacher writes it. */
   outline: JSONContent | null;
   /** Author only. */
-  is_published?: boolean;
+  is_published?: boolean | null;
   /** Accepted student only, otherwise null. */
   state: LessonState | null;
   /** When `state` is "locked". */
@@ -60,7 +60,7 @@ export type Lesson = {
   previous_lesson_id: number | null;
   next_lesson_id: number | null;
   /** Student only. */
-  next_lesson_unlocked?: boolean;
+  next_lesson_unlocked?: boolean | null;
 };
 
 export type Enrollment = {

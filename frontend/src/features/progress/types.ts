@@ -40,7 +40,8 @@ export type LessonProgress = {
   course_title: string;
   lesson_id: number;
   lesson_title: string;
-  number: number;
+  // null for a lesson unpublished or archived after the attempt
+  number: number | null;
   passed: boolean;
   attempts: Attempt[];
 };
@@ -114,7 +115,12 @@ export type JournalEvent =
     }
   | {
       type: "manual_style_change";
-      data: { from: Form; to: Form; cleared_lessons: ClearedLesson[] };
+      data: {
+        from: Form;
+        to: Form;
+        cleared_lessons: ClearedLesson[];
+        superseded_proposal_id?: number | null;
+      };
     }
   | {
       type: "trial_started";

@@ -4,7 +4,7 @@ import { PlusIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { errorMessage } from "@/shared/api/error-messages";
+import { teachError } from "@/features/teach/errors";
 import { Button } from "@/shared/ui/button";
 import { FormField } from "@/shared/ui/form-field";
 import { Input } from "@/shared/ui/input";
@@ -25,7 +25,7 @@ export function AddLessonForm({ courseId }: { courseId: number }) {
   const onSubmit = handleSubmit(({ title }) =>
     addLesson.mutate(title, {
       onSuccess: () => reset(),
-      onError: (error) => toast.error(errorMessage(error)),
+      onError: (error) => toast.error(teachError(error)),
     }),
   );
 

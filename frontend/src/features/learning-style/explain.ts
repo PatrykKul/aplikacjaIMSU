@@ -298,6 +298,15 @@ export function suggestionReason(
 /** "Wzrokowe: 3 lekcje, średnio 53% · Słuchowe: 1 lekcja, średnio 80%" */
 export function proposalEvidenceText(evidence: ProposalEvidence): string {
   const parts: string[] = [];
+  // Revert (R7): the drop of the average comes first, form statistics after it
+  if (
+    evidence.before_average !== undefined ||
+    evidence.after_average !== undefined
+  ) {
+    parts.push(
+      `Średnia przed zmianą ${percent(evidence.before_average)}, po zmianie ${percent(evidence.after_average)}`,
+    );
+  }
   for (const side of [evidence.from, evidence.to]) {
     if (side) {
       parts.push(
@@ -305,16 +314,7 @@ export function proposalEvidenceText(evidence: ProposalEvidence): string {
       );
     }
   }
-  if (parts.length > 0) {
-    return parts.join(" · ");
-  }
-  if (
-    evidence.before_average !== undefined ||
-    evidence.after_average !== undefined
-  ) {
-    return `Średnia przed zmianą ${percent(evidence.before_average)}, po zmianie ${percent(evidence.after_average)}`;
-  }
-  return "";
+  return parts.join(" · ");
 }
 
 /** The question of the banner. */
@@ -500,6 +500,9 @@ export function journalText(entry: JournalEntry): string {
     case "manual_style_change":
       return joinSentences(
         `Ręczna zmiana stylu: ${styleName(entry.data.from)} → ${styleName(entry.data.to)}.`,
+        entry.data.superseded_proposal_id
+          ? "Otwarta propozycja zmiany stylu została zamknięta."
+          : "",
         clearedLessonsText(entry.data.cleared_lessons, entry.data.to),
       );
     case "trial_started":

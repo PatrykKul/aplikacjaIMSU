@@ -40,7 +40,7 @@ export type FormEvidence = {
 
 /**
  * R6: `from` / `to` with the numbers of both forms. A revert proposal (R7)
- * may carry the averages of the trial instead.
+ * carries them too, plus the trial averages before / after the change.
  */
 export type ProposalEvidence = {
   from?: FormEvidence;

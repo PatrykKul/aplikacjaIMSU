@@ -13,7 +13,7 @@ import {
   MAX_UPLOAD_BYTES,
   type UploadedFile,
 } from "@/features/content/types";
-import { errorMessage } from "@/shared/api/error-messages";
+import { teachError } from "@/features/teach/errors";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 
@@ -87,7 +87,7 @@ export function FileUpload({
         url: uploaded.url,
       });
     } catch (caught) {
-      setUploadError(errorMessage(caught));
+      setUploadError(teachError(caught));
     } finally {
       setProgress(null);
     }
