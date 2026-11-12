@@ -12,6 +12,7 @@ from app.modules.learning_style.schemas import (
     JournalEntry,
     LearningProfileResponse,
     LessonFormRequest,
+    LessonStudyStateResponse,
     ProgressResponse,
     StudentDetailResponse,
     StudyResponse,
@@ -96,6 +97,13 @@ def set_lesson_form(
 
 
 # --- Course: hint for the student, statistics for the author -------------------------------------
+
+
+@course_insights_router.get("/{course_id}/study-states")
+def get_study_states(
+    course_id: int, db: DbSession, user: StudentUser
+) -> list[LessonStudyStateResponse]:
+    return service.study_states(db, course_id, user)
 
 
 @course_insights_router.get("/{course_id}/hint")

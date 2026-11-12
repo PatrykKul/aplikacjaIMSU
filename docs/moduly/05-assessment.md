@@ -14,9 +14,9 @@ Quiz lekcji: pula pytań z wyjaśnieniami, losowanie 5 pytań na podejście, oce
 | Tabela | Kolumny |
 |---|---|
 | `lesson_quizzes` | `id`, `lesson_id` → `lessons` (CASCADE, unikalny), `questions` (JSONB), `updated_at` |
-| `quiz_draws` | `id`, `user_id` → `users` (CASCADE), `lesson_id` → `lessons` (CASCADE), `question_ids` (JSONB, w kolejności pokazania), `answers` (JSONB `{question_id: answer_id}`, null do wysłania), `percent` (0–100, null do wysłania), `created_at`, `submitted_at` (null = podejście otwarte); indeks (`user_id`, `lesson_id`) |
+| `quiz_draws` | `id`, `user_id` → `users` (CASCADE), `lesson_id` → `lessons` (CASCADE), `question_ids` (JSONB, w kolejności pokazania), `answers` (JSONB `{question_id: answer_id}`, null do wysłania), `percent` (0–100, null do wysłania), `form` (`V` / `A` / `K`, `CHECK`; forma lekcji przy losowaniu, null w zestawach sprzed `7d2e9b4c1a35`), `created_at`, `submitted_at` (null = podejście otwarte); indeks (`user_id`, `lesson_id`) |
 
-Migracje `2e7cf4c0d9fc`, `01324f58656d` (pytania v2 bez wyjaśnień usunięte, nowa tabela `quiz_draws`). Wynik w modelu ucznia (`quiz_results`) zapisuje `learning_style`.
+Migracje `2e7cf4c0d9fc`, `01324f58656d` (pytania v2 bez wyjaśnień usunięte, nowa tabela `quiz_draws`), `7d2e9b4c1a35` (`quiz_draws.form`). Wynik w modelu ucznia (`quiz_results`) zapisuje `learning_style`.
 
 Pytanie (`schemas.QuizQuestion`): `id` (`[A-Za-z0-9_-]{1,40}`), `text` (1–500), `answers` (3–4: `id`, `text` 1–200, unikalne `id`), `correct_answer_id` (jedna z odpowiedzi), **`explanation`** (1–1000, wymagane). Pula: 1–50 pytań (`MAX_QUESTIONS`), unikalne `id`; do publikacji lekcji ≥ 5 (`QUIZ_SIZE`). Pytania nie mają formy — quiz jest wspólny dla trzech wersji.
 

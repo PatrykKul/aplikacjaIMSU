@@ -128,6 +128,20 @@ def set_teacher_approval(db: Session, *, user_id: int, status: ApprovalStatus) -
     return user
 
 
+def get_approved_teacher(db: Session, user_id: int) -> User:
+    """For other modules: a teacher account approved by the admin (e.g. a new course owner).
+
+    Missing account or another role -> 404 USER_NOT_FOUND; pending or rejected teacher ->
+    409 TEACHER_NOT_APPROVED.
+    """
+    user = db.get(User, user_id)
+    if user is None or user.role != UserRole.TEACHER:
+        raise AppError(404, "USER_NOT_FOUND")
+    if user.approval_status != ApprovalStatus.APPROVED:
+        raise AppError(409, "TEACHER_NOT_APPROVED")
+    return user
+
+
 def get_users(db: Session, user_ids: Collection[int]) -> list[User]:
     """Users with the given ids (missing ids are skipped), by name."""
     if not user_ids:

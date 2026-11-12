@@ -138,20 +138,29 @@ def get_versions(db: Session, lesson_id: int, user: User) -> dict[str, list[dict
     return {form: get_version(db, lesson.id, form) for form in FORMS}
 
 
-def _check_files(db: Session, data: LessonBlocks, owner_id: int) -> None:
-    """Every file must belong to the course owner and match the attachment kind."""
+def _used_file_ids(db: Session, lesson_id: int) -> set[int]:
+    """Files already used in any version of the lesson."""
+    return {
+        block["file_id"]
+        for blocks in stored_versions(db, lesson_id).values()
+        for block in blocks
+        if block.get("file_id") is not None
+    }
+
+
+def _check_files(db: Session, data: LessonBlocks, owner_id: int, lesson_id: int) -> None:
+    """Every file must match the attachment kind and belong to the course owner or be used
+    in the lesson already (a new owner keeps the attachments of the previous one, D56)."""
     wanted = [
         item for block in data.blocks if block.type == "attachment" for item in block.file_ids()
     ]
     if not wanted:
         return
+    used = _used_file_ids(db, lesson_id)
     files = {
         file.id: file
-        for file in db.scalars(
-            select(File).where(
-                File.id.in_({file_id for file_id, _ in wanted}), File.owner_id == owner_id
-            )
-        )
+        for file in db.scalars(select(File).where(File.id.in_({file_id for file_id, _ in wanted})))
+        if file.owner_id == owner_id or file.id in used
     }
     for file_id, kind in wanted:
         file = files.get(file_id)
@@ -172,7 +181,7 @@ def save_version(
 ) -> list[dict[str, Any]]:
     """Replace the blocks of one version; a published lesson must stay complete (R11)."""
     lesson = curriculum.get_owned_lesson(db, lesson_id, user)
-    _check_files(db, data, lesson.course.owner_id)
+    _check_files(db, data, lesson.course.owner_id, lesson.id)
     blocks = [block.model_dump(exclude_none=True) for block in data.blocks]
     if lesson.is_published:
         before = readiness.version_issues(form, _stored_blocks(db, lesson_id, form))

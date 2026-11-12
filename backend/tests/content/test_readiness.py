@@ -12,6 +12,7 @@ IMAGE = attachment("image", "img", file_id=1)
 VIDEO = attachment("video", "vid", youtube_url="https://youtu.be/dQw4w9WgXcQ")
 AUDIO_FILE = attachment("audio", "aud", file_id=2)
 AUDIO_TRANSCRIPT = attachment("audio", "lek", transcript="Tekst lektora")
+AUDIO_BOTH = attachment("audio", "obo", file_id=2, transcript="Transkrypcja nagrania")
 PDF = attachment("pdf", "pdf", file_id=3)
 LINK = attachment("link", "lnk", url="https://example.com")
 
@@ -51,7 +52,7 @@ def test_visual_version_missing(blocks: list[dict[str, Any]]) -> None:
 # --- A -----------------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("audio", [AUDIO_FILE, AUDIO_TRANSCRIPT])
+@pytest.mark.parametrize("audio", [AUDIO_FILE, AUDIO_TRANSCRIPT, AUDIO_BOTH])
 def test_audio_version_complete(audio: dict[str, Any]) -> None:
     assert _codes("A", [audio, text_block()]) == []
 

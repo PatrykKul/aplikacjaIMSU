@@ -46,6 +46,10 @@ class LessonUpdateRequest(BaseModel):
     conclusions: RichTextDocument | None = None
 
 
+class CourseOwnerRequest(BaseModel):
+    owner_id: int
+
+
 class LessonOrderRequest(BaseModel):
     lesson_ids: list[int] = Field(max_length=500)
 

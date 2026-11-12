@@ -101,7 +101,8 @@ def test_service_reads_one_version_and_issues(
         [text_block("t1"), text_block("t1")],  # duplicate ids
         [{"id": "x", "type": "quote"}],
         [attachment("video", "v1")],  # no source
-        [attachment("audio", "a1", transcript="x", file_id=1)],  # two sources
+        [attachment("audio", "a1")],  # neither a file nor a transcript
+        [attachment("audio", "a1", transcript="   ")],  # empty transcript
         [attachment("link", "l1", url="http://example.com")],  # not https
         [{"id": "t1", "type": "text", "doc": {"type": "paragraph"}}],
     ],
@@ -112,6 +113,23 @@ def test_invalid_blocks_are_rejected(
     response = _put(client, lesson_id, "V", blocks)
     assert response.status_code == 422
     assert response.json()["code"] == "VALIDATION_ERROR"
+
+
+def test_recording_with_file_and_transcript(
+    client: TestClient, db: Session, lesson_id: int, upload: Upload
+) -> None:
+    # D58: a recording with a folded transcript under the player
+    mp3 = upload("nagranie.mp3", b"ID3" + b"0" * 64)
+    recording = attachment("audio", "a1", file_id=mp3["id"], transcript="  Treść nagrania ")
+
+    response = _put(client, lesson_id, "A", [recording, text_block()])
+
+    assert response.status_code == 200
+    saved = response.json()["blocks"][0]
+    assert (saved["file_id"], saved["transcript"]) == (mp3["id"], "Treść nagrania")
+    assert saved["file_url"] == f"/files/{mp3['id']}"
+    issues = service.version_issues(db, lesson_id)
+    assert [issue for issue in issues if issue["area"] == "A"] == []
 
 
 def test_unknown_form_is_rejected(client: TestClient, lesson_id: int) -> None:
@@ -129,6 +147,62 @@ def test_file_must_belong_to_course_owner(
         response = _put(client, lesson_id, "V", [attachment("image", "a1", file_id=file_id)])
         assert response.status_code == 400
         assert response.json() == {"code": "FILE_NOT_FOUND"}
+
+
+def test_new_owner_keeps_files_used_in_the_lesson(
+    client: TestClient,
+    db: Session,
+    login: Login,
+    lesson_id: int,
+    other_teacher: User,
+    upload: Upload,
+) -> None:
+    # D56: the course moves to another teacher; the previous author's files stay usable
+    image = upload("wykres.png")
+    unused = upload("inny.png")
+    _put(client, lesson_id, "V", [text_block(), attachment("image", "a1", file_id=image["id"])])
+    lesson = db.get(Lesson, lesson_id)
+    assert lesson is not None
+    lesson.course.owner_id = other_teacher.id
+    db.commit()
+    login(other_teacher)
+    own = upload("nowy.png")
+
+    kept = _put(
+        client,
+        lesson_id,
+        "V",
+        [
+            text_block(),
+            attachment("image", "a1", file_id=image["id"]),
+            attachment("image", "a2", file_id=own["id"]),
+        ],
+    )
+    moved = _put(client, lesson_id, "K", [attachment("image", "a1", file_id=image["id"])])
+    foreign = _put(client, lesson_id, "V", [attachment("image", "a1", file_id=unused["id"])])
+
+    assert kept.status_code == 200
+    assert moved.status_code == 200  # used in another version of the same lesson
+    assert foreign.status_code == 400
+    assert foreign.json() == {"code": "FILE_NOT_FOUND"}
+
+
+def test_file_used_in_another_lesson_is_not_enough(
+    client: TestClient,
+    make_course: MakeCourse,
+    teacher: User,
+    other_teacher: User,
+    upload: Upload,
+) -> None:
+    course = make_course(teacher, lessons=("A",))
+    image = upload("wykres.png")
+    _put(client, course["lessons"][0]["id"], "V", [attachment("image", "a1", file_id=image["id"])])
+    other_lesson = make_course(other_teacher, lessons=("B",))["lessons"][0]["id"]
+
+    response = _put(client, other_lesson, "V", [attachment("image", "a1", file_id=image["id"])])
+
+    assert response.status_code == 400
+    assert response.json() == {"code": "FILE_NOT_FOUND"}
 
 
 def test_file_must_match_attachment_kind(

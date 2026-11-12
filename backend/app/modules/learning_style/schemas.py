@@ -180,6 +180,17 @@ class StudyResponse(BaseModel):
     last_result: LastResultResponse | None
 
 
+class LessonStudyStateResponse(BaseModel):
+    """What the student did in a lesson: drives "Start" / "Continue" / "Repeat" (D57)."""
+
+    lesson_id: int
+    started: bool  # a result in the lesson or an explicit form choice
+    passed: bool
+    best_percent: int | None
+    last_percent: int | None
+    chosen_form: Form | None  # explicit choice other than the active style
+
+
 class CourseHint(BaseModel):
     form: Form
     average: int
