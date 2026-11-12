@@ -142,6 +142,17 @@ export type Study = {
   last_result: { percent: number; passed: boolean; form: Form } | null;
 };
 
+/** D57: where a student stands in one published lesson (`GET /courses/{id}/study-states`). */
+export type StudyState = {
+  lesson_id: number;
+  /** A result that did not pass, or a form chosen explicitly. */
+  started: boolean;
+  passed: boolean;
+  best_percent: number | null;
+  last_percent: number | null;
+  chosen_form: Form | null;
+};
+
 /** R8: the best form of the course among other students. */
 export type CourseHint = {
   form: Form;

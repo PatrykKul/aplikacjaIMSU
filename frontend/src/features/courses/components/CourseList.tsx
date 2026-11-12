@@ -88,10 +88,14 @@ function MyCourses({ courses }: { courses: CourseSummary[] }) {
                   }
                   className={cn(
                     buttonVariants({ variant: done ? "outline" : "default" }),
-                    "justify-self-start",
+                    "h-auto min-h-control max-w-full justify-self-start py-2 text-left whitespace-normal sm:max-w-xs",
                   )}
                 >
-                  {done ? "Zobacz kurs" : "Kontynuuj"}
+                  {done
+                    ? "Zobacz kurs"
+                    : next
+                      ? `Kontynuuj: Lekcja ${next.number} – ${next.title}`
+                      : "Kontynuuj"}
                   {!done && <ArrowRightIcon data-icon="inline-end" />}
                 </Link>
               </Row>

@@ -1,4 +1,5 @@
 import {
+  type Query,
   type QueryClient,
   useMutation,
   useQuery,
@@ -18,6 +19,9 @@ export const lessonQuizKey = (lessonId: number) =>
   ["lessons", lessonId, "quiz"] as const;
 export const courseHintKey = (courseId: number) =>
   ["courses", courseId, "hint"] as const;
+/** Under the course key: a quiz result refreshes it with the course. */
+export const studyStatesKey = (courseId: number) =>
+  ["courses", courseId, "study-states"] as const;
 
 export function useLearningProfile(enabled = true) {
   return useQuery({
@@ -35,6 +39,12 @@ export function useSurveyQuestions() {
   });
 }
 
+function isStudyStates(query: Query): boolean {
+  return (
+    query.queryKey[0] === "courses" && query.queryKey[2] === "study-states"
+  );
+}
+
 /** Every lesson studied so far shows the version of the (new) style. */
 function refreshAfterStyleChange(queryClient: QueryClient) {
   return Promise.all([
@@ -42,6 +52,8 @@ function refreshAfterStyleChange(queryClient: QueryClient) {
       predicate: (query) =>
         query.queryKey[0] === "lessons" && query.queryKey[2] === "study",
     }),
+    // A style change clears chosen forms of lessons
+    queryClient.invalidateQueries({ predicate: isStudyStates }),
     queryClient.invalidateQueries({ queryKey: ["me"] }),
   ]);
 }
@@ -105,8 +117,19 @@ export function useChangeLessonForm(lessonId: number) {
       return Promise.all([
         queryClient.invalidateQueries({ queryKey: lessonQuizKey(lessonId) }),
         queryClient.invalidateQueries({ queryKey: ["me", "journal"] }),
+        // "Rozpocznij" becomes "Kontynuuj" once a form is chosen
+        queryClient.invalidateQueries({ predicate: isStudyStates }),
       ]);
     },
+  });
+}
+
+/** D57: state of each published lesson for an accepted student. */
+export function useStudyStates(courseId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: studyStatesKey(courseId),
+    queryFn: () => learningStyleApi.studyStates(courseId),
+    enabled,
   });
 }
 

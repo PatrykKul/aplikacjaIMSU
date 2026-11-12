@@ -5,6 +5,7 @@ import type {
   CourseHint,
   LearningProfile,
   Study,
+  StudyState,
   SurveyChoice,
   SurveyQuestion,
 } from "./types";
@@ -32,6 +33,8 @@ export const learningStyleApi = {
     source: "manual" | "suggestion",
   ) => api.put<Study>(`/lessons/${lessonId}/study/form`, { form, source }),
 
+  studyStates: (courseId: number) =>
+    api.get<StudyState[]>(`/courses/${courseId}/study-states`),
   courseHint: (courseId: number) =>
     api.get<CourseHint | null>(`/courses/${courseId}/hint`),
 };
