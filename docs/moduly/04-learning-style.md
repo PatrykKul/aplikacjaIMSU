@@ -16,7 +16,7 @@ Zasada: **każda reakcja systemu wynika z jednej czystej funkcji w `rules.py` i 
 
 ## Model danych
 
-Migracje: `ea197399889b` (ankieta + 20 pytań z v1), `c3a91f2d7b40` (teksty neutralne płciowo), `01324f58656d` (model v3; dane uczenia v2 usunięte, bez przenoszenia).
+Migracje: `ea197399889b` (ankieta + 20 pytań z v1), `c3a91f2d7b40` (teksty neutralne płciowo), `01324f58656d` (model v3; dane uczenia v2 usunięte, bez przenoszenia), `7d2e9b4c1a35` (`style_trials.result` = `cancelled`).
 
 | Tabela | Kolumny | Uwagi |
 |---|---|---|
@@ -28,7 +28,7 @@ Migracje: `ea197399889b` (ankieta + 20 pytań z v1), `c3a91f2d7b40` (teksty neut
 | `quiz_results` | `id`, `user_id`, `course_id` (indeks), `lesson_id`, `draw_id` → `quiz_draws` (SET NULL), `form`, `percent` (0–100), `passed`, `counted`, `created_at` | wynik w modelu ucznia (S z wykładu); indeks (`user_id`, `lesson_id`) |
 | `lesson_forms` | `user_id`, `lesson_id` (PK razem), `form`, `updated_at` | jawny wybór formy lekcji; brak wiersza = forma = aktywny styl |
 | `style_proposals` | `id`, `user_id`, `kind` (`switch` / `revert`), `from_style`, `to_style`, `evidence` (JSONB), `status` (`open` / `accepted` / `rejected` / `expired` / `superseded`), `counted_at_decision`, `created_at`, `decided_at` | częściowy indeks unikalny: najwyżej jedna `open` na ucznia |
-| `style_trials` | `id`, `user_id`, `from_style`, `to_style`, `source` (`proposal` / `manual`), `before_average` (null = brak danych), `after_average`, `result` (`helped` / `neutral` / `worse` / `no_baseline` / null), `started_at`, `finished_at` (null = trwa) | okres próbny (R7) |
+| `style_trials` | `id`, `user_id`, `from_style`, `to_style`, `source` (`proposal` / `manual`), `before_average` (null = brak danych), `after_average`, `result` (`helped` / `neutral` / `worse` / `no_baseline` / `cancelled` / null), `started_at`, `finished_at` (null = trwa) | okres próbny (R7); `cancelled` — cofnięty albo zastąpiony przed pierwszą policzoną lekcją (R7a), null po zakończeniu — przerwany zmianą stylu po policzonych lekcjach |
 | `decision_events` | `id`, `user_id` (CASCADE), `type` (40), `course_id` (SET NULL, indeks), `lesson_id` (SET NULL), `data` (JSONB), `created_at` | dziennik decyzji; indeks (`user_id`, `created_at`) |
 
 Czas w nowych wierszach (`quiz_results`, `decision_events`, `style_history`, propozycje, okresy próbne, `quiz_draws.submitted_at`) ustawia `service.now()` = `clock_timestamp()`: wiersze jednego żądania mają różne czasy, a okres próbny porównuje czas wyniku z czasem startu.

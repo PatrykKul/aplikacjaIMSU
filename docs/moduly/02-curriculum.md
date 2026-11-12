@@ -18,8 +18,9 @@ Kursy i lekcje (autor, publikacja kursu, zarys i wnioski lekcji), zapisy na kurs
 | `lessons` | `id`, `course_id` → `courses` (indeks), `title` (120), `position`, `outline` (JSONB / null — „Zarys”), `conclusions` (JSONB / null — „Wnioski”), `is_published` (false), `is_archived`, `created_at`, `updated_at` |
 | `enrollments` | `id`, `course_id` → `courses` (CASCADE), `student_id` → `users` (CASCADE, indeks), `status` (`pending` / `accepted` / `rejected`, `CHECK`), `requested_at`, `decided_at` (null); unikalne (`course_id`, `student_id`) |
 | `lesson_completions` | `user_id` → `users` (CASCADE), `lesson_id` → `lessons` (CASCADE), `passed_at`; PK (`user_id`, `lesson_id`) — pierwsze zaliczenie lekcji |
+| `course_owner_changes` | `id`, `course_id` → `courses` (CASCADE, indeks), `from_owner_id`, `to_owner_id`, `changed_by_id` → `users`, `changed_at` — zmiany właściciela przez administratora (D56) |
 
-Migracje `6eb66f0c665b` (kursy, lekcje), `01324f58656d` (v3: `summary`, `outline`, `conclusions`, `lessons.is_published`, `enrollments`, `lesson_completions`; tabele klas z `249e835bc4e5` usunięte). „Usuń” kurs / lekcję = archiwizacja (historia uczniów zostaje). Nowa lekcja: na końcu (`max(position) + 1`), nieopublikowana.
+Migracje `6eb66f0c665b` (kursy, lekcje), `01324f58656d` (v3: `summary`, `outline`, `conclusions`, `lessons.is_published`, `enrollments`, `lesson_completions`; tabele klas z `249e835bc4e5` usunięte), `7d2e9b4c1a35` (`course_owner_changes`). „Usuń” kurs / lekcję = archiwizacja (historia uczniów zostaje). Nowa lekcja: na końcu (`max(position) + 1`), nieopublikowana.
 
 ## Logika
 

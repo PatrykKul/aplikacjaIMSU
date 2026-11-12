@@ -211,7 +211,8 @@ class StyleTrial(Base):
     __table_args__ = (
         CheckConstraint("source IN ('proposal', 'manual')", name="source"),
         CheckConstraint(
-            "result IS NULL OR result IN ('helped', 'neutral', 'worse', 'no_baseline')",
+            "result IS NULL OR result IN "
+            "('helped', 'neutral', 'worse', 'no_baseline', 'cancelled')",
             name="result",
         ),
     )
@@ -223,6 +224,7 @@ class StyleTrial(Base):
     source: Mapped[str] = mapped_column(String(10))
     before_average: Mapped[int | None]
     after_average: Mapped[int | None]
+    # None while running or when interrupted after counted lessons; "cancelled" (R7a)
     result: Mapped[str | None] = mapped_column(String(12))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # None = trial still running
