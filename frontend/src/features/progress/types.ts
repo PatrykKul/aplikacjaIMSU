@@ -174,7 +174,8 @@ export type JournalEntry = JournalEvent & {
   id: number;
   at: string;
   course: { id: number; title: string } | null;
-  lesson: { id: number; title: string } | null;
+  /** `number` only if the server sends it; the chart falls back to a lookup. */
+  lesson: { id: number; title: string; number?: number | null } | null;
 };
 
 /** `GET /courses/{id}/students/{student_id}` - the teacher's view of one student. */

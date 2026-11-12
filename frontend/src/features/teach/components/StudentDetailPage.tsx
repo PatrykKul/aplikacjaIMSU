@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 import { profileSummaryLines } from "@/features/learning-style/explain";
 import type { LearningProfile } from "@/features/learning-style/types";
+import { lessonNumbers } from "@/features/progress/chart-data";
 import { DecisionJournal } from "@/features/progress/components/DecisionJournal";
 import { FormPercentages } from "@/features/progress/components/FormPercentages";
 import { LessonResultsTable } from "@/features/progress/components/LessonResultsTable";
@@ -157,7 +158,10 @@ export function StudentDetailPage({
       </DetailSection>
 
       <DetailSection id="student-chart" title="Procenty w czasie">
-        <PercentChart history={history} />
+        <PercentChart
+          history={history}
+          lessonNumbers={lessonNumbers(lessons)}
+        />
       </DetailSection>
 
       <DetailSection id="student-lessons" title="Wyniki lekcji w tym kursie">

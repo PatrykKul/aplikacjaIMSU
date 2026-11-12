@@ -3,7 +3,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 import { FORMS, type Form } from "@/features/content/types";
-import { formShort, percentagesText } from "@/features/learning-style/explain";
+import {
+  formShort,
+  historyAxisLabel,
+  historyEventText,
+  percentagesText,
+  styleMarkerText,
+} from "@/features/learning-style/explain";
 import {
   FORM_DASH,
   FORM_FILL,
@@ -20,17 +26,20 @@ import {
   TableRow,
 } from "@/shared/ui/table";
 
-import { formatDateTime, formatShortDate } from "../format";
+import { buildChartData, type ChartData } from "../chart-data";
+import { formatDateTime } from "../format";
 import type { HistoryPoint } from "../types";
 
 // Geometry in CSS pixels; the width follows the container
 const HEIGHT = 260;
 const PAD_TOP = 16;
-const PAD_BOTTOM = 32;
+const PAD_BOTTOM = 36;
 const PAD_LEFT = 44;
 const LABEL_GAP = 18;
 const NARROW = 440;
 const TICKS = [0, 25, 50, 75, 100];
+/** Room for one label under the axis ("Ankieta", "L12 · K"). */
+const AXIS_LABEL_WIDTH = 60;
 
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -72,12 +81,14 @@ function spreadLabels(
   return result;
 }
 
-function ChartTable({ history }: { history: HistoryPoint[] }) {
+/** Every event: points with their percentages, style changes "bez zmian". */
+function ChartTable({ rows }: { rows: ChartData["rows"] }) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Data</TableHead>
+          <TableHead>Zdarzenie</TableHead>
           <TableHead>Styl</TableHead>
           {FORMS.map((form) => (
             <TableHead key={form} className="text-right">
@@ -87,30 +98,50 @@ function ChartTable({ history }: { history: HistoryPoint[] }) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {history.map((point, index) => (
-          <TableRow key={`${point.at}-${index}`}>
-            <TableCell className="tabular-nums">
-              {formatDateTime(point.at)}
-            </TableCell>
-            <TableCell>{point.style ?? "–"}</TableCell>
-            {FORMS.map((form) => (
-              <TableCell key={form} className="text-right tabular-nums">
-                {point.percentages[form]}%
+        {rows.map((row, index) => {
+          const percentages = row.percentages;
+          return (
+            <TableRow key={`${row.at}-${index}`}>
+              <TableCell className="tabular-nums">
+                {formatDateTime(row.at)}
               </TableCell>
-            ))}
-          </TableRow>
-        ))}
+              <TableCell>{historyEventText(row.event)}</TableCell>
+              <TableCell>{row.style ?? "–"}</TableCell>
+              {percentages ? (
+                FORMS.map((form) => (
+                  <TableCell key={form} className="text-right tabular-nums">
+                    {percentages[form]}%
+                  </TableCell>
+                ))
+              ) : (
+                <TableCell
+                  colSpan={FORMS.length}
+                  className="text-right text-muted-foreground"
+                >
+                  bez zmian
+                </TableCell>
+              )}
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );
 }
 
+type PercentChartProps = {
+  history: HistoryPoint[];
+  /** Lesson id → number, for "L1 · A" when the journal entry has no number. */
+  lessonNumbers?: ReadonlyMap<number, number>;
+};
+
 /**
- * Percentages of V, A and K over time: one point per change of the profile,
- * a line per form (color + dash pattern + letter and name at the end),
- * then a table of the same data.
+ * D62: percentages of V, A and K over time. Points only for the survey and
+ * counted quizzes (a line per form: color + dash pattern + letter and name at
+ * the end), changes of the style as vertical markers between them, the X axis
+ * named by events; then a table of every event.
  */
-export function PercentChart({ history }: { history: HistoryPoint[] }) {
+export function PercentChart({ history, lessonNumbers }: PercentChartProps) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const titleId = useId();
 
@@ -122,17 +153,25 @@ export function PercentChart({ history }: { history: HistoryPoint[] }) {
     );
   }
 
+  const { points, markers, rows, maxSlot } = buildChartData(
+    history,
+    lessonNumbers,
+  );
+  if (points.length === 0) {
+    return <ChartTable rows={rows} />;
+  }
+
   const narrow = width < NARROW;
   const padRight = narrow ? 60 : 132;
   const plotWidth = Math.max(width - PAD_LEFT - padRight, 40);
   const plotHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
-  const count = history.length;
-  const x = (index: number) =>
-    PAD_LEFT +
-    (count === 1 ? plotWidth / 2 : (index * plotWidth) / (count - 1));
+  const x = (slot: number) =>
+    PAD_LEFT + (maxSlot === 0 ? plotWidth / 2 : (slot * plotWidth) / maxSlot);
   const y = (value: number) => PAD_TOP + ((100 - value) / 100) * plotHeight;
+  const step = maxSlot === 0 ? plotWidth : plotWidth / maxSlot;
 
-  const last = history[count - 1];
+  const last = points[points.length - 1];
+  const endX = x(maxSlot);
   const endY = spreadLabels(
     {
       V: y(last.percentages.V),
@@ -143,22 +182,22 @@ export function PercentChart({ history }: { history: HistoryPoint[] }) {
     PAD_TOP + plotHeight,
   );
 
-  // Points where the active style changed
-  const styleChanges = history
-    .map((point, index) => ({ point, index }))
-    .filter(
-      ({ point, index }) =>
-        index > 0 &&
-        point.style !== null &&
-        point.style !== history[index - 1].style,
-    );
-
-  const dateIndexes =
-    count === 1
-      ? [0]
-      : narrow || count === 2
-        ? [0, count - 1]
-        : [0, Math.floor((count - 1) / 2), count - 1];
+  // Every k-th label under the axis when they would overlap, always the last one
+  const every = Math.max(1, Math.ceil(AXIS_LABEL_WIDTH / step));
+  const labelled = points.filter(
+    (point) =>
+      point === last ||
+      (point.slot % every === 0 && last.slot - point.slot >= every),
+  );
+  const anchor = (slot: number) => {
+    if (maxSlot === 0) {
+      return "middle";
+    }
+    if (slot === 0) {
+      return "start";
+    }
+    return slot === maxSlot ? "end" : "middle";
+  };
 
   return (
     <figure className="space-y-4">
@@ -172,7 +211,7 @@ export function PercentChart({ history }: { history: HistoryPoint[] }) {
           className="block max-w-full overflow-visible text-xs"
         >
           <title id={titleId}>
-            {`Procenty form w czasie, ${count} punktów. Teraz: ${percentagesText(last.percentages)}. Dane w tabeli pod wykresem.`}
+            {`Procenty form w czasie: ${points.length} punktów (ankieta i policzone quizy), zmiany stylu: ${markers.length}. Teraz: ${percentagesText(last.percentages)}. Dane w tabeli pod wykresem.`}
           </title>
 
           {/* Axis 0-100% */}
@@ -201,60 +240,92 @@ export function PercentChart({ history }: { history: HistoryPoint[] }) {
             </g>
           ))}
 
-          {/* Changes of the style */}
-          {styleChanges.map(({ point, index }) => (
-            <g key={`style-${index}`}>
-              <line
-                x1={x(index)}
-                x2={x(index)}
-                y1={PAD_TOP}
-                y2={PAD_TOP + plotHeight}
-                className="stroke-muted-foreground/50"
-                strokeDasharray="3 3"
-              />
-              <text
-                x={x(index) + 4}
-                y={PAD_TOP + 2}
-                dominantBaseline="hanging"
-                className="fill-muted-foreground"
-              >
-                styl {point.style}
-              </text>
-            </g>
-          ))}
+          {/* Changes of the style: a line between points, no point of their own */}
+          {markers.map((marker, index) => {
+            const mx = x(marker.slot);
+            const atEnd = marker.slot >= maxSlot;
+            const tx = atEnd ? mx - 4 : mx + 4;
+            const ty = PAD_TOP + 2 + (index % 2) * 28;
+            const tooltip = [
+              marker.reverted
+                ? `${historyEventText(marker.event)} – cofnięta przed pierwszą lekcją`
+                : historyEventText(marker.event),
+              formatDateTime(marker.at),
+            ].join("\n");
+            return (
+              <g key={`marker-${index}`}>
+                <title>{tooltip}</title>
+                <line
+                  x1={mx}
+                  x2={mx}
+                  y1={PAD_TOP}
+                  y2={PAD_TOP + plotHeight}
+                  className={
+                    marker.reverted
+                      ? "stroke-muted-foreground/40"
+                      : "stroke-muted-foreground/60"
+                  }
+                  strokeDasharray={marker.reverted ? "1.5 3" : "3 3"}
+                />
+                {/* Wide transparent strip, so the tooltip works on hover */}
+                <rect
+                  x={mx - 6}
+                  y={PAD_TOP}
+                  width={12}
+                  height={plotHeight}
+                  fill="transparent"
+                />
+                <text
+                  x={tx}
+                  y={ty}
+                  textAnchor={atEnd ? "end" : "start"}
+                  dominantBaseline="hanging"
+                  className="fill-muted-foreground"
+                >
+                  <tspan
+                    style={
+                      marker.reverted
+                        ? { textDecoration: "line-through" }
+                        : undefined
+                    }
+                  >
+                    {styleMarkerText(marker.style)}
+                  </tspan>
+                  {marker.reverted && (
+                    <tspan x={tx} dy="1.2em">
+                      cofnięta
+                    </tspan>
+                  )}
+                </text>
+              </g>
+            );
+          })}
 
-          {/* Dates under the axis */}
-          {dateIndexes.map((index) => (
+          {/* Events under the axis */}
+          {labelled.map((point) => (
             <text
-              key={`date-${index}`}
-              x={x(index)}
-              y={HEIGHT - 8}
-              textAnchor={
-                count === 1
-                  ? "middle"
-                  : index === 0
-                    ? "start"
-                    : index === count - 1
-                      ? "end"
-                      : "middle"
-              }
+              key={`label-${point.slot}`}
+              x={x(point.slot)}
+              y={HEIGHT - 10}
+              textAnchor={anchor(point.slot)}
               className="fill-muted-foreground"
             >
-              {formatShortDate(history[index].at)}
+              {historyAxisLabel(point.event)}
             </text>
           ))}
 
-          {/* One line per form */}
+          {/* One line per form; flat after the last point up to "now" */}
           {FORMS.map((form) => {
-            const path = history
+            const path = points
               .map(
                 (point, index) =>
-                  `${index === 0 ? "M" : "L"}${x(index).toFixed(1)},${y(point.percentages[form]).toFixed(1)}`,
+                  `${index === 0 ? "M" : "L"}${x(point.slot).toFixed(1)},${y(point.percentages[form]).toFixed(1)}`,
               )
               .join(" ");
+            const lastY = y(last.percentages[form]);
             return (
               <g key={form}>
-                {count > 1 && (
+                {points.length > 1 && (
                   <path
                     d={path}
                     fill="none"
@@ -265,10 +336,22 @@ export function PercentChart({ history }: { history: HistoryPoint[] }) {
                     strokeLinejoin="round"
                   />
                 )}
-                {history.map((point, index) => (
+                {endX > x(last.slot) && (
+                  <line
+                    x1={x(last.slot)}
+                    x2={endX}
+                    y1={lastY}
+                    y2={lastY}
+                    className={cn(FORM_STROKE[form], "opacity-40")}
+                    strokeWidth={2.5}
+                    strokeDasharray={FORM_DASH[form]}
+                    strokeLinecap="round"
+                  />
+                )}
+                {points.map((point) => (
                   <circle
-                    key={index}
-                    cx={x(index)}
+                    key={point.slot}
+                    cx={x(point.slot)}
                     cy={y(point.percentages[form])}
                     r={3.5}
                     className={cn(FORM_FILL[form], "stroke-background")}
@@ -276,7 +359,7 @@ export function PercentChart({ history }: { history: HistoryPoint[] }) {
                   />
                 ))}
                 <text
-                  x={x(count - 1) + 10}
+                  x={endX + 10}
                   y={endY[form]}
                   dominantBaseline="middle"
                   className={cn(FORM_TEXT_FILL[form], "text-[13px]")}
@@ -291,13 +374,35 @@ export function PercentChart({ history }: { history: HistoryPoint[] }) {
               </g>
             );
           })}
+
+          {/* Tooltips: a column per point with the event, date and numbers */}
+          {points.map((point) => (
+            <g key={`hit-${point.slot}`}>
+              <title>
+                {[
+                  `${historyAxisLabel(point.event)}: ${historyEventText(point.event)}`,
+                  formatDateTime(point.at),
+                  percentagesText(point.percentages),
+                ].join("\n")}
+              </title>
+              <rect
+                x={x(point.slot) - Math.min(step, 24) / 2}
+                y={PAD_TOP}
+                width={Math.min(step, 24)}
+                height={plotHeight}
+                fill="transparent"
+              />
+            </g>
+          ))}
         </svg>
       </div>
       <figcaption className="text-sm text-muted-foreground">
         Linia ciągła – wzrokowe (V), kreskowana – słuchowe (A), kropkowana –
-        kinestetyczne (K). Punkt to stan po ankiecie, quizie albo zmianie stylu.
+        kinestetyczne (K). Punkt to stan po ankiecie albo policzonym quizie,
+        pionowa linia – zmiana stylu (przekreślona – cofnięta przed pierwszą
+        lekcją). Data i godzina są w podpowiedzi i w tabeli.
       </figcaption>
-      <ChartTable history={history} />
+      <ChartTable rows={rows} />
     </figure>
   );
 }

@@ -4,6 +4,7 @@
  * Used by the student's screens and by the teacher's view of a student.
  */
 import { FORMS, type Form } from "@/features/content/types";
+import type { HistoryEvent } from "@/features/progress/chart-data";
 import type {
   ClearedLesson,
   JournalEntry,
@@ -489,6 +490,49 @@ export function profileSummaryLines(profile: LearningProfile): SummaryLine[] {
     });
   }
   return lines;
+}
+
+// --- D62: chart and table of "Moje postępy" ---
+
+/** Under the X axis: "Ankieta", "L1 · A". */
+export function historyAxisLabel(event: HistoryEvent): string {
+  switch (event.kind) {
+    case "survey":
+      return "Ankieta";
+    case "quiz":
+      return event.lessonNumber !== null
+        ? `L${event.lessonNumber} · ${event.form}`
+        : `Quiz · ${event.form}`;
+    default:
+      return "Zmiana";
+  }
+}
+
+/** Column "Zdarzenie": "Quiz: Pętla for – forma A, 100%", "Zmiana stylu na V (ręcznie)". */
+export function historyEventText(event: HistoryEvent): string {
+  switch (event.kind) {
+    case "survey":
+      return "Ankieta";
+    case "quiz":
+      return `Quiz${event.lessonTitle ? `: ${event.lessonTitle}` : ""} – forma ${event.form}, ${event.percent}%`;
+    case "tie":
+      return `Wybór stylu przy remisie: ${event.style}`;
+    case "style":
+      return event.source === "manual"
+        ? `Zmiana stylu na ${event.style} (ręcznie)`
+        : event.source === "proposal"
+          ? `Zmiana stylu na ${event.style} (propozycja systemu)`
+          : `Zmiana stylu na ${event.style}`;
+    case "revert":
+      return `Zmiana cofnięta – znów styl ${event.style}`;
+    case "other":
+      return "Zmiana procentów";
+  }
+}
+
+/** Label of a vertical marker: "styl V". */
+export function styleMarkerText(style: Form): string {
+  return `styl ${style}`;
 }
 
 // --- Decision journal ---
