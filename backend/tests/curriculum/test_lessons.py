@@ -32,6 +32,10 @@ def test_owner_adds_lessons_at_the_end(
     lesson = response.json()
     assert lesson["title"] == "Druga"
     assert lesson["course"] == {"id": course["id"], "title": "Procenty", "owner_id": teacher.id}
+    assert lesson["number"] == 2
+    assert lesson["is_published"] is False
+    assert (lesson["outline"], lesson["conclusions"]) == (None, None)
+    assert lesson["next_lesson_unlocked"] is None
     assert _lesson_titles(client, course["id"]) == ["Pierwsza", "Druga"]
 
 
@@ -137,13 +141,13 @@ def test_neighbours_skip_archived_lesson(
 
 
 @pytest.mark.parametrize(
-    ("viewer", "published", "visible"),
+    ("viewer", "published", "status", "code"),
     [
-        ("teacher", False, True),
-        ("other_teacher", True, False),
-        ("student", False, False),
-        ("student", True, True),
-        ("admin", False, True),
+        ("teacher", False, 200, None),
+        ("other_teacher", True, 404, "LESSON_NOT_FOUND"),
+        ("student", False, 404, "LESSON_NOT_FOUND"),
+        ("student", True, 403, "ENROLLMENT_REQUIRED"),  # access rules: test_lesson_access.py
+        ("admin", False, 200, None),
     ],
 )
 def test_lesson_visibility_follows_course(
@@ -154,16 +158,17 @@ def test_lesson_visibility_follows_course(
     teacher: User,
     viewer: str,
     published: bool,
-    visible: bool,
+    status: int,
+    code: str | None,
 ) -> None:
     course = make_course(teacher, lessons=("A",), published=published)
 
     login(request.getfixturevalue(viewer))
     response = client.get(f"/lessons/{_lesson_ids(course)[0]}")
 
-    assert response.status_code == (200 if visible else 404)
-    if not visible:
-        assert response.json()["code"] == "LESSON_NOT_FOUND"
+    assert response.status_code == status
+    if code:
+        assert response.json()["code"] == code
 
 
 def test_lessons_of_archived_course_are_hidden(

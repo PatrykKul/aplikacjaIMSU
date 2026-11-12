@@ -11,7 +11,7 @@ from pydantic import (
     StringConstraints,
 )
 
-from app.modules.identity.models import UserRole
+from app.modules.identity.models import ApprovalStatus, UserRole
 
 
 def _normalize_email(value: object) -> str:
@@ -67,12 +67,13 @@ class UserResponse(BaseModel):
     email: str
     display_name: str
     role: UserRole
+    approval_status: ApprovalStatus
     is_active: bool
     created_at: datetime
 
 
 class StudentResponse(BaseModel):
-    """A student as shown to a teacher (search results, classroom members)."""
+    """A student as shown to a teacher (enrollment requests)."""
 
     model_config = ConfigDict(from_attributes=True)
 
