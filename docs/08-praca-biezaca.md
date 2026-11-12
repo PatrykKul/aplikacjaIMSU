@@ -5,7 +5,7 @@ Specyfikacja tego, co teraz robimy. Po zakończeniu: wynik trafia do `moduly/<nr
 ---
 
 # Etap 9 — IMSU v3: przebudowa adaptacji (12.11.2026)
-Status: **szkic — do akceptacji Patryka**
+Status: **zaakceptowana** (Patryk, 12.11) z poprawkami: progi R7 (`helped` od +10), czyszczenie wyborów formy przy zmianie stylu (R6); pytania 1–7 — rozwiązania domyślne
 
 Zlecenie: `..\ZADANIE-CLAUDE-CODE-IMSU-v3.md` (12.11). Przebudowa uzgodniona z Bartkiem: wolno zmieniać cały kod (także `curriculum`, `content`, `identity`, frontend), usuwać klasy i przebudować edytor. Dla tego etapu **nie obowiązuje D5** (kod pisze i commituje AI na gałęzi `feat/v3-adaptacja`, bez pushu). Zmiana cudzego kodu (moduły `learning_style` i `assessment` Bartka, etap 4) — w całości, opisana niżej.
 
@@ -100,6 +100,7 @@ STEP = 10                        # zmiana procentu formy po policzonym wyniku
 MIN_PERCENT = 5                  # każda forma >= 5, więc maks. 90
 QUIZ_SIZE = 5                    # pytań na podejście; pula do publikacji >= 5
 TRIAL_LESSONS = 2                # okres próbny po zmianie stylu
+HELPED_GAIN = 10                 # wzrost średniej (pkt proc.), od którego zmiana „pomogła”
 REVERT_DROP = 10                 # spadek średniej (pkt proc.), od którego proponujemy powrót
 RENEW_AFTER = 2                  # nowe policzone wyniki, po których wraca odrzucona propozycja
 HINT_MIN_STUDENTS = 2            # podpowiedź z kursu: min. uczniów w danej formie
@@ -142,13 +143,14 @@ Wynik quizu przy 5 pytaniach: 0, 20, 40, 60, 80, 100% → zaliczenie od 4/5.
 - Dowód: `{from: {form, lessons, average, percent}, to: {form, lessons, average, percent}}` → „Wzrokowe: 3 lekcje, średnio 53% · Słuchowe: 1 lekcja, średnio 80%”.
 - Otwarta propozycja, której warunek przestał obowiązywać (albo wskazuje inną formę), dostaje status `expired` przy następnej ocenie. Ręczna zmiana stylu zamyka otwartą propozycję (`superseded`).
 - Uczeń przyjmuje (styl = Y, `style_source = proposal`, start okresu próbnego) albo odrzuca (status `rejected`, `counted_at_decision` = bieżąca liczba policzonych wyników).
+- **Wyczyszczenie wyborów formy** — `forms_to_clear(chosen_forms, passed_lesson_ids) -> list[lesson_id]`: przy **każdej** zmianie aktywnego stylu (przyjęta propozycja `switch` albo `revert`, zmiana ręczna) usuwamy jawne wybory formy (`lesson_forms`) we wszystkich lekcjach, których uczeń **jeszcze nie zaliczył** — nowy styl obowiązuje wszędzie poza zaliczonymi lekcjami (tam wybór zostaje jako zapis historii). Lista wyczyszczonych lekcji trafia do `data` zdarzenia zmiany stylu.
 
 ### R7. Okres próbny — `trial_outcome(before_average, after_results) -> TrialOutcome | None`
-- Start przy **każdej** zmianie aktywnego stylu: przyjęta propozycja `switch` albo zmiana ręczna (bez okresu po przyjęciu propozycji powrotu — żeby nie było pętli).
+- Start przy zmianie aktywnego stylu: przyjęta propozycja `switch` albo zmiana ręczna (bez okresu po przyjęciu propozycji powrotu — żeby nie było pętli). Każda zmiana stylu (także powrót) czyści jawne wybory formy w niezaliczonych lekcjach (R6).
 - `before_average`: średnia z ostatnich ≤ 2 policzonych wyników w **poprzednim** stylu sprzed zmiany (`null`, gdy brak).
 - Liczą się policzone wyniki w **nowym** stylu po starcie; po 2 → koniec: `after_average`, `diff = after − before`:
-  - `diff > 0` → `helped` („Zmiana pomogła: średnia 40% → 90%”),
-  - `−10 < diff ≤ 0` → `neutral` („Bez wyraźnej różnicy: 60% → 55%”),
+  - `diff ≥ +10` → `helped` („Zmiana pomogła: średnia 40% → 90%”),
+  - `−10 < diff < +10` → `neutral` („Bez wyraźnej różnicy: średnia 60% → 65%”),
   - `diff ≤ −10` → `worse` + **propozycja powrotu** (`kind = revert`, do poprzedniego stylu, bez wymogu potwierdzenia; odrzucona — jak w R6),
   - `before = null` → `no_baseline` („Średnia w nowej formie: 85%”).
 
@@ -187,8 +189,9 @@ Wynik quizu przy 5 pytaniach: 0, 20, 40, 60, 80, 100% → zaliczenie od 4/5.
 | `retry_suggestion` | `failed`: {`form`, `percent`, `previous`: {`lesson_id`, `lesson_title`, `percent`} / null}, `suggested`: {`form`, `reason`, `percent`, `survey_percent`, `best`: {`lesson_id`, `lesson_title`, `percent`} / null} |
 | `lesson_form_changed` | `from`, `to`, `source` (`manual` / `suggestion`) |
 | `proposal_created` | `proposal_id`, `kind`, `from`, `to`, `evidence` |
-| `proposal_accepted` / `proposal_rejected` / `proposal_expired` | `proposal_id`, `kind`, `from`, `to` |
-| `manual_style_change` | `from`, `to` |
+| `proposal_accepted` | `proposal_id`, `kind`, `from`, `to`, `cleared_lessons` ([{`lesson_id`, `lesson_title`, `form`}] — wyczyszczone wybory formy) |
+| `proposal_rejected` / `proposal_expired` | `proposal_id`, `kind`, `from`, `to` |
+| `manual_style_change` | `from`, `to`, `cleared_lessons` (jak wyżej) |
 | `trial_started` | `trial_id`, `from`, `to`, `source`, `before_average` |
 | `trial_finished` | `trial_id`, `from`, `to`, `before_average`, `after_average`, `result` |
 
@@ -365,8 +368,8 @@ Nowy `docs/SCENARIUSZ-POKAZU.md` (12–15 min): przygotowanie (reset), przebieg 
 ## Testy (scenariusze)
 
 Backend (pytest, baza z migracji):
-- **`rules.py` (jednostkowe, każda reguła z liczbami ze specyfikacji):** R1 (przykłady, min. 5%, suma 100, remisy punktów, reszty przy remisie); R2 (przykłady, limit 90, minimum 5, brak zmiany na minimum, proporcja przy różnych wartościach — właściwość: suma = 100 i każda ≥ 5 dla wszystkich profili z siatki); `is_counted` (pierwsze w formie, powtórka, inna forma tej samej lekcji); R3 (potwierdzona przez niepoliczone zaliczenie, brak danych → `null`); R4 (seria, przerwanie serią innej formy, niezaliczonym, niepoliczonym); R5 (potwierdzony kandydat, dwa potwierdzone — procent, remis procentu — średnia, brak potwierdzonych — ankieta, remis ankiety, oblanie w formie innej niż styl, poprzedni wynik `null`); R6 (warunek, niepotwierdzona wyższa forma → brak, okres próbny → brak, odrzucona → brak do 2 nowych wyników, potem wraca, wygaszenie); R7 (`helped`, `neutral`, `worse` + powrót, `no_baseline`, wyniki w innej formie się nie liczą); R8 (min. 2 uczniów, remisy, uczeń z wynikami → brak); R9 (preferencja nowych, pula = 5, pula < 5 przy podglądzie, determinizm z `rng`); R10 (pierwsza, po zaliczeniu, zmiana kolejności, zaliczona zostaje dostępna); R11 (każdy kod braku).
-- **API i uprawnienia:** zatwierdzanie nauczycieli (rejestracja → `pending`, `TEACHER_NOT_APPROVED` na endpointach nauczyciela, approve / reject, tylko admin); zapisy (prośba, powtórka, odrzucenie i ponowna prośba, akceptacja tylko przez autora, `ENROLLMENT_REQUIRED` dla treści / quizu / `study`); blokada (`LESSON_LOCKED` z danymi, odblokowanie po zaliczeniu dowolnego podejścia, nieopublikowane lekcje pominięte); wersje (zapis, walidacja, brak `forms`, `PUBLISHED_LESSON_INCOMPLETE`); gotowość i publikacja (`LESSON_NOT_READY` z brakami, `LAST_PUBLISHED_LESSON`, kurs bez opublikowanej lekcji); quiz (5 z puli, brak klucza w `GET`, ten sam otwarty zestaw po odświeżeniu, inne pytania przy powtórce, `DRAW_NOT_OPEN`, odpowiedzi spoza zestawu, wyjaśnienia w wyniku); `record_quiz_result` (forma z wyboru lekcji, tylko pierwsze podejście w formie zmienia procenty, historia procentów, zdarzenia dziennika z danymi, sugestia przy porażce, propozycja przy potwierdzonej wyższej formie, przyjęcie / odrzucenie / powrót po 2 wynikach, okres próbny do końca, ręczna zmiana = okres próbny + `superseded`); remis w ankiecie i wybór; ankieta raz; statystyki kursu i szczegóły ucznia (tylko autor, tylko przyjęty uczeń); dziennik ucznia; usunięte endpointy → 404.
+- **`rules.py` (jednostkowe, każda reguła z liczbami ze specyfikacji):** R1 (przykłady, min. 5%, suma 100, remisy punktów, reszty przy remisie); R2 (przykłady, limit 90, minimum 5, brak zmiany na minimum, proporcja przy różnych wartościach — właściwość: suma = 100 i każda ≥ 5 dla wszystkich profili z siatki); `is_counted` (pierwsze w formie, powtórka, inna forma tej samej lekcji); R3 (potwierdzona przez niepoliczone zaliczenie, brak danych → `null`); R4 (seria, przerwanie serią innej formy, niezaliczonym, niepoliczonym); R5 (potwierdzony kandydat, dwa potwierdzone — procent, remis procentu — średnia, brak potwierdzonych — ankieta, remis ankiety, oblanie w formie innej niż styl, poprzedni wynik `null`); R6 (warunek, niepotwierdzona wyższa forma → brak, okres próbny → brak, odrzucona → brak do 2 nowych wyników, potem wraca, wygaszenie); R7 (granice: `diff` = +10 → `helped`, +9 i −9 → `neutral`, −10 → `worse` + powrót; Marta 40% → 90% → `helped`; `no_baseline`, wyniki w innej formie się nie liczą); `forms_to_clear` (wybory w niezaliczonych lekcjach czyszczone, w zaliczonych zostają, brak wyborów → pusta lista); R8 (min. 2 uczniów, remisy, uczeń z wynikami → brak); R9 (preferencja nowych, pula = 5, pula < 5 przy podglądzie, determinizm z `rng`); R10 (pierwsza, po zaliczeniu, zmiana kolejności, zaliczona zostaje dostępna); R11 (każdy kod braku).
+- **API i uprawnienia:** zatwierdzanie nauczycieli (rejestracja → `pending`, `TEACHER_NOT_APPROVED` na endpointach nauczyciela, approve / reject, tylko admin); zapisy (prośba, powtórka, odrzucenie i ponowna prośba, akceptacja tylko przez autora, `ENROLLMENT_REQUIRED` dla treści / quizu / `study`); blokada (`LESSON_LOCKED` z danymi, odblokowanie po zaliczeniu dowolnego podejścia, nieopublikowane lekcje pominięte); wersje (zapis, walidacja, brak `forms`, `PUBLISHED_LESSON_INCOMPLETE`); gotowość i publikacja (`LESSON_NOT_READY` z brakami, `LAST_PUBLISHED_LESSON`, kurs bez opublikowanej lekcji); quiz (5 z puli, brak klucza w `GET`, ten sam otwarty zestaw po odświeżeniu, inne pytania przy powtórce, `DRAW_NOT_OPEN`, odpowiedzi spoza zestawu, wyjaśnienia w wyniku); `record_quiz_result` (forma z wyboru lekcji, tylko pierwsze podejście w formie zmienia procenty, historia procentów, zdarzenia dziennika z danymi, sugestia przy porażce, propozycja przy potwierdzonej wyższej formie, przyjęcie / odrzucenie / powrót po 2 wynikach, okres próbny do końca, ręczna zmiana = okres próbny + `superseded`; przyjęcie propozycji `switch` / `revert` i zmiana ręczna czyszczą `lesson_forms` niezaliczonych lekcji — `study` pokazuje potem nowy styl, a `cleared_lessons` jest w zdarzeniu); remis w ankiecie i wybór; ankieta raz; statystyki kursu i szczegóły ucznia (tylko autor, tylko przyjęty uczeń); dziennik ucznia; usunięte endpointy → 404.
 - **Migracja:** `downgrade base` + `upgrade head` na pustej bazie i na bazie z danymi v2 (test w `tests/test_migrations.py` albo ręcznie z zapisem w raporcie).
 - **Seed:** stany kont z tabeli, idempotencja (drugie uruchomienie bez zmian w liczbach wierszy), `--reset-students` przywraca stan po symulowanym pokazie.
 
@@ -411,7 +414,7 @@ Rozwiązania domyślne — obowiązują, jeśli w akceptacji nie napiszesz inacz
 2. **Ręczna zmiana stylu też uruchamia okres próbny** (2 lekcje) i zamyka otwartą propozycję. Po przyjęciu propozycji powrotu okresu próbnego nie ma (bez pętli).
 3. **Wersja K wymaga karty PDF** (instrukcja tekstem + PDF); wersja A — nagranie (plik albo tekst dla lektora przeglądarki) + krótki opis; V — tekst + obraz lub film.
 4. **Odrzucony uczeń może poprosić ponownie**; przyjęty uczeń zachowuje dostęp także po wycofaniu publikacji kursu.
-5. **Okres próbny:** „pomogła” przy średniej wyższej niż przed zmianą, spadek o ≥ 10 pkt → propozycja powrotu, pomiędzy → „bez wyraźnej różnicy”; „przed” = średnia z ostatnich 2 policzonych wyników w poprzednim stylu.
+5. **Okres próbny:** „przed” = średnia z ostatnich 2 policzonych wyników w poprzednim stylu; progi — **zmienione przy akceptacji**, patrz R7.
 6. **Statystyki form ucznia i propozycje — ze wszystkich kursów** (styl jest jeden dla ucznia); podpowiedź R8 — z danego kursu.
 7. Znane ograniczenie do omówienia na pokazie: druga szansa w innej formie jest łatwiejsza (uczeń zna już część pytań i wyjaśnienia), więc +10 dla formy „drugiej szansy” może zawyżać jej procent. Łagodzą to: losowanie innych pytań przy powtórce (R9), liczenie tylko pierwszego podejścia w formie i wymóg potwierdzenia formy przed propozycją. Zostawiamy regułę z zadania i opisujemy to uczciwie w dokumentacji.
 
@@ -419,4 +422,5 @@ Rozwiązania domyślne — obowiązują, jeśli w akceptacji nie napiszesz inacz
 ## Stan realizacji
 Kroki zrobione (commity) · Decyzje w trakcie · Weryfikacja · Do zrobienia
 
-- Etap A: specyfikacja — czeka na akceptację.
+- Etap A: specyfikacja — zaakceptowana 12.11 (`docs: add v3 adaptation specification`, `docs: apply accepted changes to v3 specification`).
+- Etap B0: w toku.
