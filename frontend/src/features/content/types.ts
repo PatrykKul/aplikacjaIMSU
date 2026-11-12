@@ -65,6 +65,9 @@ export type Block = TextBlock | Attachment;
 
 export type LessonBlocks = { blocks: Block[] };
 
+/** The three versions of a lesson (`GET /lessons/{id}/versions`); a missing one is empty. */
+export type LessonVersions = Record<Form, LessonBlocks>;
+
 export type UploadedFile = {
   id: number;
   url: string;
