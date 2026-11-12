@@ -19,7 +19,7 @@ Wariant ,,Adaptacja profilu'' nie ma własnego aktora: wykonuje go serwer przy k
 
     \item \textbf{Nauczyciel} -- tworzy kursy i lekcje (trzy wersje, pula pytań), publikuje je, przyjmuje prośby o zapis i śledzi wyniki uczniów w panelu kursu. Konto nauczyciela założone przez rejestrację \textbf{wymaga zatwierdzenia} przez administratora; do tego czasu nauczyciel widzi tylko ekran ,,Konto czeka na zatwierdzenie'', a serwer odrzuca jego żądania kodem \texttt{403 TEACHER\_NOT\_APPROVED}.
 
-    \item \textbf{Administrator} -- zatwierdza albo odrzuca konta nauczycieli oraz zarządza kontami nauczycieli i uczniów: tworzy je, edytuje i blokuje. Konto administratora tworzy się poleceniem w konsoli, nie przez rejestrację.
+    \item \textbf{Administrator} -- zatwierdza albo odrzuca konta nauczycieli, zarządza kontami nauczycieli i uczniów (tworzy je, edytuje i blokuje) oraz przekazuje kurs innemu zatwierdzonemu nauczycielowi (zmiana właściciela). Konto administratora tworzy się poleceniem w konsoli, nie przez rejestrację.
 \end{itemize}
 
 \subsection{Opisy tekstowe wariantów użycia}
@@ -71,9 +71,9 @@ Wariant ,,Adaptacja profilu'' nie ma własnego aktora: wykonuje go serwer przy k
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
-    \item Uczeń wybiera ,,Kursy'' -- system wyświetla sekcję ,,Moje kursy'' (przyjęte, z postępem ,,2 z 4 lekcji'') i ,,Katalog'' (tytuł, opis, nauczyciel, liczba lekcji)
+    \item Uczeń wybiera ,,Kursy'' -- system wyświetla sekcję ,,Moje kursy'' (przyjęte, z postępem ,,2 z 4 lekcji'' i przyciskiem ,,Kontynuuj: Lekcja 3 -- Miejsce zerowe'') i ,,Katalog'' (tytuł, opis, nauczyciel, liczba lekcji)
     \item Uczeń klika ,,Zapisz się'' -- system zapisuje prośbę (\texttt{pending}) i pokazuje ,,Prośba wysłana -- czeka na nauczyciela''
-    \item Po przyjęciu prośby (UC-11) kurs przechodzi do ,,Moich kursów''; strona kursu pokazuje wstęp, ponumerowane lekcje z zarysami i stanem (zaliczona, dostępna, zablokowana) oraz podsumowanie
+    \item Po przyjęciu prośby (UC-11) kurs przechodzi do ,,Moich kursów''; strona kursu pokazuje wstęp, ponumerowane lekcje z zarysami i przyciskiem zależnym od stanu (UC-05) oraz podsumowanie
 \end{enumerate}
 
 \textbf{Przepływ alternatywny:} prośba odrzucona -- system pokazuje ,,Prośba odrzucona'' i przycisk ,,Poproś ponownie''. Uczeń przyjęty, który nie ma jeszcze wyników w kursie, widzi podpowiedź z wyników innych uczniów (reguła R8), np. ,,W tym kursie najlepiej wypada forma słuchowa (średnio 86\%, 3 uczniów)''.
@@ -81,14 +81,17 @@ Wariant ,,Adaptacja profilu'' nie ma własnego aktora: wykonuje go serwer przy k
 \subsubsection{Nauka z lekcji}
 \textbf{Numer:} UC-05 \quad \textbf{Aktor:} Uczeń
 
-\textbf{Krótki opis:} Uczeń otwiera lekcję w wersji odpowiadającej jego stylowi i w razie potrzeby przerabia ją w innej formie.
+\textbf{Krótki opis:} Uczeń wchodzi do lekcji przyciskiem zależnym od swojego stanu w lekcji, uczy się z wersji odpowiadającej jego stylowi i w razie potrzeby przerabia ją w innej formie.
 
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
+    \item Strona kursu pokazuje przy każdej lekcji przycisk wyliczony ze stanu ucznia (\texttt{GET /courses/\{id\}/study-states}): ,,Rozpocznij'' (lekcja dostępna, bez wyniku i bez wyboru formy), ,,Kontynuuj'' z ostatnim wynikiem (jest wynik niezaliczony albo jawny wybór formy), ,,Zaliczona · najlepszy wynik 80\%'' z przyciskiem ,,Powtórz'' (lekcja zaliczona) albo kłódkę i ,,Najpierw zalicz lekcję $n$''
     \item Uczeń otwiera dostępną lekcję kursu, na który jest przyjęty
-    \item System wyświetla zarys, pasek ,,Przerabiasz tę lekcję w formie: Wzrokowej (V)'', wersję lekcji w tej formie, wnioski i sekcję ,,Sprawdź się''
-    \item Uczeń może wybrać ,,Przerób tę lekcję w innej formie'' -- system zapisuje wybór formy tylko dla tej lekcji, pokazuje inną wersję i zapisuje zdarzenie w dzienniku; styl ucznia się nie zmienia
+    \item System wyświetla zarys, jedną linię ,,Forma: Wzrokowa (Twój styl) · Zmień formę tej lekcji'', wersję lekcji w tej formie, wnioski i sekcję ,,Sprawdź się''. W wersji słuchowej są 2--3 krótkie nagrania (30--50 s) pod nagłówkami sekcji i nagranie ,,Powtórka'' (20--30 s), każde z rozwijaną, domyślnie zwiniętą transkrypcją; kod i wzory są pisane czcionką o stałej szerokości (w linii i w blokach kodu)
+    \item Uczeń może wybrać w menu ,,Zmień formę tej lekcji'' inną formę -- system zapisuje wybór tylko dla tej lekcji, pokazuje inną wersję (,,Forma: Słuchowa (wybrana dla tej lekcji)''), zapisuje zdarzenie w dzienniku i losuje nowy zestaw pytań, jeśli otwarty był z poprzedniej formy; styl ucznia się nie zmienia. Wybór formy równej stylowi nie jest jawnym wyborem -- usuwa go, a linia pokazuje ,,(Twój styl)''
 \end{enumerate}
+
+\textbf{Przepływ alternatywny -- po niezaliczonym quizie:} nad treścią pojawia się wyraźna ramka sugestii z uzasadnieniem i przyciskiem ,,Przerób tę lekcję w formie X'' (R5, UC-06); znika, gdy uczeń przejdzie na sugerowaną formę.
 
 \textbf{Przepływ alternatywny -- blokada kolejności:} lekcja $n+1$ jest dostępna dopiero po zaliczeniu quizu lekcji $n$ (reguła R10). Otwarcie zablokowanej lekcji kończy się kodem \texttt{403 LESSON\_LOCKED} z numerem wymaganej lekcji, a klient pokazuje kłódkę i link ,,Najpierw zalicz lekcję $n$''.
 
@@ -102,7 +105,7 @@ Wariant ,,Adaptacja profilu'' nie ma własnego aktora: wykonuje go serwer przy k
     \item Serwer losuje 5 pytań z puli (przy powtórce najpierw pytania spoza poprzedniego zestawu -- R9) i zapisuje zestaw; klient dostaje pytania bez klucza
     \item Uczeń zaznacza odpowiedzi i klika ,,Sprawdź''
     \item Serwer ocenia odpowiedzi wobec zapisanego zestawu; wynik co najmniej 70\% (4 z 5) oznacza zaliczenie
-    \item Serwer wykonuje kroki adaptacji (R2--R7): zmiana procentów, odblokowanie następnej lekcji, pochwała, sugestia, okres próbny, propozycja
+    \item Serwer wykonuje kroki adaptacji (R2--R7): zmiana procentów, odblokowanie następnej lekcji, pochwała (także jako wpis w dzienniku), sugestia, okres próbny, propozycja
     \item System wyświetla wynik, przy każdym pytaniu wybraną i poprawną odpowiedź z \textbf{wyjaśnieniem} oraz ,,Co to zmieniło'', np. ,,Słuchowe 47\% $\to$ 57\% · Lekcja 4 odblokowana''
 \end{enumerate}
 
@@ -128,6 +131,8 @@ Wariant ,,Adaptacja profilu'' nie ma własnego aktora: wykonuje go serwer przy k
 
 \textbf{Przepływ alternatywny -- ręczna zmiana:} uczeń wybiera inny styl i potwierdza w oknie (,,Procenty się nie zmienią, zmiana trafi do dziennika''). Otwarta propozycja dostaje stan \texttt{superseded}, zaczyna się okres próbny.
 
+\textbf{Przepływ alternatywny -- cofnięcie zmiany przed pierwszą lekcją (R7a):} trwa okres próbny, a uczeń nie ma jeszcze żadnej policzonej lekcji w nowej formie. Powrót do stylu sprzed zmiany (np. A $\to$ V $\to$ A) cofa zmianę: okres próbny dostaje wynik \texttt{cancelled}, nowy się nie zaczyna, a dziennik pokazuje ,,Zmiana na styl wzrokowy (V) cofnięta przed pierwszą lekcją -- wracamy do stylu słuchowego (A)''. Przejście na trzeci styl (A $\to$ V $\to$ K) zastępuje okres nowym z tym samym punktem odniesienia (styl A i jego średnia ,,przed''). Na wykresie ,,Moich postępów'' cofnięta zmiana to przekreślony znacznik z dopiskiem ,,cofnięta'', a w tabeli wiersze zmian stylu mają ,,bez zmian''.
+
 \subsubsection{Moje postępy}
 \textbf{Numer:} UC-08 \quad \textbf{Aktor:} Uczeń
 
@@ -136,7 +141,7 @@ Wariant ,,Adaptacja profilu'' nie ma własnego aktora: wykonuje go serwer przy k
 \textbf{Główny przepływ zdarzeń:}
 \begin{enumerate}[leftmargin=*]
     \item Uczeń wybiera ,,Moje postępy''
-    \item System wyświetla wykres procentów V / A / K w czasie (z tabelą tych samych danych), postęp kursów (,,następna: Lekcja 3'') i tabelę wyników lekcji z formą każdego podejścia (pierwsze policzone wyróżnione)
+    \item System wyświetla wykres procentów V / A / K w czasie: punkty tylko dla ankiety i policzonych quizów, oś opisana zdarzeniami (,,Ankieta'', ,,L1 · A''), zmiany stylu jako pionowe znaczniki bez własnego punktu; pod wykresem tabelę z kolumną ,,Zdarzenie'' (np. ,,Quiz: Wzór i wykres -- forma A, 80\%'', ,,Zmiana stylu na V (ręcznie)'' z ,,bez zmian''), postęp kursów (,,następna: Lekcja 3'') i tabelę wyników lekcji z formą każdego podejścia (pierwsze policzone wyróżnione)
     \item System wyświetla dziennik decyzji od najnowszej: data, zdanie złożone z kodu i liczb zdarzenia, kurs i lekcja
 \end{enumerate}
 
@@ -214,6 +219,22 @@ Wariant ,,Adaptacja profilu'' nie ma własnego aktora: wykonuje go serwer przy k
     \item Administrator dodaje konto (imię, e-mail, hasło) lub edytuje istniejące; nauczyciel założony przez administratora jest od razu zatwierdzony
     \item Administrator może zablokować konto -- zablokowany użytkownik nie zaloguje się, a jego sesja przestaje działać przy następnym żądaniu
 \end{enumerate}
+
+\subsubsection{Zmiana właściciela kursu}
+\textbf{Numer:} UC-15 \quad \textbf{Aktor:} Administrator
+
+\textbf{Krótki opis:} Administrator przekazuje kurs innemu zatwierdzonemu nauczycielowi, np. gdy autor odchodzi albo kurs przejmuje inny nauczyciel przedmiotu.
+
+\textbf{Główny przepływ zdarzeń:}
+\begin{enumerate}[leftmargin=*]
+    \item Administrator wybiera ,,Kursy'' -- lista wszystkich kursów z autorem, stanem i przyciskiem ,,Zmień właściciela''
+    \item Administrator klika ,,Zmień właściciela'' -- okno pokazuje obecnego autora (,,Zapisy uczniów, wyniki i statystyki zostają bez zmian'') i listę ,,Nowy autor'' z zatwierdzonymi nauczycielami (imię i e-mail)
+    \item Administrator wybiera nauczyciela, klika ,,Dalej'' i potwierdza w oknie ,,Przekazać kurs?'' przyciskiem ,,Zmień właściciela''
+    \item Serwer (\texttt{PUT /courses/\{id\}/owner}) ustawia nowego autora i w tej samej transakcji zapisuje wiersz \texttt{course\_owner\_changes} (kurs, z kogo, na kogo, kto, kiedy)
+    \item Lista i katalog pokazują nowego autora; nowy autor widzi kurs w ,,Moich kursach'' razem z prośbami o zapis, poprzedni traci do niego dostęp (404)
+\end{enumerate}
+
+\textbf{Przepływy alternatywne:} wybór tego samego właściciela -- bez zmian i bez wpisu; nowy właściciel nie jest nauczycielem albo nie istnieje -- \texttt{404 USER\_NOT\_FOUND}; nauczyciel niezatwierdzony lub odrzucony -- \texttt{409 TEACHER\_NOT\_APPROVED}; wywołanie przez nauczyciela lub ucznia -- \texttt{403 FORBIDDEN}. Zapisy, zaliczenia, wyniki i statystyki kursu zostają, a pliki poprzedniego autora użyte w lekcjach można dalej zapisywać w wersjach lekcji.
 
 \subsection{Przykładowe diagramy sekwencji}
 

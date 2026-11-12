@@ -75,11 +75,20 @@ venv\Scripts\python.exe -m alembic upgrade head
 venv\Scripts\python.exe -m app.demo.seed
 \end{lstlisting}
 
-Seed tworzy konta, 3 kursy po 4 opublikowane lekcje (wersje V / A / K z obrazami, nagraniami MP3 i kartami PDF, pule po 8 pytań) oraz historie uczniów. Historie powstają przez prawdziwe serwisy (ankieta, losowanie, wysłanie odpowiedzi, decyzje), więc procenty i dziennik są prawdziwe; seed tylko przesuwa daty zdarzeń o dni wstecz. Seed jest \textbf{idempotentny}: drugie uruchomienie niczego nie zmienia i wypisuje ,,bez zmian''. Na końcu wypisuje ,,Stan kont'', np.:
+Seed tworzy konta, 3 kursy po 4 opublikowane lekcje -- każdy kurs u innego nauczyciela, który sam wgrywa jego pliki (wersje V / A / K z obrazami, nagraniami MP3 i kartami PDF, razem 79 plików; pule po 8 pytań) -- oraz historie uczniów. Wersja słuchowa każdej lekcji ma krótki opis, 3 nagrania po 30--50 s zatytułowane jak sekcje wersji V i nagranie ,,Powtórka'' (20--30 s), każde z transkrypcją; kod w lekcjach Programowania (i rachunki w Matematyce) jest zapisany jako bloki kodu. Historie powstają przez prawdziwe serwisy (ankieta, losowanie, wysłanie odpowiedzi, decyzje), więc procenty i dziennik są prawdziwe; seed tylko przesuwa daty zdarzeń o dni wstecz. Seed jest \textbf{idempotentny}: drugie uruchomienie niczego nie zmienia i wypisuje ,,bez zmian''. Na końcu wypisuje ,,Stan kont'' i ,,Skuteczność form'', np.:
+
+\begin{quote}\ttfamily\small
+uczen.demo@imsu.pl: styl V, V 45 / A 40 / K 15, Matematyka 2/4\\
+Matematyka: funkcja liniowa (Anna Nowak): V 60\% (3 ucz.) \textperiodcentered{} A 86\% (3 ucz.) \textperiodcentered{} K 70\% (2 ucz.)
+\end{quote}
+
+Baza utworzona przed poprawkami z 12.11 (jedno nagranie w wersji A, wszystkie kursy u jednej nauczycielki): po \texttt{alembic upgrade head} zwykłe uruchomienie seeda przepina Angielski i Programowanie na ich nauczycieli (wypisuje ,,zmieniono autora kursu \ldots'' i zapisuje zmianę w \texttt{course\_owner\_changes}), a jednorazowo:
 
 \begin{lstlisting}
-uczen.demo@imsu.pl: styl V, V 45 / A 40 / K 15, Matematyka 2/4
+venv\Scripts\python.exe -m app.demo.seed --refresh-demo-media
 \end{lstlisting}
+
+zapisuje od nowa treść kursów demo z \nolinkurl{app/demo/courses.py} (wersje A z nowymi nagraniami i transkrypcjami, bloki kodu, podsumowania kursów). Obrazy V i karty K zostają; zmiany nauczyciela w treści kursów demo są nadpisywane.
 
 Uruchomienie serwera:
 
@@ -111,23 +120,25 @@ Aplikacja jest dostępna pod adresem \url{http://localhost:3001}. Wersję produk
 
 \begingroup
 \small
-\begin{longtable}{|p{4.75cm}|p{2.35cm}|p{7.4cm}|}
+\begin{longtable}{|p{6.4cm}|p{2.4cm}|p{5.7cm}|}
 \hline
 \textbf{Konto} & \textbf{Rola} & \textbf{Stan startowy} \\ \hline
 \endhead
-\texttt{admin.demo@imsu.pl} & administrator & zatwierdza nauczyciela, zarządza kontami \\ \hline
-\texttt{nauczyciel.demo@imsu.pl} & nauczyciel & Anna Nowak, autorka 3 kursów; w Matematyce 7 uczniów i 1 prośba o zapis \\ \hline
+\texttt{admin.demo@imsu.pl} & administrator & zatwierdza nauczyciela, zarządza kontami, zmienia właściciela kursu \\ \hline
+\texttt{nauczyciel.demo@imsu.pl} & nauczyciel & Anna Nowak, autorka Matematyki: 7 uczniów i 1 prośba o zapis \\ \hline
+\texttt{nauczyciel.angielski@imsu.pl} & nauczyciel & Katarzyna Wróbel, autorka Angielskiego (Antoni, Szymon) \\ \hline
+\texttt{nauczyciel.programowanie@imsu.pl} & nauczyciel & Paweł Sikora, autor Programowania (Marta, Filip) \\ \hline
 \texttt{nauczyciel.nowy@imsu.pl} & nauczyciel & Piotr Zieliński, konto czeka na zatwierdzenie \\ \hline
 \texttt{uczen.nowy@imsu.pl} & uczeń & Ola Kowalska, bez ankiety (wymuszenie ankiety) \\ \hline
 \texttt{uczen.zapis@imsu.pl} & uczeń & Zosia Mazur, A 50 / V 30 / K 20, prośba o zapis do Matematyki \\ \hline
 \texttt{uczen.demo@imsu.pl} & uczeń & Kuba Wiśniewski, V 45 / A 40 / K 15, Matematyka 2/4 -- ,,tuż przed sugestią'' \\ \hline
 \texttt{uczen.zmiana@imsu.pl} & uczeń & Marta Lewandowska, po zmianie K $\to$ V: ,,Zmiana pomogła: średnia 40\% $\to$ 90\%'' \\ \hline
-\texttt{uczen1@imsu.pl} \ldots\ \texttt{uczen6@imsu.pl} & uczniowie & wyniki w Matematyce (skuteczność form w panelu kursu); jedna otwarta propozycja \\ \hline
+\texttt{uczen1@imsu.pl} \ldots\ \texttt{uczen6@imsu.pl} & uczniowie & wyniki w Matematyce (skuteczność form w panelu kursu); jedna otwarta propozycja; \texttt{uczen3} (Szymon) -- styl A do pokazu cofnięcia zmiany stylu (R7a) \\ \hline
 \caption{Konta demonstracyjne}
 \end{longtable}
 \endgroup
 
-Stan startowy wszystkich kont demonstracyjnych (także po pokazie) przywraca polecenie (z katalogu \texttt{backend}); kursy i ich treść zostają:
+Stan startowy wszystkich kont demonstracyjnych (także po pokazie) przywraca polecenie (z katalogu \texttt{backend}); kursy i ich treść zostają, a kurs demo przepięty na pokazie na inne konto demo wraca do swojego nauczyciela (przez tę samą funkcję co w aplikacji, z wpisem w \texttt{course\_owner\_changes}):
 \begin{lstlisting}
 venv\Scripts\python.exe -m app.demo.seed --reset-students
 \end{lstlisting}
@@ -150,8 +161,10 @@ Klient (katalog \texttt{frontend}):
 \begin{lstlisting}
 npm run lint
 npm run format:check
+npm test
 npm run build
 \end{lstlisting}
+\texttt{npm run build} nie należy uruchamiać przy działającym \texttt{npm run dev} na tym samym katalogu \texttt{.next} -- najpierw zatrzymać serwer deweloperski.
 
 Przejście scenariusza pokazu w przeglądarce (serwer i klient uruchomione, świeże dane demo). Playwright nie jest zależnością projektu -- instaluje się go w osobnym katalogu i wskazuje zmienną \texttt{PLAYWRIGHT\_MODULE}:
 \begin{lstlisting}
@@ -160,7 +173,7 @@ npx playwright install chromium
 set PLAYWRIGHT_MODULE=<katalog>\node_modules\playwright\index.js
 node e2e/demo-tour.mjs
 \end{lstlisting}
-Skrypt zapisuje zrzuty ekranów do \nolinkurl{docs/zrzuty-v3}. Po przejściu należy wykonać \texttt{-{}-reset-students}, bo skrypt zmienia stan kont.
+Skrypt zapisuje 50 zrzutów ekranów do \nolinkurl{docs/zrzuty-v3} i na końcu wypisuje listę problemów (kod wyjścia 1, jeśli jakiś wystąpił). Po przejściu należy wykonać \texttt{-{}-reset-students}, bo skrypt zmienia stan kont.
 
 \subsection{Rozwiązywanie problemów}
 
@@ -178,6 +191,12 @@ Wykonaj migracje (\texttt{alembic upgrade head}), a potem seed (\texttt{app.demo
 
 \subsubsection{Baza z wersji 2}
 Migracja v3 nie przenosi danych uczenia z v2 (profile, próby quizów, quizy); konta, kursy, lekcje i pliki zostają, a lekcje stają się nieopublikowane. Najprościej przebudować lokalną bazę: \texttt{alembic downgrade base}, \texttt{alembic upgrade head}, seed.
+
+\subsubsection{Wersja A ma jedno nagranie albo kursy nie mają swoich nauczycieli}
+Baza pochodzi sprzed poprawek z 12.11. Wykonaj \texttt{alembic upgrade head}, seed (przepina kursy na nauczycieli) i raz \texttt{app.demo.seed -{}-refresh-demo-media} (nowe nagrania z transkrypcjami, bloki kodu).
+
+\subsubsection{Seed utworzył drugi kurs o tym samym tytule}
+Kurs demo został przepięty na konto spoza kont demonstracyjnych (np. nauczyciela zarejestrowanego na pokazie), więc seed go nie rozpoznał. Przed resetem przepnij kurs z powrotem (,,Zmień właściciela'') albo zarchiwizuj duplikat.
 
 \subsubsection{Polecenia z \texttt{venv\textbackslash Scripts} nie działają po przeniesieniu projektu}
 Pliki \texttt{.exe} w \texttt{venv\textbackslash Scripts} mają zapisane bezwzględne ścieżki. Uruchamiaj narzędzia przez \texttt{python -m ...} (jak w tej instrukcji) albo utwórz środowisko od nowa.
@@ -224,6 +243,7 @@ docker compose down                                    # zatrzymanie bazy
 venv\Scripts\python.exe -m alembic upgrade head        # migracje
 venv\Scripts\python.exe -m app.demo.seed               # dane demo
 venv\Scripts\python.exe -m app.demo.seed --reset-students  # reset kont
+venv\Scripts\python.exe -m app.demo.seed --refresh-demo-media  # nowa tresc demo
 venv\Scripts\python.exe -m uvicorn app.main:app --port 8001   # start
 venv\Scripts\python.exe -m pytest                      # testy
 

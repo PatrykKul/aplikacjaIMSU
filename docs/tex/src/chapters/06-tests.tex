@@ -25,7 +25,9 @@ Celem testów jest sprawdzenie reguł systemu (profil z ankiety, zmiana procent�
 
 \textbf{Testy integracyjne} wysyłają żądania HTTP do aplikacji przez \texttt{TestClient} i korzystają z prawdziwej bazy PostgreSQL (osobna baza \texttt{imsu\_test}). Schemat bazy testowej jest budowany tymi samymi migracjami Alembic co baza aplikacji, a każdy test działa w transakcji wycofywanej po jego zakończeniu, więc testy są od siebie niezależne. Wspólne dane (uczeń, nauczyciel, administrator, kurs z opublikowanymi lekcjami, zapis ucznia, ankieta) dostarczają fixture'y pytest.
 
-\textbf{Test systemowy} to skrypt Playwright \nolinkurl{frontend/e2e/demo-tour.mjs}: przechodzi scenariusz pokazu na wszystkich kontach demonstracyjnych, zapisuje zrzut każdego ekranu (szerokość komputera i wybrane ekrany na telefonie 390 px) i zgłasza poziome przewijanie strony. Kod klienta przechodzi lint (ESLint), kontrolę formatowania (Prettier) i build produkcyjny.
+\textbf{Test systemowy} to skrypt Playwright \nolinkurl{frontend/e2e/demo-tour.mjs}: przechodzi scenariusz pokazu na wszystkich kontach demonstracyjnych, zapisuje zrzut każdego ekranu (szerokość komputera i wybrane ekrany na telefonie 390 px), zgłasza poziome przewijanie strony, błędy JavaScript i odpowiedzi 5xx oraz sprawdza warunki ekranów: zmianę właściciela Programowania na Annę i z powrotem (wynik sprawdzany przez API), przyciski ,,Rozpocznij'' / ,,Powtórz'' i kłódki, co najmniej 2 nagrania w wersji A, każde z transkrypcją (otwieraną z klawiatury), blok kodu czcionką o stałej szerokości oraz ścieżkę A $\to$ V $\to$ A ucznia \texttt{uczen3} (brak nowego okresu próbnego, wpis o cofnięciu, przekreślony znacznik na wykresie). Ostatnie przejście: \textbf{50 zrzutów} w \nolinkurl{docs/zrzuty-v3}, bez błędów 500 i JS i bez poziomego przewijania.
+
+\textbf{Test komponentu klienta} \nolinkurl{frontend/src/features/progress/chart-data.test.mjs} (\texttt{npm test}, wbudowany test runner Node.js, 8 przypadków) sprawdza dane wykresu ,,Procenty form w czasie'' dla ścieżki ankieta $\to$ 2 quizy $\to$ A $\to$ V $\to$ A: punkty tylko dla ankiety i policzonych quizów, zmiany stylu jako znaczniki (cofnięta oznaczona), etykiety osi ze zdarzeń i ,,bez zmian'' w wierszach zmian stylu. Kod klienta przechodzi lint (ESLint), kontrolę formatowania (Prettier) i build produkcyjny.
 
 \subsection{Środowisko testowe}
 
@@ -52,7 +54,7 @@ Poniższa tabela zawiera reprezentatywne przypadki testowe. Kolumna \emph{Typ}: 
 \begingroup
 \scriptsize
 \setlength{\tabcolsep}{2pt}
-\begin{longtable}{p{1cm} p{3.2cm} p{1.6cm} p{0.6cm} p{4.3cm} p{4.3cm}}
+\begin{longtable}{p{1cm} >{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}p{1.6cm} p{0.6cm} >{\raggedright\arraybackslash}p{4.3cm} >{\raggedright\arraybackslash}p{4.3cm}}
 \toprule
 \textbf{ID} & \textbf{Nazwa} & \textbf{Moduł} & \textbf{Typ} & \textbf{Dane wejściowe / warunki} & \textbf{Oczekiwany wynik} \\
 \midrule
@@ -166,6 +168,43 @@ TC-23 & Usunięte endpointy v2 & learning\_style & I &
 TC-24 & Idempotentny seed i reset & demo & I &
   dwukrotne uruchomienie seeda; pokaz, potem \texttt{-{}-reset-students} &
   drugie uruchomienie nic nie zmienia; stany kont wracają do startowych \faCheck \\
+\addlinespace
+\midrule
+TC-25 & Zmiana właściciela kursu & curriculum & I &
+  admin: \texttt{PUT /courses/\{id\}/owner} na zatwierdzonego nauczyciela; ten sam właściciel; nauczyciel \texttt{pending} / \texttt{rejected}; uczeń, admin, brak konta; wywołanie przez nauczyciela &
+  nowy autor w liście i katalogu, poprzedni -- 404, zapisy i stany lekcji zostają, wiersz w \texttt{course\_owner\_changes}; bez zmian i bez wpisu; 409 \texttt{TEACHER\_NOT\_APPROVED}; 404 \texttt{USER\_NOT\_FOUND}; 403 \faCheck \\
+\addlinespace
+TC-26 & Pliki po zmianie właściciela & content & I &
+  nowy autor zapisuje wersję z plikiem poprzedniego autora użytym w lekcji (także w innej wersji); plik poprzedniego autora nieużyty w lekcji &
+  zapis przechodzi; 400 \texttt{FILE\_NOT\_FOUND} \faCheck \\
+\addlinespace
+TC-27 & Cofnięcie zmiany stylu (R7a) & learning\_style & J, I &
+  styl A (2 lekcje po 100\%) $\to$ V $\to$ A bez lekcji; A $\to$ V $\to$ K bez lekcji; zmiana po policzonej lekcji; cofnięcie po przyjętej propozycji &
+  okres \texttt{cancelled}, brak okresu ,,V $\to$ A'', zdarzenie \texttt{style\_change\_reverted}, profil bez okresu; okres A $\to$ K z ,,przed'' z A i \texttt{replaced\_trial\_id}; nowy okres jak w R7 \faCheck \\
+\addlinespace
+TC-28 & Stany lekcji ucznia & learning\_style & I &
+  \texttt{GET /courses/\{id\}/study-states}: nowy uczeń; sam wybór formy; wynik niezaliczony; lekcja zaliczona; nieopublikowana lekcja; nauczyciel i uczeń nieprzyjęty &
+  \texttt{started = false} (,,Rozpocznij''); \texttt{started}, \texttt{chosen\_form}, \texttt{last\_percent} (,,Kontynuuj''); \texttt{passed}, \texttt{best\_percent} (,,Powtórz''); tylko opublikowane; 403 \faCheck \\
+\addlinespace
+TC-29 & Forma równa stylowi & learning\_style & I &
+  wybór formy równej stylowi; wybór w zaliczonej lekcji, potem zmiana stylu na tę formę &
+  wybór usunięty; \texttt{form\_source = style} (,,Twój styl''), nie \texttt{choice} \faCheck \\
+\addlinespace
+TC-30 & \texttt{null} w \texttt{PATCH} kursu i lekcji & curriculum & I &
+  \texttt{null} we wstępie, podsumowaniu, zarysie, wnioskach szkicu; \texttt{null} w tytule lub opisie; pole pominięte &
+  pole wyczyszczone; 422 \texttt{VALIDATION\_ERROR}; pole bez zmian \faCheck \\
+\addlinespace
+TC-31 & Zestaw pytań a forma lekcji & assessment & I &
+  otwarty zestaw w formie V, zmiana formy lekcji na A; powrót do tej samej formy; zestaw sprzed migracji (\texttt{form = null}) &
+  stary zestaw usunięty, nowy z \texttt{form = A}; bez zmian; zestaw zostaje \faCheck \\
+\addlinespace
+TC-32 & Historia ze zdarzeniami, pochwała w dzienniku & learning\_style & I &
+  ankieta, policzone i niepoliczone quizy, zmiana ręczna, cofnięcie, seria 2 zaliczeń w jednej formie &
+  punkty historii z \texttt{event} (bez punktów dla niepoliczonych wyników i pochwały), numer lekcji; zdarzenie \texttt{praise} \faCheck \\
+\addlinespace
+TC-33 & Nauczyciele kursów i nagrania demo & demo & I &
+  nowa baza; \texttt{-{}-reset-students} po przepięciu Angielskiego na Piotra; \texttt{-{}-refresh-demo-media} &
+  każdy kurs u swojego nauczyciela, bez wpisów zmian właściciela; właściciele przywróceni (2 wpisy); wersje A z 3--4 nagraniami z plikiem i transkrypcją, ostatnie ,,Powtórka'' \faCheck \\
 
 \end{longtable}
 \endgroup
@@ -198,6 +237,17 @@ TC-24 & Idempotentny seed i reset & demo & I &
     \item Nauczyciel publikuje lekcję dopiero, gdy jest kompletna (TC-16, TC-17), a potem kurs.
     \item Uczeń prosi o zapis -- do decyzji nie ma dostępu do treści (TC-13, TC-14).
     \item Autor przyjmuje prośbę -- uczeń widzi stany lekcji; po wycofaniu publikacji kursu przyjęty uczeń zachowuje dostęp.
+    \item Administrator przekazuje kurs innemu zatwierdzonemu nauczycielowi -- prośby, zapisy i wyniki przechodzą razem z kursem, poprzedni autor traci dostęp, nowy może zapisywać lekcje z plikami poprzedniego (TC-25, TC-26).
+\end{enumerate}
+
+\subsubsection{ST-04: Zmiana stylu cofnięta przed pierwszą lekcją}
+\textbf{Cel:} sprawdzenie błędu zgłoszonego po teście 12.11 (TC-27, TC-32) -- dokładnie ścieżka z testu.
+\begin{enumerate}[leftmargin=*]
+    \item Uczeń ze stylem A zalicza 2 lekcje w A po 100\%.
+    \item Uczeń zmienia styl ręcznie na V -- zaczyna się okres próbny ze średnią ,,przed'' 100\% w formie A.
+    \item Bez żadnej lekcji uczeń wraca do A -- okres próbny dostaje \texttt{cancelled}, nowy okres ,,V $\to$ A'' bez danych do porównania nie powstaje, dziennik ma wpis o cofnięciu.
+    \item ,,Moje postępy'': wykres ma 3 punkty (ankieta i 2 quizy) oraz 2 znaczniki zmian stylu, z których drugi jest przekreślony (,,cofnięta''); tabela ma kolumnę ,,Zdarzenie'' i ,,bez zmian'' w wierszach zmian stylu (test komponentu \texttt{chart-data}).
+    \item Wariant: zamiast powrotu do A -- przejście na K; okres A $\to$ K zachowuje średnią ,,przed'' z formy A.
 \end{enumerate}
 
 \subsection{Podsumowanie pokrycia testami}
@@ -208,17 +258,17 @@ TC-24 & Idempotentny seed i reset & demo & I &
 \textbf{Moduł} & \textbf{Jednostkowe} & \textbf{Integracyjne} & \textbf{Łącznie} \\
 \midrule
 \texttt{identity}        & 6   & 73  & 79 \\
-\texttt{curriculum}      & 21  & 104 & 125 \\
-\texttt{content}         & 34  & 41  & 75 \\
-\texttt{learning\_style} & 75  & 53  & 128 \\
-\texttt{assessment}      & 14  & 20  & 34 \\
+\texttt{curriculum}      & 21  & 127 & 148 \\
+\texttt{content}         & 35  & 45  & 80 \\
+\texttt{learning\_style} & 81  & 65  & 146 \\
+\texttt{assessment}      & 14  & 23  & 37 \\
 \texttt{authoring}       & --  & 16  & 16 \\
-\texttt{demo}            & --  & 11  & 11 \\
-\texttt{core} (błędy, stan serwera) & -- & 5 & 5 \\
+\texttt{demo}            & --  & 19  & 19 \\
+\texttt{core} (TipTap, błędy, stan) & 10 & 5 & 15 \\
 \midrule
-\textbf{Razem}           & \textbf{150} & \textbf{323} & \textbf{473} \\
+\textbf{Razem}           & \textbf{167} & \textbf{373} & \textbf{540} \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Tabela podaje liczbę przypadków wykonywanych przez pytest (z parametryzacją; 330 funkcji testowych). Sam moduł reguł \nolinkurl{learning_style/rules.py} ma \textbf{67} przypadków testowych w \nolinkurl{tests/learning_style/test_rules.py}. Test seeda sprawdza stany wszystkich kont demonstracyjnych (procenty, propozycje, okres próbny, prośbę \texttt{pending}, nauczyciela \texttt{pending}), idempotencję i \texttt{-{}-reset-students}. Przejście Playwright \nolinkurl{frontend/e2e/demo-tour.mjs} obejmuje wszystkie konta demonstracyjne w kolejności scenariusza pokazu.
+Tabela podaje liczbę przypadków wykonywanych przez pytest (z parametryzacją; 386 funkcji testowych), policzoną poleceniem \texttt{pytest -{}-collect-only -q}. W porównaniu z wersją sprzed poprawek z 12.11 (473) doszły m.in.: \nolinkurl{tests/curriculum/test_owner.py} (17, zmiana właściciela), przypadki R7a w \nolinkurl{test_rules.py} i \nolinkurl{test_adaptation_flow.py}, stany lekcji i historia ze zdarzeniami w \nolinkurl{test_insights_api.py}, forma równa stylowi w \nolinkurl{test_study_api.py}, \texttt{null} w \texttt{PATCH} kursu i lekcji, zestaw pytań z formą w \nolinkurl{test_quiz_api.py}, pliki po zmianie właściciela i nagranie z transkrypcją w \nolinkurl{test_versions.py}, kod w dokumentach TipTap (\nolinkurl{tests/test_rich_text.py}, 10) oraz nauczyciele kursów, nagrania i \texttt{-{}-refresh-demo-media} w teście seeda. Sam moduł reguł \nolinkurl{learning_style/rules.py} ma \textbf{73} przypadki testowe w \nolinkurl{tests/learning_style/test_rules.py}. Test seeda sprawdza stany wszystkich kont demonstracyjnych (procenty, propozycje, okres próbny, prośbę \texttt{pending}, nauczyciela \texttt{pending}), właścicieli kursów, wersje A z nagraniami i transkrypcjami, bloki kodu, idempotencję, \texttt{-{}-reset-students} i \texttt{-{}-refresh-demo-media}. Przejście Playwright \nolinkurl{frontend/e2e/demo-tour.mjs} obejmuje wszystkie konta demonstracyjne w kolejności scenariusza pokazu (50 zrzutów), a test komponentu \texttt{chart-data} -- 8 przypadków.

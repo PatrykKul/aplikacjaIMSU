@@ -7,7 +7,7 @@ Diagram klas podzielono na trzy rysunki według modułów serwera. Klasy odpowia
 \begin{figure}[H]
     \centering
     \input{uml/classes-courses}
-    \caption{Diagram klas: konta, kursy, zapisy i zaliczenia (\texttt{identity}, \texttt{curriculum})}
+    \caption{Diagram klas: konta, kursy, zmiany właściciela, zapisy i zaliczenia (\texttt{identity}, \texttt{curriculum})}
     \label{fig:classes-courses}
 \end{figure}
 
@@ -29,6 +29,10 @@ Diagram klas podzielono na trzy rysunki według modułów serwera. Klasy odpowia
 
 \textbf{Course} -- kurs nauczyciela: opis w katalogu, wstęp, ,,Podsumowanie i wnioski'' oraz lekcje. Kurs jest prywatny albo opublikowany (opublikować można kurs z co najmniej jedną opublikowaną lekcją); usunięcie oznacza archiwizację. \\
 \textit{Atrybuty:} \texttt{id}, \texttt{owner\_id}, \texttt{title}, \texttt{description}, \texttt{introduction}, \texttt{summary} (dokumenty edytora), \texttt{is\_published}, \texttt{is\_archived}, \texttt{created\_at}, \texttt{updated\_at}.
+
+\vspace{0.5em}
+\textbf{CourseOwnerChange} -- ślad zmiany właściciela kursu przez administratora (UC-15): kurs, poprzedni i nowy autor, administrator i czas. Wiersz powstaje w tej samej transakcji co zmiana \texttt{courses.owner\_id}; wybór tego samego właściciela nie zapisuje nic. Zapisy, zaliczenia i wyniki kursu nie zależą od autora, więc zmiana ich nie dotyka. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{course\_id}, \texttt{from\_owner\_id}, \texttt{to\_owner\_id}, \texttt{changed\_by\_id}, \texttt{changed\_at}.
 
 \vspace{0.5em}
 \textbf{DecisionEvent} -- wpis dziennika decyzji: typ zdarzenia i dane (liczby), z których decyzja wynika; kurs i lekcja, gdy zdarzenie ich dotyczy. \\
@@ -55,11 +59,11 @@ Diagram klas podzielono na trzy rysunki według modułów serwera. Klasy odpowia
 \textit{Atrybuty:} \texttt{user\_id}, \texttt{lesson\_id}, \texttt{passed\_at}.
 
 \vspace{0.5em}
-\textbf{LessonContent} -- jedna wersja lekcji (V, A albo K) jako uporządkowana lista bloków: tekst oraz załączniki (obraz, film, nagranie, PDF, link). Para (\texttt{lesson\_id}, \texttt{form}) jest unikalna. \\
+\textbf{LessonContent} -- jedna wersja lekcji (V, A albo K) jako uporządkowana lista bloków: tekst (dokument TipTap, także z kodem w linii \texttt{code} i blokami \texttt{codeBlock}) oraz załączniki (obraz, film, nagranie, PDF, link). Blok nagrania ma plik (\texttt{file\_id}), transkrypcję (\texttt{transcript}, do 5000 znaków) albo oba naraz -- wtedy uczeń słyszy plik, a transkrypcję rozwija pod odtwarzaczem; sama transkrypcja jest czytana przez lektora przeglądarki. Plik w bloku musi należeć do autora kursu albo być już użyty w tej lekcji (po zmianie właściciela załączniki poprzedniego autora zostają). Para (\texttt{lesson\_id}, \texttt{form}) jest unikalna. \\
 \textit{Atrybuty:} \texttt{id}, \texttt{lesson\_id}, \texttt{form}, \texttt{blocks} (JSON), \texttt{updated\_at}.
 
 \vspace{0.5em}
-\textbf{LessonForm} -- jawny wybór formy lekcji przez ucznia (,,Przerób tę lekcję w innej formie''); brak wiersza oznacza formę równą aktywnemu stylowi. \\
+\textbf{LessonForm} -- jawny wybór formy lekcji przez ucznia (,,Zmień formę tej lekcji'' albo przycisk sugestii); brak wiersza oznacza formę równą aktywnemu stylowi. Forma równa stylowi nie jest jawnym wyborem: wybór takiej formy usuwa wiersz, a wiersz równy stylowi (np. wybór z zaliczonej lekcji, po którym uczeń przyjął ten styl) daje \texttt{form\_source = style} -- linia nad lekcją pokazuje ,,(Twój styl)'', nie ,,(wybrana dla tej lekcji)''. \\
 \textit{Atrybuty:} \texttt{user\_id}, \texttt{lesson\_id}, \texttt{form}, \texttt{updated\_at}.
 
 \vspace{0.5em}
@@ -67,15 +71,15 @@ Diagram klas podzielono na trzy rysunki według modułów serwera. Klasy odpowia
 \textit{Atrybuty:} \texttt{id}, \texttt{lesson\_id}, \texttt{questions} (JSON), \texttt{updated\_at}.
 
 \vspace{0.5em}
-\textbf{QuizDraw} -- zestaw pytań wylosowany dla jednego podejścia (identyfikatory w kolejności pokazania); ocena tylko wobec tego zestawu. Zestaw bez \texttt{submitted\_at} jest otwarty i wraca po odświeżeniu strony. \\
-\textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{lesson\_id}, \texttt{question\_ids}, \texttt{answers}, \texttt{percent}, \texttt{created\_at}, \texttt{submitted\_at}.
+\textbf{QuizDraw} -- zestaw pytań wylosowany dla jednego podejścia (identyfikatory w kolejności pokazania); ocena tylko wobec tego zestawu. Zestaw bez \texttt{submitted\_at} jest otwarty i wraca po odświeżeniu strony. \texttt{form} to forma lekcji w chwili losowania: otwarty zestaw innej formy niż bieżąca forma lekcji (uczeń zmienił formę albo styl) jest usuwany i losowany nowy; zestawy sprzed migracji mają \texttt{null} i zostają. \\
+\textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{lesson\_id}, \texttt{question\_ids}, \texttt{answers}, \texttt{percent}, \texttt{form}, \texttt{created\_at}, \texttt{submitted\_at}.
 
 \vspace{0.5em}
 \textbf{QuizResult} -- wynik podejścia w modelu ucznia: forma lekcji w chwili wysłania, procent, zaliczenie i to, czy wynik zmienił procenty (\texttt{counted}). \\
 \textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{course\_id}, \texttt{lesson\_id}, \texttt{draw\_id}, \texttt{form}, \texttt{percent}, \texttt{passed}, \texttt{counted}, \texttt{created\_at}.
 
 \vspace{0.5em}
-\textbf{StyleHistory} -- stan profilu po każdej zmianie (ankieta, policzony wynik, zmiana stylu) z odwołaniem do zdarzenia dziennika; dane wykresu ,,Procenty form w czasie''. \\
+\textbf{StyleHistory} -- stan profilu po każdej zmianie (ankieta, wybór przy remisie, policzony wynik, zmiana stylu, cofnięcie zmiany) z odwołaniem do zdarzenia dziennika; dane wykresu ,,Procenty form w czasie''. API zwraca punkt jako \texttt{HistoryPoint} \{\texttt{at}, \texttt{percentages}, \texttt{style}, \texttt{event}\}, gdzie \texttt{event} to wpis dziennika, który zapisał punkt -- po nim klient odróżnia punkty wykresu (ankieta, policzone quizy) od pionowych znaczników zmian stylu. \\
 \textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{percent\_v}, \texttt{percent\_a}, \texttt{percent\_k}, \texttt{style}, \texttt{event\_id}, \texttt{created\_at}.
 
 \vspace{0.5em}
@@ -83,7 +87,7 @@ Diagram klas podzielono na trzy rysunki według modułów serwera. Klasy odpowia
 \textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{kind}, \texttt{from\_style}, \texttt{to\_style}, \texttt{evidence}, \texttt{status}, \texttt{counted\_at\_decision}, \texttt{created\_at}, \texttt{decided\_at}.
 
 \vspace{0.5em}
-\textbf{StyleTrial} -- okres próbny po zmianie stylu (\texttt{proposal} albo \texttt{manual}): średnia przed i po oraz wynik \texttt{helped}, \texttt{neutral}, \texttt{worse} albo \texttt{no\_baseline}. \\
+\textbf{StyleTrial} -- okres próbny po zmianie stylu (\texttt{proposal} albo \texttt{manual}): średnia przed i po oraz wynik \texttt{helped}, \texttt{neutral}, \texttt{worse}, \texttt{no\_baseline} albo \texttt{cancelled} (cofnięty lub zastąpiony przed pierwszą policzoną lekcją, R7a); \texttt{null} po zakończeniu oznacza okres przerwany zmianą stylu po policzonych lekcjach. \\
 \textit{Atrybuty:} \texttt{id}, \texttt{user\_id}, \texttt{from\_style}, \texttt{to\_style}, \texttt{source}, \texttt{before\_average}, \texttt{after\_average}, \texttt{result}, \texttt{started\_at}, \texttt{finished\_at}.
 
 \vspace{0.5em}
@@ -104,16 +108,18 @@ Diagram klas podzielono na trzy rysunki według modułów serwera. Klasy odpowia
 
 \subsection{Model danych}
 
-Baza danych PostgreSQL zawiera 19 tabel odpowiadających klasom z diagramu (schemat tworzą migracje Alembic; v3 wprowadza migracja \texttt{01324f58656d\_v3\_adaptation}). Najważniejsze relacje:
+Baza danych PostgreSQL zawiera 20 tabel odpowiadających klasom z diagramu (schemat tworzą migracje Alembic; v3 wprowadza migracja \texttt{01324f58656d\_v3\_adaptation}, a poprawki z 12.11 -- migracja \texttt{7d2e9b4c1a35}: tabela \texttt{course\_owner\_changes}, kolumna \texttt{quiz\_draws.form}, wynik \texttt{cancelled} w \texttt{style\_trials.result}). Najważniejsze relacje:
 
 \begin{itemize}[leftmargin=*]
     \item \texttt{users} 1:N \texttt{courses} (autor), \texttt{enrollments}, \texttt{lesson\_completions}, \texttt{files}, \texttt{quiz\_draws}; 1:1 \texttt{learning\_profiles}; 1:N \texttt{survey\_results}, \texttt{style\_history}, \texttt{quiz\_results}, \texttt{lesson\_forms}, \texttt{style\_proposals}, \texttt{style\_trials}, \texttt{decision\_events}
-    \item \texttt{courses} 1:N \texttt{lessons}; \texttt{courses} N:M \texttt{users} przez \texttt{enrollments} (unikalna para kurs--uczeń)
+    \item \texttt{courses} 1:N \texttt{lessons}, 1:N \texttt{course\_owner\_changes} (\texttt{CASCADE}; trzy klucze do \texttt{users}: z kogo, na kogo, kto); \texttt{courses} N:M \texttt{users} przez \texttt{enrollments} (unikalna para kurs--uczeń)
     \item \texttt{lessons} 1:0..3 \texttt{lesson\_contents} (unikalne \texttt{lesson\_id}, \texttt{form}), 1:0..1 \texttt{lesson\_quizzes}, 1:N \texttt{quiz\_draws}
     \item \texttt{quiz\_results.draw\_id} $\to$ \texttt{quiz\_draws}, \texttt{style\_history.event\_id} $\to$ \texttt{decision\_events} (\texttt{SET NULL}); dane ucznia są usuwane kaskadowo razem z kontem
 \end{itemize}
 
 Klucze obce między modułami istnieją tylko w bazie -- w kodzie moduły korzystają ze siebie przez funkcje serwisów (rozdział~\ref{sec:architecture}).
+
+\textbf{Częściowa edycja (\texttt{PATCH}).} \texttt{PATCH /courses/\{id\}} i \texttt{PATCH /lessons/\{id\}} rozróżniają pole pominięte od \texttt{null} (\texttt{model\_fields\_set} w Pydantic): pole pominięte -- bez zmian; \texttt{null} w polu tekstowym TipTap (\texttt{introduction}, \texttt{summary}, \texttt{outline}, \texttt{conclusions}) -- wyczyszczenie pola; \texttt{null} w polu wymaganym (\texttt{title}, \texttt{description}, \texttt{is\_published}) -- \texttt{422 VALIDATION\_ERROR}. Wyczyszczenie zarysu albo wniosków opublikowanej lekcji to nowy brak gotowości, więc kończy się \texttt{409 PUBLISHED\_LESSON\_INCOMPLETE}.
 
 \subsection{Reguły adaptacji}
 \label{sec:rules}
@@ -158,7 +164,7 @@ Wszystkie reguły adaptacji są czystymi funkcjami w jednym module \nolinkurl{ba
 \texttt{form\_stats(results)}: dla każdej formy liczba policzonych wyników (\texttt{lessons}) i ich średnia (\texttt{average}, \texttt{null} bez danych) ze wszystkich kursów ucznia. Forma jest \textbf{potwierdzona wynikami} (\texttt{confirmed}), gdy uczeń ma w niej co najmniej jedno zaliczone podejście (także niepoliczone); inaczej jest ,,tylko z ankiety''.
 
 \subsubsection{R4. Zaliczenie: odblokowanie i pochwała}
-Każde zaliczone podejście zapisuje \texttt{lesson\_completions} (raz) i odblokowuje następną opublikowaną lekcję. \texttt{praise(results)}: gdy bieżący wynik jest zaliczony i policzony, a końcowa seria policzonych zaliczeń w tej samej formie ma co najmniej 2 lekcje, uczeń dostaje pochwałę z danymi, np. ,,3 lekcje z rzędu zaliczone w formie wzrokowej, średnio 87\%'' (80, 100, 80).
+Każde zaliczone podejście zapisuje \texttt{lesson\_completions} (raz) i odblokowuje następną opublikowaną lekcję. \texttt{praise(results)}: gdy bieżący wynik jest zaliczony i policzony, a końcowa seria policzonych zaliczeń w tej samej formie ma co najmniej 2 lekcje, uczeń dostaje pochwałę z danymi, np. ,,3 lekcje z rzędu zaliczone w formie wzrokowej, średnio 87\%'' (80, 100, 80). Pochwała jest częścią odpowiedzi na quiz i osobnym zdarzeniem \texttt{praise} w dzienniku, więc widać ją też później w ,,Moich postępach'' i w szczegółach ucznia.
 
 \subsubsection{R5. Niezaliczenie: sugestia ,,przerób w formie X''}
 \texttt{retry\_suggestion(...)}: kandydaci to dwie formy różne od formy, w której uczeń przerabiał lekcję.
@@ -174,7 +180,7 @@ Do sugestii dołączony jest wynik oblanej formy w tym quizie i poprzedni policz
 \texttt{forms\_to\_clear(chosen\_forms, passed\_lesson\_ids)}: przy \textbf{każdej} zmianie stylu (przyjęta propozycja \texttt{switch} lub \texttt{revert}, zmiana ręczna) usuwane są jawne wybory formy w lekcjach jeszcze niezaliczonych -- nowy styl obowiązuje wszędzie poza zaliczonymi lekcjami. Lista wyczyszczonych lekcji trafia do danych zdarzenia.
 
 \subsubsection{R7. Okres próbny}
-Zaczyna się przy przyjęciu propozycji \texttt{switch} albo ręcznej zmianie stylu (po przyjęciu propozycji powrotu -- nie, żeby nie było pętli). \texttt{trial\_baseline}: średnia ,,przed'' to średnia z ostatnich co najwyżej 2 policzonych wyników w poprzednim stylu (\texttt{null}, gdy brak). \texttt{trial\_outcome}: po 2 policzonych wynikach w nowym stylu liczona jest średnia ,,po'' i różnica $d = \textit{po} - \textit{przed}$:
+Zaczyna się przy przyjęciu propozycji \texttt{switch} albo ręcznej zmianie stylu (po przyjęciu propozycji powrotu -- nie, żeby nie było pętli; zmiana w trakcie okresu bez policzonych lekcji -- patrz R7a). \texttt{trial\_baseline}: średnia ,,przed'' to średnia z ostatnich co najwyżej 2 policzonych wyników w poprzednim stylu (\texttt{null}, gdy brak). \texttt{trial\_outcome}: po 2 policzonych wynikach w nowym stylu liczona jest średnia ,,po'' i różnica $d = \textit{po} - \textit{przed}$:
 
 \begin{table}[H]
 \centering
@@ -184,16 +190,35 @@ Zaczyna się przy przyjęciu propozycji \texttt{switch} albo ręcznej zmianie st
 $d \geq +10$ & \texttt{helped} & ,,Zmiana pomogła: średnia 40\% $\to$ 90\%'' \\ \hline
 $-10 < d < +10$ & \texttt{neutral} & ,,Bez wyraźnej różnicy: średnia 60\% $\to$ 65\%'' \\ \hline
 $d \leq -10$ & \texttt{worse} & propozycja powrotu (\texttt{revert}) do poprzedniego stylu, bez wymogu potwierdzenia \\ \hline
-brak ,,przed'' & \texttt{no\_baseline} & ,,Średnia w nowej formie: 85\%'' \\ \hline
+brak ,,przed'' & \texttt{no\_baseline} & ,,Brak wyników w formie wzrokowej do porównania. Średnia w nowej formie: 85\%'' \\ \hline
 \end{tabular}
 \caption{Wynik okresu próbnego (granice sprawdzane w testach: $+10$, $+9$, $-9$, $-10$)}
 \end{table}
+
+\subsubsection{R7a. Zmiana stylu w trakcie okresu próbnego}
+Funkcja \texttt{trial\_on\_style\_change} (argumenty: trwający okres, liczba policzonych lekcji w jego nowej formie, nowy i poprzedni styl, średnia ,,przed'' poprzedniego stylu, \texttt{starts\_trial}) rozstrzyga, co się dzieje z okresem próbnym przy każdej zmianie stylu (ręcznej albo przez przyjęcie propozycji). Wynik to akcja i punkt odniesienia (\texttt{from\_style}, \texttt{before\_average}) nowego okresu:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{|p{5.6cm}|l|p{6.2cm}|}
+\hline
+\textbf{Warunek} & \textbf{Akcja} & \textbf{Skutek} \\ \hline
+trwa okres, 0 policzonych lekcji w nowej formie, nowy styl = styl sprzed okresu & \texttt{cancel} & okres \texttt{cancelled}, nowy nie startuje; zdarzenie \texttt{style\_change\_reverted} zamiast \texttt{manual\_style\_change} / \texttt{proposal\_accepted} \\ \hline
+trwa okres, 0 policzonych lekcji w nowej formie, trzeci styl & \texttt{replace} & okres \texttt{cancelled}, nowy okres z \textbf{tym samym} punktem odniesienia; \texttt{trial\_started} z \texttt{replaced\_trial\_id} \\ \hline
+brak okresu albo były policzone lekcje & \texttt{start} & jak w R7: stary okres zamknięty bez wyniku, nowy od poprzedniego stylu \\ \hline
+przyjęta propozycja powrotu (\texttt{revert}) & \texttt{none} & bez nowego okresu \\ \hline
+\end{tabular}
+\caption{Reguła R7a -- okres próbny przy zmianie stylu}
+\end{table}
+
+Przykład A $\to$ V $\to$ A (Szymon, \texttt{uczen3@imsu.pl}, styl A po 4 lekcjach w A): ręczna zmiana na V otwiera okres próbny ,,przed'' 80\% (dwa ostatnie wyniki w A: 80\% i 80\%). Powrót do A bez żadnej lekcji w V to \texttt{cancel}: nie powstaje okres ,,V $\to$ A'' bez danych do porównania, a dziennik pokazuje ,,Zmiana na styl wzrokowy (V) cofnięta przed pierwszą lekcją -- wracamy do stylu słuchowego (A)''. Przykład A $\to$ V $\to$ K bez lekcji: \texttt{replace} -- okres A $\to$ K ze średnią ,,przed'' 80\% z formy A, a nie okres V $\to$ K bez punktu odniesienia. Profil (\texttt{LearningProfileResponse.trial}) nie pokazuje okresów \texttt{cancelled}. Gdy poprzedni styl nie ma policzonych wyników, okres próbny mówi wprost: ,,Brak wyników w formie wzrokowej do porównania -- po 2 lekcjach pokażemy średnią w nowej formie''.
 
 \subsubsection{R8. Podpowiedź z kursu}
 \texttt{course\_hint(course\_results, student\_id)}: tylko dla ucznia \textbf{bez wyniku w kursie}. Policzone wyniki innych uczniów kursu grupowane są po formie; brane są formy z co najmniej 2 uczniami; wygrywa najwyższa średnia (remis $\to$ więcej uczniów $\to$ V, A, K), np. ,,W tym kursie najlepiej wypada forma słuchowa (średnio 86\%, 3 uczniów)''. To tylko informacja -- system niczego nie zmienia.
 
 \subsubsection{R9. Losowanie pytań}
-\texttt{draw\_questions(pool\_ids, last\_ids, k=5, rng)}: najpierw losowo pytania spoza ostatniego wysłanego zestawu, potem uzupełnienie z ostatniego, razem $\min(5, |\textit{pula}|)$. Przy puli 8 powtórka daje 3 nowe pytania i 2 z poprzedniego zestawu. Otwarty (niewysłany) zestaw jest zwracany ponownie, więc odświeżenie strony nie losuje od nowa.
+\texttt{draw\_questions(pool\_ids, last\_ids, k=5, rng)}: najpierw losowo pytania spoza ostatniego wysłanego zestawu, potem uzupełnienie z ostatniego, razem $\min(5, |\textit{pula}|)$. Przy puli 8 powtórka daje 3 nowe pytania i 2 z poprzedniego zestawu. Otwarty (niewysłany) zestaw jest zwracany ponownie, więc odświeżenie strony nie losuje od nowa -- chyba że został wylosowany w innej formie niż bieżąca forma lekcji (\texttt{quiz\_draws.form}): wtedy jest usuwany i losowany nowy zestaw dla nowej formy.
 
 \subsubsection{R10. Blokada lekcji}
 \texttt{lesson\_states(published\_lessons, passed\_ids)}: lekcja jest \texttt{passed}, gdy uczeń ją zaliczył; \texttt{available}, gdy jest pierwsza albo poprzednia opublikowana jest zaliczona; inaczej \texttt{locked} z numerem wymaganej lekcji. Zaliczona lekcja zostaje dostępna także po zmianie kolejności. Serwer sprawdza to przy każdym dostępie ucznia do treści i quizu (\texttt{403 LESSON\_LOCKED}).
@@ -232,7 +257,7 @@ Moduł \texttt{assessment} ocenia odpowiedzi na serwerze i wywołuje jedną funk
 \begin{enumerate}[leftmargin=*]
     \item Forma = forma lekcji w chwili wysłania (\texttt{lesson\_forms} albo aktywny styl).
     \item \texttt{is\_counted}; zapis \texttt{QuizResult}; jeśli policzony -- \texttt{apply\_result} i nowe procenty profilu (R2).
-    \item Zaliczone: \texttt{curriculum.mark\_lesson\_passed} (odblokowanie następnej lekcji, R10), informacja o ukończeniu kursu, \texttt{praise} (R4). Zdarzenie \texttt{quiz\_attempt} z procentami przed i po; jeśli wynik policzony -- punkt w \texttt{style\_history}.
+    \item Zaliczone: \texttt{curriculum.mark\_lesson\_passed} (odblokowanie następnej lekcji, R10), informacja o ukończeniu kursu, \texttt{praise} (R4). Zdarzenie \texttt{quiz\_attempt} z procentami przed i po; jeśli wynik policzony -- punkt w \texttt{style\_history}; przy pochwale -- zdarzenie \texttt{praise}.
     \item Niezaliczone: \texttt{retry\_suggestion} i zdarzenie \texttt{retry\_suggestion} (R5).
     \item Trwający okres próbny: \texttt{trial\_outcome}; po 2 wynikach zdarzenie \texttt{trial\_finished}, a przy \texttt{worse} -- propozycja powrotu (R7).
     \item \texttt{switch\_proposal}: wygaszenie nieaktualnej propozycji, utworzenie nowej (R6). Otwarta propozycja powrotu czeka na decyzję ucznia i nie jest zastępowana.
@@ -253,16 +278,18 @@ Każda decyzja systemu zapisuje wiersz \texttt{decision\_events} z typem i danym
 \texttt{survey\_completed} & punkty, procenty, styl (\texttt{null} przy remisie), style z remisu \\
 \texttt{tie\_resolved} & wybrany styl, style z remisu \\
 \texttt{quiz\_attempt} & \texttt{draw\_id}, forma, wynik, zaliczenie, \texttt{counted}, procenty przed i po, odblokowana lekcja \\
+\texttt{praise} & forma, długość serii, średnia serii (R4, seria $\geq$ 2) \\
 \texttt{retry\_suggestion} & oblana forma (wynik, poprzedni wynik w tej formie), sugerowana forma (powód, procent, procent w ankiecie, najlepsze zaliczenie) \\
 \texttt{lesson\_form\_changed} & forma przed i po, źródło (\texttt{manual} / \texttt{suggestion}) \\
 \texttt{proposal\_created} & id, rodzaj, styl z / na, dowód \\
 \texttt{proposal\_accepted} & id, rodzaj, styl z / na, wyczyszczone wybory formy \\
 \texttt{proposal\_rejected}, \texttt{proposal\_expired} & id, rodzaj, styl z / na \\
 \texttt{manual\_style\_change} & styl z / na, wyczyszczone wybory formy, zamknięta propozycja \\
-\texttt{trial\_started} & id okresu, styl z / na, źródło, średnia przed \\
+\texttt{trial\_started} & id okresu, styl z / na, źródło, średnia przed, id okresu zastąpionego przez R7a (albo \texttt{null}) \\
+\texttt{style\_change\_reverted} & styl z / na, id cofniętego okresu, źródło (\texttt{manual} / \texttt{proposal}), wyczyszczone wybory formy -- cofnięcie zmiany przed pierwszą lekcją (R7a) \\
 \texttt{trial\_finished} & id okresu, styl z / na, średnie przed i po, wynik \\
 \bottomrule
 \end{longtable}
 \endgroup
 
-Zdarzenia lekcji i quizu mają \texttt{course\_id} i \texttt{lesson\_id}; ankieta i zmiany stylu są globalne. Przykładowy wpis dziennika Kuby po kroku 4: \texttt{quiz\_attempt} z danymi \texttt{form = V}, \texttt{percent = 40}, \texttt{counted = true}, procenty przed V 45 / A 40 / K 15 i po V 35 / A 47 / K 18.
+Zdarzenia lekcji i quizu mają \texttt{course\_id} i \texttt{lesson\_id}; ankieta i zmiany stylu są globalne. Punkt historii procentów zapisują: \texttt{survey\_completed}, \texttt{tie\_resolved}, policzony \texttt{quiz\_attempt}, \texttt{proposal\_accepted}, \texttt{manual\_style\_change} i \texttt{style\_change\_reverted}; \texttt{HistoryPoint.event} niesie to zdarzenie, a etykiety osi wykresu (,,L1 · A'') biorą numer lekcji z wpisu dziennika. Przykładowy wpis dziennika Kuby po kroku 4: \texttt{quiz\_attempt} z danymi \texttt{form = V}, \texttt{percent = 40}, \texttt{counted = true}, procenty przed V 45 / A 40 / K 15 i po V 35 / A 47 / K 18.

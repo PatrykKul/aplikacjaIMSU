@@ -33,6 +33,15 @@
         \attr{updated\_at : datetime}
     \end{class}
 
+    \begin{class}[text width=3.7cm]{CourseOwnerChange}{5.6,4.2}
+        \attr{id : int}
+        \attr{course\_id : int}
+        \attr{from\_owner\_id : int}
+        \attr{to\_owner\_id : int}
+        \attr{changed\_by\_id : int}
+        \attr{changed\_at : datetime}
+    \end{class}
+
     \begin{class}[text width=3.7cm]{LessonCompletion}{5.6,-5.7}
         \attr{user\_id : int}
         \attr{lesson\_id : int}
@@ -65,6 +74,16 @@
     \draw (User.north) -- ++(0,0.45) -| node[rolelabel, above, pos=0.25] {autor (owner\_id)} (Course.north);
     \node[mult, above right] at (User.north) {1};
     \node[mult, above right] at (Course.north) {*};
+
+    % CourseOwnerChange - Course (history of owners, D56)
+    \draw (CourseOwnerChange.east) -| ($(Course.north)+(1.2,0)$);
+    \node[mult, above right] at (CourseOwnerChange.east) {*};
+    \node[mult, above right] at ($(Course.north)+(1.2,0)$) {1};
+
+    % CourseOwnerChange - User (from, to, changed by)
+    \draw (CourseOwnerChange.west) -| node[rolelabel, above, pos=0.3, align=center] {z kogo / na kogo / kto\\(3 klucze)} ($(User.north)+(-1.2,0)$);
+    \node[mult, above left] at (CourseOwnerChange.west) {*};
+    \node[mult, above left] at ($(User.north)+(-1.2,0)$) {1};
 
     % Course - Lesson (composition)
     \draw[comp] (Course.south) -- (Lesson.north);

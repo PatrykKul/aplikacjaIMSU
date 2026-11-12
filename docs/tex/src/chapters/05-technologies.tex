@@ -12,9 +12,9 @@ System jest aplikacją internetową złożoną z trzech części: klienta dział
 \textbf{Moduł} & \textbf{Odpowiedzialność} \\ \hline
 \texttt{core} & konfiguracja, sesja bazy danych, format błędów (\texttt{AppError}: kod i parametry) \\ \hline
 \texttt{identity} & konta, role, logowanie, sesja, administracja kont, zatwierdzanie nauczycieli \\ \hline
-\texttt{curriculum} & kursy, lekcje (zarys, wnioski), zapisy na kurs, zaliczenia i blokada kolejności (R10) \\ \hline
-\texttt{content} & trzy wersje lekcji (bloki tekstu i załączniki), pliki, braki wersji (R11) \\ \hline
-\texttt{learning\_style} & ankieta, profil procentowy, reguły R1--R8 (\texttt{rules.py}), wersja lekcji dla ucznia, propozycje, okres próbny, dziennik decyzji, statystyki \\ \hline
+\texttt{curriculum} & kursy, lekcje (zarys, wnioski), zapisy na kurs, zaliczenia i blokada kolejności (R10), zmiana właściciela kursu przez administratora (\texttt{course\_owner\_changes}) \\ \hline
+\texttt{content} & trzy wersje lekcji (bloki tekstu i załączniki, nagrania z transkrypcją), pliki, braki wersji (R11) \\ \hline
+\texttt{learning\_style} & ankieta, profil procentowy, reguły R1--R8 i R7a (\texttt{rules.py}), wersja lekcji dla ucznia i stany lekcji (przyciski ,,Rozpocznij'' / ,,Kontynuuj'' / ,,Powtórz''), propozycje, okres próbny, dziennik decyzji, statystyki \\ \hline
 \texttt{assessment} & pula pytań, losowanie zestawu (R9), ocenianie, wywołanie \texttt{record\_quiz\_result} \\ \hline
 \texttt{authoring} & gotowość lekcji (zbiera braki z trzech modułów) i publikacja lekcji \\ \hline
 \end{tabular}
@@ -38,10 +38,10 @@ Reguły adaptacji, losowania, blokady i gotowości są czystymi funkcjami, nieza
     \item \textbf{TypeScript} -- typowany JavaScript
     \item \textbf{Tailwind CSS 4} i \textbf{shadcn/ui} (Base UI) -- style i komponenty interfejsu
     \item \textbf{TanStack Query} -- pobieranie i buforowanie danych z serwera
-    \item \textbf{TipTap} -- edytor tekstu lekcji, zarysów i wniosków (formatowanie, tabele, wklejanie z Worda)
+    \item \textbf{TipTap} -- edytor tekstu lekcji, zarysów i wniosków (formatowanie, tabele, kod w linii i bloki kodu czcionką o stałej szerokości, wklejanie z Worda)
     \item \textbf{KaTeX} -- wyświetlanie wzorów matematycznych
     \item \textbf{React Hook Form}, \textbf{react-dropzone}, \textbf{Lucide}, \textbf{Sonner} -- formularze, wgrywanie plików, ikony, komunikaty
-    \item Wykres procentów form w czasie -- własny komponent SVG (bez biblioteki wykresów), z tabelą tych samych danych
+    \item Wykres procentów form w czasie -- własny komponent SVG (bez biblioteki wykresów): punkty dla ankiety i policzonych quizów, zmiany stylu jako pionowe znaczniki, pod spodem tabela tych samych danych z kolumną ,,Zdarzenie''
 \end{itemize}
 
 \textbf{Serwer:}
@@ -66,6 +66,7 @@ Reguły adaptacji, losowania, blokady i gotowości są czystymi funkcjami, nieza
     \item \textbf{ESLint} i \textbf{Prettier} -- lint i formatowanie kodu klienta
     \item \textbf{Playwright} -- przejście scenariusza pokazu w przeglądarce (skrypt \nolinkurl{frontend/e2e/demo-tour.mjs}, uruchamiany ręcznie)
     \item \textbf{npm} i \textbf{pip} -- menedżery pakietów
+    \item Generatory zasobów demo (jednorazowe, w osobnym środowisku, poza zależnościami projektu): \textbf{Pillow} (obrazy PNG i karty PDF), \textbf{edge-tts} i \textbf{imageio-ffmpeg} (nagrania MP3 wersji A; kompletność czytania sprawdzana znacznikami przeczytanych słów)
 \end{itemize}
 
 \subsection{Bezpieczeństwo}
@@ -74,7 +75,7 @@ Reguły adaptacji, losowania, blokady i gotowości są czystymi funkcjami, nieza
     \item Sesja jako token JWT w ciasteczku \texttt{HttpOnly} (niedostępnym z JavaScriptu), \texttt{SameSite=Lax}
     \item Rola, aktywność i zatwierdzenie konta odczytywane z bazy przy każdym żądaniu -- blokada konta działa natychmiast, a niezatwierdzony nauczyciel dostaje \texttt{403 TEACHER\_NOT\_APPROVED}
     \item Hasła haszowane algorytmem bcrypt
-    \item Uprawnienia sprawdzane na serwerze; zasób niedostępny dla użytkownika zwraca 404, bez zdradzania jego istnienia; treść lekcji i quiz tylko dla ucznia przyjętego na kurs i z odblokowaną lekcją
+    \item Uprawnienia sprawdzane na serwerze; zasób niedostępny dla użytkownika zwraca 404, bez zdradzania jego istnienia; treść lekcji i quiz tylko dla ucznia przyjętego na kurs i z odblokowaną lekcją; zmiana właściciela kursu tylko dla administratora i tylko na zatwierdzonego nauczyciela, z trwałym śladem w \texttt{course\_owner\_changes}
     \item Wgrywane pliki: biała lista rozszerzeń (bez SVG i HTML), limit 50 MB, losowe nazwy na dysku
     \item Ankieta i quiz wysyłane do klienta bez klucza odpowiedzi; zestaw pytań zapisany na serwerze, punkty i wynik liczy serwer
     \item CORS tylko dla adresu klienta, sekrety wyłącznie w plikach \texttt{.env} poza repozytorium
