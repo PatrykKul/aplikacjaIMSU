@@ -7,7 +7,8 @@ description; K: a text instruction and a PDF worksheet.
 from collections.abc import Sequence
 from typing import Any
 
-from app.modules.curriculum.readiness import Issue, is_empty_document
+from app.core.rich_text import is_empty_document
+from app.modules.curriculum.readiness import Issue
 
 
 def _has_text(blocks: Sequence[dict[str, Any]]) -> bool:

@@ -11,3 +11,17 @@ def _check_document(value: dict[str, Any]) -> dict[str, Any]:
 
 RichTextDocument = Annotated[dict[str, Any], AfterValidator(_check_document)]
 """TipTap document stored as JSON: {"type": "doc", "content": [...]}."""
+
+
+def is_empty_document(doc: dict[str, Any] | None) -> bool:
+    """True for a missing TipTap document or one with only empty paragraphs.
+
+    Same rule as `isEmptyDocument` in the frontend (`shared/rich-text/is-empty.ts`).
+    """
+    if not doc:
+        return True
+    return not any(
+        node.get("type") != "paragraph" or node.get("content")
+        for node in doc.get("content") or []
+        if isinstance(node, dict)
+    )

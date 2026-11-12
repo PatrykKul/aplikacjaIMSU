@@ -2,21 +2,9 @@
 
 from typing import Any
 
+from app.core.rich_text import is_empty_document
+
 Issue = dict[str, int | str]
-
-
-def is_empty_document(doc: dict[str, Any] | None) -> bool:
-    """True for a missing TipTap document or one with only empty paragraphs.
-
-    Same rule as `isEmptyDocument` in the frontend (`shared/rich-text/is-empty.ts`).
-    """
-    if not doc:
-        return True
-    return not any(
-        node.get("type") != "paragraph" or node.get("content")
-        for node in doc.get("content") or []
-        if isinstance(node, dict)
-    )
 
 
 def lesson_issues(
