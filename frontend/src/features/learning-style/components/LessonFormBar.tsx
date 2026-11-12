@@ -50,7 +50,10 @@ export function LessonFormBar({
       </p>
       {study.other_forms.length > 0 && (
         <>
-          <span aria-hidden="true">·</span>
+          {/* On a phone the link wraps to its own line, without a lone dot */}
+          <span aria-hidden="true" className="hidden sm:inline">
+            ·
+          </span>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
