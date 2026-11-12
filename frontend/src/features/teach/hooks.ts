@@ -31,6 +31,8 @@ export const courseKey = (id: number) => ["courses", id] as const;
 export const enrollmentsKey = (id: number) =>
   ["courses", id, "enrollments"] as const;
 export const courseStatsKey = (id: number) => ["courses", id, "stats"] as const;
+export const courseStudentKey = (id: number, studentId: number) =>
+  ["courses", id, "students", studentId] as const;
 export const lessonKey = (id: number) => ["lessons", id] as const;
 export const versionsKey = (id: number) => ["lessons", id, "versions"] as const;
 export const poolKey = (id: number) => ["lessons", id, "quiz-edit"] as const;
@@ -293,5 +295,12 @@ export function useCourseStats(courseId: number) {
   return useQuery({
     queryKey: courseStatsKey(courseId),
     queryFn: () => statsApi.course(courseId),
+  });
+}
+
+export function useCourseStudent(courseId: number, studentId: number) {
+  return useQuery({
+    queryKey: courseStudentKey(courseId, studentId),
+    queryFn: () => statsApi.student(courseId, studentId),
   });
 }

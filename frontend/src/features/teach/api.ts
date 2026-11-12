@@ -1,4 +1,5 @@
 import type { Block, Form, UploadedFile } from "@/features/content/types";
+import type { StudentDetail } from "@/features/progress/types";
 import { api, uploadFile } from "@/shared/api/client";
 
 import type {
@@ -94,4 +95,6 @@ export const authoringApi = {
 export const statsApi = {
   course: (courseId: number) =>
     api.get<CourseStats>(`/courses/${courseId}/stats`),
+  student: (courseId: number, studentId: number) =>
+    api.get<StudentDetail>(`/courses/${courseId}/students/${studentId}`),
 };
