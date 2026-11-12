@@ -112,23 +112,34 @@ def _draws(db: Session, user_id: int, lesson_id: int) -> list[QuizDraw]:
     )
 
 
+def _lesson_form(db: Session, user: User, lesson: Lesson) -> str:
+    profile = learning_style.require_style(db, user)
+    assert profile.style is not None
+    form, _ = learning_style.lesson_form(db, user.id, lesson.id, profile.style)
+    return form
+
+
 def current_draw(db: Session, user: User, lesson: Lesson) -> QuizDraw:
     """The open draw (a page refresh keeps the questions) or a new one (R9).
 
     A new draw prefers questions outside the last submitted set. An open draw whose questions
-    are no longer in the pool (the teacher edited it) is replaced.
+    are no longer in the pool (the teacher edited it) or drawn in another form than the
+    lesson's form now (D61) is replaced.
     """
     pool = _pool(db, lesson.id)
+    form = _lesson_form(db, user, lesson)
     draws = _draws(db, user.id, lesson.id)
     open_draw = next((d for d in draws if d.submitted_at is None), None)
     if open_draw is not None:
-        if all(qid in pool for qid in open_draw.question_ids):
+        same_form = open_draw.form is None or open_draw.form == form
+        if same_form and all(qid in pool for qid in open_draw.question_ids):
             return open_draw
         db.delete(open_draw)
     last = next((d for d in draws if d.submitted_at is not None), None)
     draw = QuizDraw(
         user_id=user.id,
         lesson_id=lesson.id,
+        form=form,
         question_ids=draw_questions(
             list(pool), [] if last is None else last.question_ids, QUIZ_SIZE, rng
         ),
@@ -140,15 +151,14 @@ def current_draw(db: Session, user: User, lesson: Lesson) -> QuizDraw:
 
 def student_quiz(db: Session, lesson_id: int, user: User) -> StudentQuizResponse:
     """Questions of the current draw without the key."""
-    lesson, style = _student_lesson(db, lesson_id, user)
+    lesson, _ = _student_lesson(db, lesson_id, user)
     draw = current_draw(db, user, lesson)
     pool = _pool(db, lesson.id)
-    form, _ = learning_style.lesson_form(db, user.id, lesson.id, style)
     return StudentQuizResponse(
         draw_id=draw.id,
         questions=[StudentQuestionResponse.model_validate(pool[qid]) for qid in draw.question_ids],
         pool_size=len(pool),
-        form=form,
+        form=_lesson_form(db, user, lesson),
     )
 
 

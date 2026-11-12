@@ -53,7 +53,7 @@ Uczeń: lekcja opublikowana (inaczej 404) → zapis `accepted` (inaczej `403 ENR
 - Kurs: `is_published = true` tylko z ≥ 1 opublikowaną lekcją (`409 COURSE_HAS_NO_PUBLISHED_LESSONS`); wycofanie zawsze dozwolone.
 - Lekcja: publikuje `authoring` po sprawdzeniu gotowości (R11, `moduly/07-authoring.md`). Ostatniej opublikowanej lekcji opublikowanego kursu nie można wycofać ani zarchiwizować (`409 LAST_PUBLISHED_LESSON`).
 - R11, część lekcji (`readiness.py`): `lesson_issues(outline, conclusions)` → `OUTLINE_MISSING`, `CONCLUSIONS_MISSING` (pusty dokument = `core.rich_text.is_empty_document`). `PATCH /lessons/{id}` opublikowanej lekcji, który wprowadziłby **nowy** brak → `409 PUBLISHED_LESSON_INCOMPLETE` z `issues`.
-- `PATCH /lessons/{id}`: pominięte pole zostaje, `null` czyści zarys / wnioski (w szkicu). `PATCH /courses/{id}`: `null` w polu = bez zmiany.
+- `PATCH /courses/{id}` i `PATCH /lessons/{id}` (D61, `model_fields_set`): pole pominięte = bez zmian; `null` czyści pole tekstowe TipTap (`introduction`, `summary`, `outline`, `conclusions`); `null` w polu wymaganym (`title`, `description`, `is_published`) → `422 VALIDATION_ERROR`. Wyczyszczenie zarysu / wniosków opublikowanej lekcji to nowy brak → 409 (wyżej).
 
 ## API
 
@@ -62,12 +62,12 @@ Uczeń: lekcja opublikowana (inaczej 404) → zapis `accepted` (inaczej `403 ENR
 | `GET /courses` | zalogowany | uczeń: opublikowane + przyjęte; nauczyciel: swoje; admin: wszystkie; od najnowszego → `CourseSummaryResponse[]` | 401, 403 `TEACHER_NOT_APPROVED` |
 | `POST /courses` | nauczyciel | `{title, description?}` → 201, kurs prywatny | 403, 422 |
 | `GET /courses/{id}` | widzący kurs | `CourseResponse` | 404 |
-| `PATCH /courses/{id}` | autor | `title?`, `description?`, `introduction?`, `summary?`, `is_published?` | 404, 409 `COURSE_HAS_NO_PUBLISHED_LESSONS`, 422 |
+| `PATCH /courses/{id}` | autor | `title?`, `description?`, `introduction?` (null czyści), `summary?` (null czyści), `is_published?` | 404, 409 `COURSE_HAS_NO_PUBLISHED_LESSONS`, 422 (także `null` w `title` / `description` / `is_published`) |
 | `DELETE /courses/{id}` | autor | archiwizacja, 204 | 404 |
 | `POST /courses/{id}/lessons` | autor | `{title}` → 201, `LessonResponse` (nieopublikowana, na końcu) | 404, 422 |
 | `PUT /courses/{id}/lessons/order` | autor | `{lesson_ids}` — każda aktywna lekcja dokładnie raz → `CourseResponse` | 400 `LESSON_ORDER_MISMATCH` |
 | `GET /lessons/{id}` | widzący; uczeń: przyjęty + opublikowana + odblokowana | `LessonResponse` | 404, 403 `ENROLLMENT_REQUIRED`, 403 `LESSON_LOCKED` + `required_lesson` |
-| `PATCH /lessons/{id}` | autor | `title?`, `outline?`, `conclusions?` | 404, 409 `PUBLISHED_LESSON_INCOMPLETE` + `issues`, 422 |
+| `PATCH /lessons/{id}` | autor | `title?`, `outline?` (null czyści), `conclusions?` (null czyści) | 404, 409 `PUBLISHED_LESSON_INCOMPLETE` + `issues`, 422 (także `null` w `title`) |
 | `DELETE /lessons/{id}` | autor | archiwizacja, 204 | 404, 409 `LAST_PUBLISHED_LESSON` |
 | `PUT /courses/{id}/owner` | admin | `{owner_id}` → `CourseResponse` (widok admina); ten sam właściciel → 200 bez zmian | 403 `FORBIDDEN`, 404 `COURSE_NOT_FOUND` / `USER_NOT_FOUND`, 409 `TEACHER_NOT_APPROVED`, 422 |
 | `POST /courses/{id}/enrollment` | uczeń | prośba o zapis → 201 `EnrollmentResponse` (`pending`); powtórka przy `pending` → 200 | 404, 409 `ALREADY_ENROLLED`, 403 `FORBIDDEN` (inne role) |
@@ -99,9 +99,9 @@ Statystyki kursu i szczegóły ucznia (`/courses/{id}/stats`, `/courses/{id}/stu
 
 ## Testy
 `backend/tests/curriculum/`:
-- `test_courses.py`: tworzenie i walidacja, role, lista (nauczyciel — swoje, uczeń — opublikowane, admin — wszystkie z zarchiwizowanymi, kolejność), widoczność strony kursu, edycja częściowa, publikacja i wycofanie, kurs bez opublikowanej lekcji → 409, archiwizacja.
+- `test_courses.py`: tworzenie i walidacja, role, lista (nauczyciel — swoje, uczeń — opublikowane, admin — wszystkie z zarchiwizowanymi, kolejność), widoczność strony kursu, edycja częściowa, `null` czyści wstęp i podsumowanie, `null` w polu wymaganym → 422, publikacja i wycofanie, kurs bez opublikowanej lekcji → 409, archiwizacja.
 - `test_lessons.py`: dodawanie na końcu, kolejność (zła lista → 400, zarchiwizowane pominięte), sąsiedzi, widoczność za kursem, zmiana nazwy, archiwizacja, tylko autor.
-- `test_lesson_fields.py`: zarys i wnioski (częściowa zmiana, `null` czyści szkic, zarys na stronie kursu), opublikowana lekcja nie traci zarysu / wniosków, ale można ją edytować, ostatnia opublikowana lekcja nie do archiwizacji, odrzucony nauczyciel traci dostęp do własnego kursu.
+- `test_lesson_fields.py`: zarys i wnioski (częściowa zmiana, `null` czyści szkic, `null` w tytule → 422, zarys na stronie kursu), opublikowana lekcja nie traci zarysu / wniosków, ale można ją edytować, ostatnia opublikowana lekcja nie do archiwizacji, odrzucony nauczyciel traci dostęp do własnego kursu.
 - `test_owner.py`: zmiana właściciela (wpis w `course_owner_changes`, nowy autor w liście i katalogu, poprzedni traci dostęp, zapisy i stany lekcji zostają), ten sam właściciel bez wpisu, kurs zarchiwizowany, tylko admin, nieistniejący kurs, uczeń / admin / brak konta → `USER_NOT_FOUND`, nauczyciel `pending` / `rejected` → 409, walidacja.
 - `test_enrollments.py`: prośba, powtórka, ponowna po odrzuceniu, przyjęty nie prosi ponownie, kurs prywatny / zarchiwizowany / nieistniejący → 404, tylko uczeń, lista próśb (kolejność, filtr), przyjęcie, zmiana decyzji, tylko autor, prośby kursu zarchiwizowanego ukryte, dostęp przyjętego po wycofaniu publikacji.
 - `test_lesson_access.py`: uczeń widzi tylko opublikowane lekcje z numeracją wśród nich, stany lekcji, `ENROLLMENT_REQUIRED`, `LESSON_LOCKED` z wymaganą lekcją, odblokowanie po zaliczeniu, ostatnia lekcja, zaliczona zostaje otwarta po zmianie kolejności, podgląd autora i admina.
@@ -114,4 +114,4 @@ Statystyki kursu i szczegóły ucznia (`/courses/{id}/stats`, `/courses/{id}/stu
 - Nauczyciel: nowa lekcja (szkic, niewidoczna dla ucznia), zmiana kolejności, próba wycofania publikacji kursu bez opublikowanych lekcji.
 
 ## Ograniczenia
-Brak moderacji kursów przez administratora (O6; jest tylko zmiana właściciela), historia zmian właściciela tylko w bazie (bez widoku), powiadomień o prośbach i anulowania własnej prośby; jeden autor kursu (bez współautorów); `null` w `PATCH /courses/{id}` nie czyści wstępu ani podsumowania (pusty dokument TipTap — tak).
+Brak moderacji kursów przez administratora (O6; jest tylko zmiana właściciela), historia zmian właściciela tylko w bazie (bez widoku), powiadomień o prośbach i anulowania własnej prośby; jeden autor kursu (bez współautorów);.

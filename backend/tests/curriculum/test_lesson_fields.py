@@ -74,6 +74,8 @@ def test_outline_is_shown_in_course(client: TestClient, lesson_id: int) -> None:
         {"outline": {"type": "paragraph"}},
         {"conclusions": "tekst"},
         {"title": ""},
+        {"title": None},  # null clears only the outline and the conclusions (D61)
+        {"title": None, "outline": None},
         {"is_published": True},  # publication goes through /publication (authoring)
     ],
 )

@@ -351,6 +351,10 @@ def test_marta_trial_helped(client: TestClient, quiz_course, learner):
     assert third["trial"]["done"] == 2
     assert third["trial"]["finished_at"] is not None
     assert third["praise"] == {"form": "V", "streak": 3, "average": 87}
+    praise_event = last_event(client, "praise")
+    assert praise_event["data"] == {"form": "V", "streak": 3, "average": 87}
+    assert praise_event["lesson"]["id"] == lesson_ids(course)[2]
+    assert praise_event["course"]["id"] == course["id"]
     assert third["proposal"] is None
     assert last_event(client, "trial_finished")["data"] == {
         "trial_id": trial["id"],

@@ -224,16 +224,9 @@ def update_course(db: Session, course_id: int, user: User, data: CourseUpdateReq
     course = get_owned_course(db, course_id, user)
     if data.is_published and not published_lessons(course):
         raise AppError(409, "COURSE_HAS_NO_PUBLISHED_LESSONS")
-    if data.title is not None:
-        course.title = data.title
-    if data.description is not None:
-        course.description = data.description
-    if data.introduction is not None:
-        course.introduction = data.introduction
-    if data.summary is not None:
-        course.summary = data.summary
-    if data.is_published is not None:
-        course.is_published = data.is_published
+    # Only the fields sent; `null` (allowed in the texts only) clears them
+    for field in data.model_fields_set:
+        setattr(course, field, getattr(data, field))
     db.commit()
     db.refresh(course)
     return course
@@ -367,7 +360,7 @@ def update_lesson(db: Session, lesson_id: int, user: User, data: LessonUpdateReq
         missing = _new_issues(lesson_issues(lesson), readiness.lesson_issues(outline, conclusions))
         if missing:
             raise AppError(409, "PUBLISHED_LESSON_INCOMPLETE", issues=missing)
-    if data.title is not None:
+    if "title" in fields and data.title is not None:
         lesson.title = data.title
     lesson.outline = outline
     lesson.conclusions = conclusions
