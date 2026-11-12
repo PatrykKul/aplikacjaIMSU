@@ -4,7 +4,7 @@ Run from `backend/` (uploads go to UPLOAD_DIR, relative to it):
 
     python -m app.demo.seed                       # create what is missing ("bez zmian" otherwise)
     python -m app.demo.seed --reset-students      # bring every demo account back to its start state
-    python -m app.demo.seed --refresh-demo-media  # replace version A with the current recordings
+    python -m app.demo.seed --refresh-demo-media  # texts and versions from courses.py, new MP3
 
 Everything goes through the module services (the same checks as the application): courses are
 built from `courses.py` by their teachers (one per course, D55) and published by `authoring`
@@ -26,13 +26,14 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.core.db import SessionLocal
-from app.demo.courses import ASSETS_DIR, COURSES, Audio, Block, Course, Text, block_payload
+from app.demo.courses import ASSETS_DIR, COURSES, Block, Course, Text, block_payload
 from app.modules.assessment import service as assessment
 from app.modules.assessment.models import LessonQuiz, QuizDraw
 from app.modules.assessment.schemas import AttemptResponse, QuizContent
 from app.modules.authoring import service as authoring
 from app.modules.content import service as content
 from app.modules.content.blocks import LessonBlocks
+from app.modules.content.models import File
 from app.modules.curriculum import service as curriculum
 from app.modules.curriculum.models import Course as CourseModel
 from app.modules.curriculum.models import Enrollment, EnrollmentStatus, Lesson, LessonCompletion
@@ -338,16 +339,44 @@ def ensure_course(
         log(f"zmieniono autora kursu {spec.title}: {previous} → {teacher.display_name}")
         changed = True
     if refresh_media:
-        # current recordings with transcripts; old files stay in `files` and in uploads
-        lessons = curriculum.active_lessons(course)
-        for lesson, lesson_spec in zip(lessons, spec.lessons, strict=False):
-            blocks = lesson_spec.versions["A"]
-            files = {b.file: upload(db, teacher, b.file) for b in blocks if isinstance(b, Audio)}
-            save_blocks(db, teacher, lesson.id, "A", blocks, files)
-        log(f"wgrano ponownie nagrania wersji A: {spec.title}")
+        refresh_course(db, course, spec, teacher)
+        log(f"odświeżono treść i nagrania wersji A: {spec.title}")
         changed = True
     if not changed:
         log(f"bez zmian: kurs {spec.title}")
+
+
+def stored_files(db: Session, blocks: list[dict[str, Any]]) -> dict[str, int]:
+    """Asset name -> id of the files a stored version already uses."""
+    ids = [block["file_id"] for block in blocks if block.get("file_id") is not None]
+    rows = db.execute(select(File.original_name, File.id).where(File.id.in_(ids)))
+    return {name: file_id for name, file_id in rows}
+
+
+def refresh_course(db: Session, course: CourseModel, spec: Course, teacher: User) -> None:
+    """Texts and versions of an existing course from `courses.py` (as its teacher).
+
+    Version A gets the current recordings uploaded again; V and K keep their stored images and
+    PDFs (D56 allows files already used in the lesson). Old files stay in `files` and uploads.
+    """
+    curriculum.update_course(
+        db,
+        course.id,
+        teacher,
+        CourseUpdateRequest(introduction=spec.introduction, summary=spec.summary),
+    )
+    lessons = curriculum.active_lessons(course)
+    for lesson, lesson_spec in zip(lessons, spec.lessons, strict=False):
+        curriculum.update_lesson(
+            db,
+            lesson.id,
+            teacher,
+            LessonUpdateRequest(outline=lesson_spec.outline, conclusions=lesson_spec.conclusions),
+        )
+        stored = content.stored_versions(db, lesson.id)
+        for form, blocks in lesson_spec.versions.items():
+            files = {} if form == "A" else stored_files(db, stored[form])
+            save_blocks(db, teacher, lesson.id, form, blocks, files)
 
 
 def courses_by_code(db: Session) -> dict[str, CourseModel]:
@@ -569,7 +598,7 @@ def main(
     parser.add_argument(
         "--refresh-demo-media",
         action="store_true",
-        help="replace version A of the demo lessons with the recordings from app/demo/assets",
+        help="rewrite texts and versions of the demo courses from courses.py (new MP3 files)",
     )
     args = parser.parse_args(argv)
     # Polish letters and arrows must not crash the seed on a cp1250 console or pipe
