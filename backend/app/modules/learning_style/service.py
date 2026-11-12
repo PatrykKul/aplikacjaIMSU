@@ -571,9 +571,13 @@ def profile_response(db: Session, user: User) -> LearningProfileResponse:
 
 
 def lesson_form(db: Session, user_id: int, lesson_id: int, style: str) -> tuple[str, str]:
-    """(form, source): an explicit choice for the lesson, otherwise the active style."""
+    """(form, source): an explicit choice for the lesson, otherwise the active style.
+
+    A stored choice equal to the active style is not a choice (D57): it stays in a passed
+    lesson after a style change to that form, and must read as "your style".
+    """
     choice = db.get(LessonForm, (user_id, lesson_id))
-    if choice is None:
+    if choice is None or choice.form == style:
         return style, "style"
     return choice.form, "choice"
 
@@ -641,17 +645,24 @@ def study(db: Session, lesson_id: int, user: User) -> StudyResponse:
 def set_lesson_form(
     db: Session, lesson_id: int, user: User, form: str, source: str
 ) -> StudyResponse:
-    """Explicit form of one lesson ("redo this lesson in another form"), logged."""
+    """Explicit form of one lesson ("redo this lesson in another form"), logged.
+
+    A form equal to the active style removes the choice: the lesson follows the style again.
+    """
     profile = require_style(db, user)
     lesson = curriculum.get_study_lesson(db, lesson_id, user)
     assert profile.style is not None
     current, _ = lesson_form(db, user.id, lesson.id, profile.style)
+    choice = db.get(LessonForm, (user.id, lesson.id))
+    if form == profile.style:
+        # Back to the style: no explicit choice any more
+        if choice is not None:
+            db.delete(choice)
+    elif choice is None:
+        db.add(LessonForm(user_id=user.id, lesson_id=lesson.id, form=form))
+    else:
+        choice.form = form
     if form != current:
-        choice = db.get(LessonForm, (user.id, lesson.id))
-        if choice is None:
-            db.add(LessonForm(user_id=user.id, lesson_id=lesson.id, form=form))
-        else:
-            choice.form = form
         log_event(
             db,
             user.id,
@@ -660,7 +671,7 @@ def set_lesson_form(
             course_id=lesson.course_id,
             lesson_id=lesson.id,
         )
-        db.commit()
+    db.commit()
     return _study_response(db, lesson, user, profile)
 
 

@@ -463,8 +463,9 @@ def test_style_change_clears_choices_in_lessons_not_passed(client: TestClient, c
     ]
     assert client.get(f"/lessons/{l2}/study").json()["form_source"] == "style"
     assert client.get(f"/lessons/{l2}/study").json()["form"] == "A"
+    # the choice in the passed lesson stays, but it equals the new style: "your style" (D57)
     kept = client.get(f"/lessons/{l1}/study").json()
-    assert (kept["form"], kept["form_source"]) == ("A", "choice")
+    assert (kept["form"], kept["form_source"]) == ("A", "style")
 
 
 def test_accepted_proposal_clears_choices(client: TestClient, course, learner):

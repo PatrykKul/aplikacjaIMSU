@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.modules.content.models import LessonContent
+from app.modules.learning_style.models import LessonForm
 from tests.learning_style.conftest import journal_types, last_event, set_form, take_quiz
 
 
@@ -41,8 +42,8 @@ def test_student_gets_the_version_of_the_active_style(
     assert study["suggestion"] is None and study["last_result"] is None
 
 
-def test_choosing_another_form(client: TestClient, course, versions, learner):
-    learner(course["id"], "V")
+def test_choosing_another_form(client: TestClient, db: Session, course, versions, learner):
+    student = learner(course["id"], "V")
     study = set_form(client, versions, "K", "manual")
     assert (study["form"], study["form_source"], study["style"]) == ("K", "choice", "V")
     assert block_text(study) == "Wersja K"
@@ -53,9 +54,40 @@ def test_choosing_another_form(client: TestClient, course, versions, learner):
     # the same form again changes nothing
     set_form(client, versions, "K", "manual")
     assert journal_types(client).count("lesson_form_changed") == 1
-    # back to the style form: an explicit choice too
-    assert set_form(client, versions, "V", "manual")["form_source"] == "choice"
+    # back to the style form: not an explicit choice (D57), the choice row goes away
+    back = set_form(client, versions, "V", "manual")
+    assert (back["form"], back["form_source"]) == ("V", "style")
+    assert db.get(LessonForm, (student.id, versions)) is None
+    assert last_event(client, "lesson_form_changed")["data"] == {
+        "from": "K",
+        "to": "V",
+        "source": "manual",
+    }
     assert client.get(f"/lessons/{versions}/quiz").json()["form"] == "V"
+    # choosing the style again changes nothing
+    set_form(client, versions, "V", "manual")
+    assert journal_types(client).count("lesson_form_changed") == 2
+
+
+def test_choice_equal_to_a_new_style_reads_as_style(
+    client: TestClient, db: Session, course, versions, learner
+):
+    # Marta's path in the demo: lesson 1 redone (and passed) in V, then the style becomes V;
+    # the choice stays in the passed lesson, but it is the style now
+    student = learner(course["id"], "K")
+    take_quiz(client, versions, 40)
+    set_form(client, versions, "V")
+    take_quiz(client, versions, 80)
+    assert client.put("/profile/learning-style", json={"style": "V"}).status_code == 200
+    assert db.get(LessonForm, (student.id, versions)) is not None  # passed: kept as history
+
+    study = client.get(f"/lessons/{versions}/study").json()
+
+    assert (study["form"], study["form_source"], study["style"]) == ("V", "style", "V")
+    # after the next change of style the passed lesson shows the chosen form again
+    client.put("/profile/learning-style", json={"style": "A"})
+    study = client.get(f"/lessons/{versions}/study").json()
+    assert (study["form"], study["form_source"]) == ("V", "choice")
 
 
 def test_missing_version_gives_no_blocks(client: TestClient, course, learner):
