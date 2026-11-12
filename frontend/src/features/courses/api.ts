@@ -25,6 +25,9 @@ export const coursesApi = {
     }),
   requestEnrollment: (courseId: number) =>
     api.post<Enrollment>(`/courses/${courseId}/enrollment`),
+  /** Admin only: hand the course to another approved teacher. */
+  changeOwner: (courseId: number, ownerId: number) =>
+    api.put<Course>(`/courses/${courseId}/owner`, { owner_id: ownerId }),
 };
 
 export const lessonsApi = {

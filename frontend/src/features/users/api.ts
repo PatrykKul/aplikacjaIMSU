@@ -17,6 +17,8 @@ export type UserUpdateInput = {
 
 export const usersApi = {
   list: (role: ManagedRole) => api.get<User[]>(`/users?role=${role}`),
+  approvedTeachers: () =>
+    api.get<User[]>("/users?role=teacher&approval=approved"),
   create: (data: UserCreateInput) => api.post<User>("/users", data),
   update: (id: number, data: UserUpdateInput) =>
     api.patch<User>(`/users/${id}`, data),

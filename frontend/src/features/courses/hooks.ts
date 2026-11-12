@@ -60,6 +60,24 @@ export function useUpdateCourse(id: number) {
   });
 }
 
+/** Admin: new owner of a course; the catalogue and the teacher panels refetch. */
+export function useChangeCourseOwner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      courseId,
+      ownerId,
+    }: {
+      courseId: number;
+      ownerId: number;
+    }) => coursesApi.changeOwner(courseId, ownerId),
+    onSuccess: (course) => {
+      queryClient.setQueryData(courseKey(course.id), course);
+      return queryClient.invalidateQueries({ queryKey: coursesKey });
+    },
+  });
+}
+
 export function useArchiveCourse(id: number) {
   const queryClient = useQueryClient();
   return useMutation({
