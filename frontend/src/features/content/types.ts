@@ -1,6 +1,6 @@
 import type { JSONContent } from "@tiptap/react";
 
-/** Form of an attachment: visual, auditory, kinesthetic. */
+/** Form of a lesson version: visual, auditory, kinesthetic. */
 export type Form = "V" | "A" | "K";
 
 export const FORMS: Form[] = ["V", "A", "K"];
@@ -25,7 +25,6 @@ type DisplayFields = {
 type AttachmentBase = DisplayFields & {
   id: string;
   type: "attachment";
-  forms: Form[];
   title: string;
   description?: string;
 };

@@ -39,3 +39,9 @@ def delete_quiz(db: Session, lesson_id: int, user: User) -> None:
     if quiz is not None:
         db.delete(quiz)
         db.commit()
+
+
+def question_count(db: Session, lesson_id: int) -> int:
+    """For authoring: size of the lesson's question pool (0 without a quiz)."""
+    quiz = _quiz(db, lesson_id)
+    return 0 if quiz is None else len(quiz.questions)
