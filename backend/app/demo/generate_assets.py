@@ -12,6 +12,7 @@ with the answers on the last page.
 """
 
 import math
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
@@ -1282,6 +1283,7 @@ MARGIN = 90
 CONTENT = A4[0] - 2 * MARGIN
 BOTTOM = A4[1] - 120
 GRID_CELL = 40
+PDF_DATE = time.strptime("2026-11-12", "%Y-%m-%d")
 
 
 @dataclass(frozen=True)
@@ -1482,7 +1484,17 @@ class Pages:
 
     def save(self, name: str) -> None:
         first, *rest = self.pages
-        first.save(ASSETS / name, "PDF", resolution=150, save_all=True, append_images=rest)
+        first.save(
+            ASSETS / name,
+            "PDF",
+            resolution=150,
+            save_all=True,
+            append_images=rest,
+            title=self.title,
+            # fixed dates: regenerating gives identical files (no noise in git)
+            creationDate=PDF_DATE,
+            modDate=PDF_DATE,
+        )
         print("ok", name, f"({len(self.pages)} str.)")
 
 
