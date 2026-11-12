@@ -128,3 +128,18 @@ def test_journal_has_only_the_students_own_events(client: TestClient, fill_surve
     fill_survey(make_user(), "V")
     fill_survey(make_user(), "K")
     assert journal_types(client) == ["survey_completed"]
+
+
+def test_removed_v2_endpoints(client: TestClient, course, learner):
+    learner(course["id"], "V")
+    lesson_id = course["lessons"][0]["id"]
+    for method, url in (
+        ("get", "/survey/results"),
+        ("post", "/profile/learning-style/proposal/accept"),
+        ("post", "/profile/learning-style/proposal/reject"),
+        ("get", f"/lessons/{lesson_id}/personalized-blocks"),
+        ("post", f"/lessons/{lesson_id}/blocks/b1/open"),
+    ):
+        assert getattr(client, method)(url).status_code == 404, url
+    # the path stays for GET and PUT, so DELETE is not allowed
+    assert client.delete("/profile/learning-style").status_code == 405
