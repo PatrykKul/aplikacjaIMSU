@@ -64,6 +64,7 @@ SOURCE_SURVEY = "survey"
 SOURCE_TIE_CHOICE = "tie_choice"
 SOURCE_MANUAL = "manual"
 SOURCE_PROPOSAL = "proposal"
+TRIAL_CANCELLED = "cancelled"
 
 
 def now() -> Function[Any]:
@@ -311,6 +312,19 @@ def last_trial(db: Session, user_id: int) -> StyleTrial | None:
     )
 
 
+def shown_trial(db: Session, user_id: int) -> StyleTrial | None:
+    """The running trial or the last finished one that was not cancelled (R7a)."""
+    return db.scalar(
+        select(StyleTrial)
+        .where(
+            StyleTrial.user_id == user_id,
+            or_(StyleTrial.result.is_(None), StyleTrial.result != TRIAL_CANCELLED),
+        )
+        .order_by(StyleTrial.id.desc())
+        .limit(1)
+    )
+
+
 def trial_results(db: Session, trial: StyleTrial) -> list[rules.Result]:
     """Results recorded since the trial started (until it finished)."""
     query = select(QuizResult).where(
@@ -372,9 +386,16 @@ def create_proposal(
     return proposal
 
 
-def start_trial(db: Session, user_id: int, from_style: str, to_style: str, source: str) -> None:
-    """Two lessons in the new style, compared with the last results in the previous one (R7)."""
-    before = rules.trial_baseline(rule_results(db, user_results(db, user_id)), from_style)
+def start_trial(
+    db: Session,
+    user_id: int,
+    from_style: str,
+    to_style: str,
+    source: str,
+    before: int | None,
+    replaced_trial_id: int | None = None,
+) -> None:
+    """Two lessons in the new style, compared with the baseline `before` (R7, R7a)."""
     trial = StyleTrial(
         user_id=user_id,
         from_style=from_style,
@@ -395,16 +416,9 @@ def start_trial(db: Session, user_id: int, from_style: str, to_style: str, sourc
             "to": to_style,
             "source": source,
             "before_average": before,
+            "replaced_trial_id": replaced_trial_id,
         },
     )
-
-
-def _stop_running_trial(db: Session, user_id: int) -> None:
-    """A trial interrupted by another style change ends without a result."""
-    trial = running_trial(db, user_id)
-    if trial is not None:
-        trial.finished_at = now()
-        db.flush()
 
 
 # --- Style changes -------------------------------------------------------------------------------
@@ -431,8 +445,58 @@ def _switch_style(
     return cleared
 
 
+def _change_style(
+    db: Session,
+    profile: LearningProfile,
+    to_style: str,
+    source: str,
+    event_type: str,
+    event_data: dict[str, Any],
+    *,
+    starts_trial: bool = True,
+) -> None:
+    """Switch the style, log it with a history point and settle the trial period (R7, R7a).
+
+    `event_type` / `event_data` describe the change (`manual_style_change`, `proposal_accepted`);
+    undoing a change that was not tried yet is logged as `style_change_reverted` instead.
+    """
+    user_id = profile.user_id
+    previous = profile.style
+    assert previous is not None
+    trial = running_trial(db, user_id)
+    active = None
+    counted = 0
+    if trial is not None:
+        active = rules.TrialInfo(trial.id, trial.from_style, trial.to_style, trial.before_average)
+        counted = rules.trial_progress(trial.to_style, trial_results(db, trial))
+    before = rules.trial_baseline(rule_results(db, user_results(db, user_id)), previous)
+    decision = rules.trial_on_style_change(
+        active, counted, to_style, previous, before, starts_trial=starts_trial
+    )
+    replaced_id = None
+    if trial is not None:
+        # Interrupted after counted lessons: no result; not tried at all: cancelled
+        cancelled = decision.action in ("cancel", "replace")
+        trial.result = TRIAL_CANCELLED if cancelled else None
+        trial.finished_at = now()
+        db.flush()
+        replaced_id = trial.id if decision.action == "replace" else None
+        if decision.action == "cancel":
+            event_type = "style_change_reverted"
+            event_data = {"from": previous, "to": to_style, "trial_id": trial.id, "source": source}
+    cleared = _switch_style(db, profile, to_style, source)
+    event = log_event(db, user_id, event_type, {**event_data, "cleared_lessons": cleared})
+    record_history(db, profile, event)
+    if decision.action in ("start", "replace"):
+        assert decision.from_style is not None
+        start_trial(
+            db, user_id, decision.from_style, to_style, source, decision.before_average, replaced_id
+        )
+
+
 def change_style_manually(db: Session, user: User, style: str) -> LearningProfile:
-    """Manual change: percentages stay, open proposal superseded, a new trial starts."""
+    """Manual change: percentages stay, open proposal superseded, a new trial starts (or the
+    running one is undone or replaced, R7a)."""
     profile = require_style(db, user)
     previous = profile.style
     assert previous is not None
@@ -441,21 +505,12 @@ def change_style_manually(db: Session, user: User, style: str) -> LearningProfil
     proposal = open_proposal(db, user.id)
     if proposal is not None:
         close_proposal(db, proposal, "superseded")
-    _stop_running_trial(db, user.id)
-    cleared = _switch_style(db, profile, style, SOURCE_MANUAL)
-    event = log_event(
-        db,
-        user.id,
-        "manual_style_change",
-        {
-            "from": previous,
-            "to": style,
-            "cleared_lessons": cleared,
-            "superseded_proposal_id": None if proposal is None else proposal.id,
-        },
-    )
-    record_history(db, profile, event)
-    start_trial(db, user.id, previous, style, SOURCE_MANUAL)
+    data = {
+        "from": previous,
+        "to": style,
+        "superseded_proposal_id": None if proposal is None else proposal.id,
+    }
+    _change_style(db, profile, style, SOURCE_MANUAL, "manual_style_change", data)
     db.commit()
     return profile
 
@@ -474,19 +529,15 @@ def accept_proposal(db: Session, user: User, proposal_id: int) -> LearningProfil
     profile = require_style(db, user)
     proposal = _own_open_proposal(db, user, proposal_id)
     close_proposal(db, proposal, "accepted")
-    _stop_running_trial(db, user.id)
-    previous = profile.style
-    assert previous is not None
-    cleared = _switch_style(db, profile, proposal.to_style, SOURCE_PROPOSAL)
-    event = log_event(
+    _change_style(
         db,
-        user.id,
+        profile,
+        proposal.to_style,
+        SOURCE_PROPOSAL,
         "proposal_accepted",
-        {**proposal_data(proposal), "cleared_lessons": cleared},
+        proposal_data(proposal),
+        starts_trial=proposal.kind == "switch",
     )
-    record_history(db, profile, event)
-    if proposal.kind == "switch":
-        start_trial(db, user.id, previous, proposal.to_style, SOURCE_PROPOSAL)
     db.commit()
     return profile
 
@@ -549,7 +600,7 @@ def profile_response(db: Session, user: User) -> LearningProfileResponse:
     assert result is not None
     form_stats = rules.form_stats(rule_results(db, user_results(db, user.id)))
     proposal = open_proposal(db, user.id)
-    trial = last_trial(db, user.id)
+    trial = shown_trial(db, user.id)
     return LearningProfileResponse(
         survey_completed=True,
         style=profile.style,

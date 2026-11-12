@@ -446,6 +446,59 @@ def trial_progress(form: str, after_results: Iterable[Result]) -> int:
     return min(done, TRIAL_LESSONS)
 
 
+# --- R7a. Style change during a trial ------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class TrialInfo:
+    """The running trial: the style it started from and its baseline."""
+
+    id: int
+    from_style: str
+    to_style: str
+    before_average: int | None
+
+
+@dataclass(frozen=True)
+class TrialDecision:
+    # "start": the running trial (if any) ends without a result, a new one starts
+    # "cancel": the change is undone, the running trial is cancelled, no new trial
+    # "replace": the running trial is cancelled, a new one keeps its baseline
+    # "none": no new trial (accepted `revert`); the running one ends without a result
+    action: str
+    from_style: str | None  # baseline style of the new trial ("start", "replace")
+    before_average: int | None
+
+
+def trial_on_style_change(
+    active: TrialInfo | None,
+    counted_in_trial: int,
+    new_style: str,
+    previous_style: str,
+    before_average: int | None,
+    *,
+    starts_trial: bool = True,
+) -> TrialDecision:
+    """What a style change does to the trial period (R7a, D60).
+
+    While a trial has no counted lesson in its new form yet, the change was not tried at all:
+    going back to the trial's `from_style` cancels it (no new trial), switching to the third
+    style replaces it with one keeping the original baseline (`from_style`, `before_average`).
+    Otherwise a new trial starts from the previous style with `before_average` (its baseline).
+    `starts_trial=False` (accepted `revert` proposal): no new trial.
+    Example: A (2 lessons, 100%) -> V -> back to A before any lesson in V: "cancel";
+    A -> V -> K before any lesson in V: "replace", trial A -> K with baseline 100.
+    """
+    if active is not None and counted_in_trial == 0:
+        if new_style == active.from_style:
+            return TrialDecision("cancel", None, None)
+        if starts_trial:
+            return TrialDecision("replace", active.from_style, active.before_average)
+    if not starts_trial:
+        return TrialDecision("none", None, None)
+    return TrialDecision("start", previous_style, before_average)
+
+
 # --- R8. Course hint -----------------------------------------------------------------------------
 
 
