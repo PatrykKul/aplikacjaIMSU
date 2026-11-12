@@ -1,23 +1,34 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { contentApi } from "./api";
-import type { Block } from "./types";
+import type { Block, Form, LessonVersions } from "./types";
 
-export const lessonBlocksKey = (lessonId: number) =>
-  ["lessons", lessonId, "blocks"] as const;
+export const lessonVersionsKey = (lessonId: number) =>
+  ["lessons", lessonId, "versions"] as const;
 
-export function useLessonBlocks(lessonId: number) {
+/** All three versions of a lesson (author and admin). */
+export function useLessonVersions(lessonId: number, enabled = true) {
   return useQuery({
-    queryKey: lessonBlocksKey(lessonId),
-    queryFn: () => contentApi.getBlocks(lessonId),
+    queryKey: lessonVersionsKey(lessonId),
+    queryFn: () => contentApi.versions(lessonId),
+    enabled,
   });
 }
 
-export function useSaveBlocks(lessonId: number) {
+/** Saves one version; the cached versions get the saved blocks. */
+export function useSaveVersion(lessonId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (blocks: Block[]) => contentApi.saveBlocks(lessonId, blocks),
-    onSuccess: (saved) =>
-      queryClient.setQueryData(lessonBlocksKey(lessonId), saved),
+    mutationFn: ({ form, blocks }: { form: Form; blocks: Block[] }) =>
+      contentApi.saveVersion(lessonId, form, blocks),
+    onSuccess: (saved, { form }) => {
+      queryClient.setQueryData<LessonVersions>(
+        lessonVersionsKey(lessonId),
+        (versions) => (versions ? { ...versions, [form]: saved } : versions),
+      );
+      return queryClient.invalidateQueries({
+        queryKey: ["lessons", lessonId, "readiness"],
+      });
+    },
   });
 }
