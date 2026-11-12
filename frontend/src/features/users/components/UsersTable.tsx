@@ -218,7 +218,33 @@ export function UsersTable({ role }: { role: ManagedRole }) {
                 <TableCell>{user.email}</TableCell>
                 {isTeachers && (
                   <TableCell>
-                    <ApprovalText user={user} />
+                    {/* The decision sits next to the state it changes */}
+                    <div className="flex flex-col items-start gap-1.5 py-1">
+                      <ApprovalText user={user} />
+                      {user.approval_status !== "approved" && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            disabled={decide.isPending}
+                            onClick={() => decideApproval(user, true)}
+                            aria-label={`Zatwierdź konto: ${user.display_name}`}
+                          >
+                            Zatwierdź
+                          </Button>
+                          {user.approval_status === "pending" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={decide.isPending}
+                              onClick={() => setRejectTarget(user)}
+                              aria-label={`Odrzuć konto: ${user.display_name}`}
+                            >
+                              Odrzuć
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                 )}
                 <TableCell>
@@ -229,27 +255,6 @@ export function UsersTable({ role }: { role: ManagedRole }) {
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-2">
-                    {isTeachers && user.approval_status !== "approved" && (
-                      <Button
-                        size="sm"
-                        disabled={decide.isPending}
-                        onClick={() => decideApproval(user, true)}
-                        aria-label={`Zatwierdź konto: ${user.display_name}`}
-                      >
-                        Zatwierdź
-                      </Button>
-                    )}
-                    {isTeachers && user.approval_status === "pending" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={decide.isPending}
-                        onClick={() => setRejectTarget(user)}
-                        aria-label={`Odrzuć konto: ${user.display_name}`}
-                      >
-                        Odrzuć
-                      </Button>
-                    )}
                     <Button
                       variant="outline"
                       size="sm"
