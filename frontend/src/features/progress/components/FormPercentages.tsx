@@ -22,12 +22,13 @@ export function FormPercentages({ profile }: { profile: LearningProfile }) {
       {FORMS.map((form) => (
         <div
           key={form}
-          className="grid grid-cols-[minmax(0,1fr)_3.5rem] items-center gap-x-4 gap-y-1.5 py-3 sm:grid-cols-[11rem_minmax(0,1fr)_3.5rem]"
+          className="grid grid-cols-[minmax(0,1fr)_3.5rem] items-center gap-x-4 gap-y-1.5 py-3 sm:grid-cols-[16.5rem_minmax(0,1fr)_3.5rem]"
         >
-          <dt className="font-medium">
-            {formLabel(form)}
+          {/* Name and "aktywny styl" on one line; the label never splits */}
+          <dt className="flex flex-wrap items-baseline gap-x-2 font-medium">
+            <span className="whitespace-nowrap">{formLabel(form)}</span>
             {form === style && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
+              <span className="text-sm font-normal whitespace-nowrap text-muted-foreground">
                 aktywny styl
               </span>
             )}
