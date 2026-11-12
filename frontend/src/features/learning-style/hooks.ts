@@ -1,15 +1,23 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+
+import type { Form } from "@/features/content/types";
 
 import { learningStyleApi } from "./api";
-import type { LearningProfile, LearningStyle } from "./types";
+import type { LearningProfile, Study } from "./types";
 
-const ROOT = "learning-style";
-
-export const learningProfileKey = [ROOT, "profile"] as const;
-const surveyQuestionsKey = [ROOT, "questions"] as const;
-const surveyResultsKey = [ROOT, "results"] as const;
-const personalizedBlocksKey = (lessonId: number) =>
-  [ROOT, "lessons", lessonId] as const;
+export const learningProfileKey = ["learning-style", "profile"] as const;
+const surveyQuestionsKey = ["learning-style", "questions"] as const;
+export const studyKey = (lessonId: number) =>
+  ["lessons", lessonId, "study"] as const;
+export const lessonQuizKey = (lessonId: number) =>
+  ["lessons", lessonId, "quiz"] as const;
+export const courseHintKey = (courseId: number) =>
+  ["courses", courseId, "hint"] as const;
 
 export function useLearningProfile(enabled = true) {
   return useQuery({
@@ -27,34 +35,18 @@ export function useSurveyQuestions() {
   });
 }
 
-export function useSurveyResults() {
-  return useQuery({
-    queryKey: surveyResultsKey,
-    queryFn: learningStyleApi.results,
-  });
+/** Every lesson studied so far shows the version of the (new) style. */
+function refreshAfterStyleChange(queryClient: QueryClient) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        query.queryKey[0] === "lessons" && query.queryKey[2] === "study",
+    }),
+    queryClient.invalidateQueries({ queryKey: ["me"] }),
+  ]);
 }
 
-export function usePersonalizedBlocks(lessonId: number) {
-  return useQuery({
-    queryKey: personalizedBlocksKey(lessonId),
-    queryFn: () => learningStyleApi.personalizedBlocks(lessonId),
-  });
-}
-
-/** Records the first opening of a collapsed material (the server ignores repeats). */
-export function useOpenMaterial(lessonId: number) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (blockId: string) =>
-      learningStyleApi.openMaterial(lessonId, blockId),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: personalizedBlocksKey(lessonId),
-      }),
-  });
-}
-
-/** After every change of the profile: store it and refetch lessons and history. */
+/** After every change of the profile: store it and refetch what depends on the style. */
 function useProfileMutation<TArgs>(
   mutationFn: (args: TArgs) => Promise<LearningProfile>,
 ) {
@@ -63,10 +55,7 @@ function useProfileMutation<TArgs>(
     mutationFn,
     onSuccess: (profile) => {
       queryClient.setQueryData(learningProfileKey, profile);
-      void queryClient.invalidateQueries({
-        queryKey: [ROOT],
-        predicate: (query) => query.queryKey[1] !== "profile",
-      });
+      return refreshAfterStyleChange(queryClient);
     },
   });
 }
@@ -75,20 +64,57 @@ export function useSubmitSurvey() {
   return useProfileMutation(learningStyleApi.submitSurvey);
 }
 
-export function useChangeStyle() {
-  return useProfileMutation((style: LearningStyle) =>
-    learningStyleApi.changeStyle(style),
-  );
+export function useChooseTiedStyle() {
+  return useProfileMutation(learningStyleApi.chooseTiedStyle);
 }
 
-export function useRestoreStyle() {
-  return useProfileMutation(() => learningStyleApi.restoreStyle());
+export function useChangeStyle() {
+  return useProfileMutation(learningStyleApi.changeStyle);
 }
 
 export function useAcceptProposal() {
-  return useProfileMutation(() => learningStyleApi.acceptProposal());
+  return useProfileMutation(learningStyleApi.acceptProposal);
 }
 
 export function useRejectProposal() {
-  return useProfileMutation(() => learningStyleApi.rejectProposal());
+  return useProfileMutation(learningStyleApi.rejectProposal);
+}
+
+/** The lesson in the form of the student (version, suggestion, last result). */
+export function useStudy(lessonId: number, enabled = true) {
+  return useQuery({
+    queryKey: studyKey(lessonId),
+    queryFn: () => learningStyleApi.study(lessonId),
+    enabled,
+  });
+}
+
+/** "Przerób tę lekcję w innej formie": new version and a new set of questions. */
+export function useChangeLessonForm(lessonId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      form,
+      source,
+    }: {
+      form: Form;
+      source: "manual" | "suggestion";
+    }) => learningStyleApi.changeLessonForm(lessonId, form, source),
+    onSuccess: (study: Study) => {
+      queryClient.setQueryData(studyKey(lessonId), study);
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: lessonQuizKey(lessonId) }),
+        queryClient.invalidateQueries({ queryKey: ["me", "journal"] }),
+      ]);
+    },
+  });
+}
+
+/** R8; null when other students have no results yet. */
+export function useCourseHint(courseId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: courseHintKey(courseId),
+    queryFn: () => learningStyleApi.courseHint(courseId),
+    enabled,
+  });
 }

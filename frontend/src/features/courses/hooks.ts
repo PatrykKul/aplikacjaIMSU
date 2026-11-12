@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { coursesApi, lessonsApi } from "./api";
-import type { Course, CourseUpdateInput } from "./types";
+import type { Course, CourseUpdateInput, LessonUpdateInput } from "./types";
 
 export const coursesKey = ["courses"] as const;
 export const courseKey = (id: number) => [...coursesKey, id] as const;
@@ -15,6 +15,19 @@ export function useLesson(id: number) {
   return useQuery({
     queryKey: lessonKey(id),
     queryFn: () => lessonsApi.get(id),
+  });
+}
+
+/** A student asks to join a course; the list and the course show the new state. */
+export function useRequestEnrollment(courseId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => coursesApi.requestEnrollment(courseId),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: coursesKey, exact: true }),
+        queryClient.invalidateQueries({ queryKey: courseKey(courseId) }),
+      ]),
   });
 }
 
@@ -90,7 +103,7 @@ export function useRenameLesson(courseId: number) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, title }: { id: number; title: string }) =>
-      lessonsApi.rename(id, title),
+      lessonsApi.update(id, { title }),
     onSuccess: (lesson) => {
       queryClient.setQueryData(lessonKey(lesson.id), lesson);
       return refresh();
@@ -105,6 +118,19 @@ export function useArchiveLesson(courseId: number) {
     mutationFn: (id: number) => lessonsApi.archive(id),
     onSuccess: (_, id) => {
       queryClient.removeQueries({ queryKey: lessonKey(id) });
+      return refresh();
+    },
+  });
+}
+
+/** Title, outline or conclusions of a lesson (teacher). */
+export function useUpdateLesson(courseId: number, lessonId: number) {
+  const refresh = useRefreshCourse(courseId);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: LessonUpdateInput) => lessonsApi.update(lessonId, data),
+    onSuccess: (lesson) => {
+      queryClient.setQueryData(lessonKey(lesson.id), lesson);
       return refresh();
     },
   });
