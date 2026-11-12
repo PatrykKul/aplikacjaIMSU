@@ -7,12 +7,20 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
   readonly fields: FieldError[];
+  /** Extra data of the error, e.g. `required_lesson` of LESSON_LOCKED. */
+  readonly params: Record<string, unknown>;
 
-  constructor(status: number, code: string, fields: FieldError[] = []) {
+  constructor(
+    status: number,
+    code: string,
+    fields: FieldError[] = [],
+    params: Record<string, unknown> = {},
+  ) {
     super(code);
     this.status = status;
     this.code = code;
     this.fields = fields;
+    this.params = params;
   }
 }
 
@@ -46,10 +54,12 @@ async function request<T>(
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
+    const { code, fields, ...params } = data ?? {};
     throw new ApiError(
       response.status,
-      data?.code ?? "UNKNOWN_ERROR",
-      data?.fields ?? [],
+      code ?? "UNKNOWN_ERROR",
+      fields ?? [],
+      params,
     );
   }
   if (response.status === 204) {
