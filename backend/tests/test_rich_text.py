@@ -32,6 +32,18 @@ def test_code_block_and_inline_code_are_accepted() -> None:
     assert DOCUMENT.validate_python(document) == document
 
 
+def test_default_tiptap_code_block_without_language() -> None:
+    # TipTap's default output: `attrs.language` is null
+    block = {
+        "type": "codeBlock",
+        "attrs": {"language": None},
+        "content": [{"type": "text", "text": "x = 2 * a + b"}],
+    }
+    document = _doc(block, INLINE_CODE)
+    assert DOCUMENT.validate_python(document) == document
+    assert is_empty_document(_doc(block)) is False
+
+
 @pytest.mark.parametrize("value", [{"type": "paragraph"}, {"type": "doc", "content": "x"}])
 def test_not_a_document(value: dict[str, Any]) -> None:
     with pytest.raises(ValidationError):
