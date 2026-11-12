@@ -1,0 +1,86 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[polish]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{changepage}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{tcolorbox}
+\usepackage{fontawesome5}
+\usepackage{longtable}
+\usepackage{booktabs}
+
+\geometry{
+    a4paper,
+    left=2.5cm,
+    right=2.5cm,
+    top=2.5cm,
+    bottom=2.5cm
+}
+
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+\begin{document}
+
+\begin{titlepage}
+\vspace{6cm}
+    \centering
+
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=0.3\linewidth]{images/uwbLogo.jpg}
+        
+    \end{figure}
+    
+    {\LARGE Uniwersytet w Białymstoku\\}
+    
+    \vspace{0.5cm}
+    {\Large Wydział Informatyki\\}
+    \vspace{0.3cm}
+    {\large Kierunek: Informatyka II stopnia\\}
+    {\large Rok I semestr I\\}
+    \vspace{1.5cm}
+    
+    {\Large Inteligentne multimedialne systemy uczące\\}
+    \vspace{1cm}
+    
+    {\huge\bfseries IMSU\\}
+    
+    \vspace{3cm}
+    
+    \begin{flushleft}
+    {\large Prowadzący:\\}
+    {\large dr inż. Wiesław Półjanowicz\\}
+    \vspace{1cm}
+    
+    {\large Wykonali:\\}
+    
+    {\large Patryk Kulesza\\}
+    {\large Bartłomiej Koźluk\\}
+    {\large Mateusz Malewski\\}
+    \end{flushleft}
+    
+    \vfill
+    
+    {\large Białystok, dn. \ldots\ldots\ldots\ldots\ldots}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\input{chapters/01-task}
+\input{chapters/02-goals-and-scope}
+\input{chapters/03-use-cases}
+\input{chapters/04-logical-view}
+\input{chapters/05-technologies}
+\input{chapters/06-tests}
+\input{chapters/07-setup}
+
+\end{document}
