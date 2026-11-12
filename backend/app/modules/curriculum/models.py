@@ -1,7 +1,17 @@
+import enum
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, false, func
+from sqlalchemy import (
+    DateTime,
+    Enum,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    false,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,8 +27,9 @@ class Course(Base):
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     title: Mapped[str] = mapped_column(String(TITLE_LENGTH))
     description: Mapped[str] = mapped_column(Text, server_default="")
-    # TipTap document; None until the teacher writes an introduction
+    # TipTap documents; None until the teacher writes them
     introduction: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     is_published: Mapped[bool] = mapped_column(server_default=false())
     is_archived: Mapped[bool] = mapped_column(server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -38,6 +49,10 @@ class Lesson(Base):
     course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"), index=True)
     title: Mapped[str] = mapped_column(String(TITLE_LENGTH))
     position: Mapped[int]
+    # TipTap documents shown above / below the lesson version
+    outline: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    conclusions: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    is_published: Mapped[bool] = mapped_column(server_default=false())
     is_archived: Mapped[bool] = mapped_column(server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -47,49 +62,46 @@ class Lesson(Base):
     course: Mapped[Course] = relationship(back_populates="lessons")
 
 
-CLASSROOM_NAME_LENGTH = 80
+class EnrollmentStatus(enum.StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
 
 
-class Classroom(Base):
-    """A teacher's class; its students get access to the courses assigned to it."""
+class Enrollment(Base):
+    """A student's request to join a course and the teacher's decision."""
 
-    __tablename__ = "classrooms"
+    __tablename__ = "enrollments"
+    __table_args__ = (UniqueConstraint("course_id", "student_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    name: Mapped[str] = mapped_column(String(CLASSROOM_NAME_LENGTH))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"))
+    student_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    status: Mapped[EnrollmentStatus] = mapped_column(
+        Enum(
+            EnrollmentStatus,
+            name="enrollment_status",
+            native_enum=False,
+            create_constraint=True,
+            length=10,
+            values_callable=lambda items: [item.value for item in items],
+        )
     )
-
-
-class ClassroomStudent(Base):
-    """Membership of a student in a classroom (a student may be in many classrooms)."""
-
-    __tablename__ = "classroom_students"
-
-    classroom_id: Mapped[int] = mapped_column(
-        ForeignKey("classrooms.id", ondelete="CASCADE"), primary_key=True
-    )
-    # Indexed separately: the primary key only serves lookups by classroom
-    student_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
-    )
-    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
-class ClassroomCourse(Base):
-    """A course assigned to a classroom (only the classroom teacher's own courses)."""
-
-    __tablename__ = "classroom_courses"
-
-    classroom_id: Mapped[int] = mapped_column(
-        ForeignKey("classrooms.id", ondelete="CASCADE"), primary_key=True
-    )
-    course_id: Mapped[int] = mapped_column(
-        ForeignKey("courses.id", ondelete="CASCADE"), primary_key=True, index=True
-    )
-    assigned_at: Mapped[datetime] = mapped_column(
+    requested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LessonCompletion(Base):
+    """First passed quiz of a lesson; unlocks the next published lesson (R10)."""
+
+    __tablename__ = "lesson_completions"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    lesson_id: Mapped[int] = mapped_column(
+        ForeignKey("lessons.id", ondelete="CASCADE"), primary_key=True
+    )
+    passed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

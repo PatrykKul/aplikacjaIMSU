@@ -44,7 +44,7 @@ Bez zmian: rejestracja/logowanie i sesja (D8), administracja kont i blokada (D9)
 
 ## Model danych (tabele, pola, migracje)
 
-Jedna migracja `v3_adaptation` (po `f3c3eff41f5a`), z `downgrade` przywracającym strukturę v2 (bez danych usuniętych tabel). Dane v2 **nie są przenoszone** poza kontami, kursami, lekcjami, plikami i ankietami: lokalne bazy obu autorów przebudowujemy (`alembic downgrade base`, `alembic upgrade head`, seed). Przy migracji istniejące bloki lekcji stają się wersją V (z `forms` usuniętym z załączników), lekcje są nieopublikowane, profile i próby quizów v2 są usuwane (niezgodne z nowym modelem — styl wieloliterowy, wagi).
+Jedna migracja `01324f58656d_v3_adaptation` (po `249e835bc4e5`), z `downgrade` przywracającym strukturę v2 (bez danych usuniętych tabel). Dane v2 **nie są przenoszone** poza kontami, kursami, lekcjami i plikami: lokalne bazy obu autorów przebudowujemy (`alembic downgrade base`, `alembic upgrade head`, seed). Przy migracji istniejące bloki lekcji stają się wersją V (z `forms` usuniętym z załączników), lekcje są nieopublikowane; wyniki ankiet, profile, próby quizów i quizy v2 są usuwane (niezgodne z modelem v3 — styl wieloliterowy, wagi, pytania bez wyjaśnień; wynik ankiety bez profilu blokowałby regułę „ankieta raz”).
 
 ### `identity`
 | Tabela | Zmiana |
@@ -423,4 +423,4 @@ Rozwiązania domyślne — obowiązują, jeśli w akceptacji nie napiszesz inacz
 Kroki zrobione (commity) · Decyzje w trakcie · Weryfikacja · Do zrobienia
 
 - Etap A: specyfikacja — zaakceptowana 12.11 (`docs: add v3 adaptation specification`, `docs: apply accepted changes to v3 specification`).
-- Etap B0: w toku.
+- Etap B0: fundament — `feat(core): add error parameters`, `feat(backend): add v3 data model and migration` (modele, migracja sprawdzona na danych v2: upgrade → downgrade → upgrade, od zera, `alembic check`; usunięte klasy, zwijanie, stary silnik i ich testy; interfejsy `curriculum.service` i `content.service`, R10 w `curriculum/progress.py`, fixture'y `make_course(published=True)` i `enroll`; 158 testów, ruff czysto).

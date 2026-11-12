@@ -12,7 +12,7 @@ from app.modules.content.files import KIND_BY_CONTENT_TYPE, extension, file_type
 from app.modules.content.models import File, LessonContent
 from app.modules.content.schemas import UploadedFileResponse
 from app.modules.curriculum import service as curriculum
-from app.modules.identity.models import User
+from app.modules.identity.models import User, UserRole
 
 CHUNK_SIZE = 1024 * 1024
 
@@ -83,8 +83,19 @@ def get_file(db: Session, file_id: int) -> File:
 # --- Lesson blocks -----------------------------------------------------------------------------
 
 
-def _stored_blocks(db: Session, lesson_id: int) -> list[dict[str, Any]]:
-    content = db.scalar(select(LessonContent).where(LessonContent.lesson_id == lesson_id))
+FORMS = ("V", "A", "K")
+
+
+def _content(db: Session, lesson_id: int, form: str) -> LessonContent | None:
+    return db.scalar(
+        select(LessonContent).where(
+            LessonContent.lesson_id == lesson_id, LessonContent.form == form
+        )
+    )
+
+
+def _stored_blocks(db: Session, lesson_id: int, form: str) -> list[dict[str, Any]]:
+    content = _content(db, lesson_id, form)
     return [] if content is None else content.blocks
 
 
@@ -107,9 +118,22 @@ def _present(db: Session, blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return presented
 
 
-def get_blocks(db: Session, lesson_id: int, user: User) -> list[dict[str, Any]]:
+def get_version(db: Session, lesson_id: int, form: str) -> list[dict[str, Any]]:
+    """For other modules: blocks of one version, ready to show (access checked by the caller)."""
+    return _present(db, _stored_blocks(db, lesson_id, form))
+
+
+def stored_versions(db: Session, lesson_id: int) -> dict[str, list[dict[str, Any]]]:
+    """Blocks of all three versions as saved (an empty list for a missing version)."""
+    return {form: _stored_blocks(db, lesson_id, form) for form in FORMS}
+
+
+def get_versions(db: Session, lesson_id: int, user: User) -> dict[str, list[dict[str, Any]]]:
+    """All three versions for the author (editor, preview) and the admin (read only)."""
     lesson = curriculum.get_visible_lesson(db, lesson_id, user)
-    return _present(db, _stored_blocks(db, lesson.id))
+    if user.role != UserRole.ADMIN and lesson.course.owner_id != user.id:
+        raise AppError(404, "LESSON_NOT_FOUND")
+    return {form: get_version(db, lesson.id, form) for form in FORMS}
 
 
 def _check_files(db: Session, data: LessonBlocks, owner_id: int) -> None:
@@ -135,15 +159,15 @@ def _check_files(db: Session, data: LessonBlocks, owner_id: int) -> None:
             raise AppError(400, "FILE_KIND_MISMATCH")
 
 
-def save_blocks(
-    db: Session, lesson_id: int, user: User, data: LessonBlocks
+def save_version(
+    db: Session, lesson_id: int, form: str, user: User, data: LessonBlocks
 ) -> list[dict[str, Any]]:
     lesson = curriculum.get_owned_lesson(db, lesson_id, user)
     _check_files(db, data, lesson.course.owner_id)
     blocks = [block.model_dump(exclude_none=True) for block in data.blocks]
-    content = db.scalar(select(LessonContent).where(LessonContent.lesson_id == lesson_id))
+    content = _content(db, lesson_id, form)
     if content is None:
-        db.add(LessonContent(lesson_id=lesson_id, blocks=blocks))
+        db.add(LessonContent(lesson_id=lesson_id, form=form, blocks=blocks))
     else:
         content.blocks = blocks
     db.commit()

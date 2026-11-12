@@ -7,12 +7,13 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, text, update
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.main import app
+from app.modules.curriculum.models import Enrollment, EnrollmentStatus, Lesson
 from app.modules.identity import service as identity_service
 from app.modules.identity.models import User, UserRole
 
@@ -114,8 +115,14 @@ def admin(make_user: Callable[..., User]) -> User:
 
 
 @pytest.fixture
-def make_course(client: TestClient, login: Callable[[User], None]) -> Callable[..., dict[str, Any]]:
-    """Create a course as `owner` (who stays logged in), optionally with lessons."""
+def make_course(
+    client: TestClient, db: Session, login: Callable[[User], None]
+) -> Callable[..., dict[str, Any]]:
+    """Create a course as `owner` (who stays logged in), optionally with lessons.
+
+    `published=True` publishes the lessons straight in the database (skipping the readiness
+    rules, which have their own tests) and then the course.
+    """
 
     def _make(
         owner: User,
@@ -129,7 +136,24 @@ def make_course(client: TestClient, login: Callable[[User], None]) -> Callable[.
         for lesson_title in lessons:
             client.post(f"/courses/{course['id']}/lessons", json={"title": lesson_title})
         if published:
+            db.execute(
+                update(Lesson).where(Lesson.course_id == course["id"]).values(is_published=True)
+            )
+            db.commit()
             client.patch(f"/courses/{course['id']}", json={"is_published": True})
         return client.get(f"/courses/{course['id']}").json()
 
     return _make
+
+
+@pytest.fixture
+def enroll(db: Session) -> Callable[..., None]:
+    """Put a student's enrollment in a course straight in the database (default: accepted)."""
+
+    def _enroll(student: User, course_id: int, status: str = "accepted") -> None:
+        db.add(
+            Enrollment(course_id=course_id, student_id=student.id, status=EnrollmentStatus(status))
+        )
+        db.commit()
+
+    return _enroll

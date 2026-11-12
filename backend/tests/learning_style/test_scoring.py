@@ -2,9 +2,7 @@ import pytest
 
 from app.modules.learning_style.scoring import (
     compute_score,
-    describe_style,
     dominant_styles,
-    is_valid_style,
 )
 
 
@@ -28,18 +26,3 @@ def test_no_answers_is_an_error():
 def test_unknown_style_is_an_error():
     with pytest.raises(ValueError):
         compute_score(["V", "X"])
-
-
-@pytest.mark.parametrize("style", ["V", "A", "K", "VA", "VK", "AK", "VAK"])
-def test_valid_styles(style: str):
-    assert is_valid_style(style)
-
-
-@pytest.mark.parametrize("style", [None, "", "AV", "VV", "X", "va", "VAKV"])
-def test_invalid_styles(style: str | None):
-    assert not is_valid_style(style)
-
-
-def test_describe_style():
-    assert describe_style("VA") == "wzrokowiec + słuchowiec"
-    assert describe_style("K") == "kinestetyk"

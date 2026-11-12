@@ -1,4 +1,4 @@
-"""Choosing and scoring quiz questions: pure functions, no database and no FastAPI."""
+"""Scoring quiz answers: pure functions, no database and no FastAPI."""
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -19,21 +19,6 @@ class Graded:
     correct_count: int
     total: int
     results: list[dict[str, Any]]
-
-
-def question_visible(question: Mapping[str, Any], style: str | None) -> bool:
-    """Common questions for everyone; a question about a V / A / K material only for that style.
-
-    `style` None means "see everything" (teacher preview).
-    """
-    form = question.get("form")
-    return style is None or form is None or form in style
-
-
-def visible_questions(
-    questions: Sequence[Mapping[str, Any]], style: str | None
-) -> list[Mapping[str, Any]]:
-    return [question for question in questions if question_visible(question, style)]
 
 
 def grade(questions: Sequence[Mapping[str, Any]], answers: Mapping[str, str]) -> Graded:

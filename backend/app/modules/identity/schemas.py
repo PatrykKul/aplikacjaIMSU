@@ -26,9 +26,6 @@ def _check_bcrypt_limit(value: str) -> str:
 
 Email = Annotated[EmailStr, BeforeValidator(_normalize_email)]
 Password = Annotated[str, Field(min_length=8), AfterValidator(_check_bcrypt_limit)]
-EmailFragment = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=3, max_length=254)
-]
 DisplayName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
 
 

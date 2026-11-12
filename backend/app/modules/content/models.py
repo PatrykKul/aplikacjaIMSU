@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, String, func, text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,12 +23,17 @@ class File(Base):
 
 
 class LessonContent(Base):
-    """Blocks of one lesson, saved as a whole (validated by `blocks.LessonBlocks`)."""
+    """One version (V / A / K) of a lesson: blocks saved as a whole (`blocks.LessonBlocks`)."""
 
     __tablename__ = "lesson_contents"
+    __table_args__ = (
+        UniqueConstraint("lesson_id", "form"),
+        CheckConstraint("form IN ('V', 'A', 'K')", name="form"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id"), unique=True)
+    lesson_id: Mapped[int] = mapped_column(ForeignKey("lessons.id"))
+    form: Mapped[str] = mapped_column(String(1))
     blocks: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, server_default=text("'[]'"))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

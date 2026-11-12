@@ -1,19 +1,9 @@
 import pytest
 
-from app.modules.assessment.grading import GradingError, grade, visible_questions
+from app.modules.assessment.grading import GradingError, grade
 from tests.assessment.conftest import question
 
-QUESTIONS = [question("q1"), question("qv", "V"), question("qa", "A", correct="b")]
-
-
-def test_common_and_own_style_questions():
-    assert [q["id"] for q in visible_questions(QUESTIONS, "V")] == ["q1", "qv"]
-    assert [q["id"] for q in visible_questions(QUESTIONS, "VA")] == ["q1", "qv", "qa"]
-    assert [q["id"] for q in visible_questions(QUESTIONS, "K")] == ["q1"]
-
-
-def test_teacher_sees_every_question():
-    assert len(visible_questions(QUESTIONS, None)) == 3
+QUESTIONS = [question("q1"), question("qv"), question("qa", correct="b")]
 
 
 def test_grade_counts_correct_answers():

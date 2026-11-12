@@ -41,7 +41,6 @@ def attachment(kind: str, block_id: str = "a1", **fields: Any) -> dict[str, Any]
         "id": block_id,
         "type": "attachment",
         "kind": kind,
-        "forms": ["V"],
         "title": "Załącznik",
         **fields,
     }

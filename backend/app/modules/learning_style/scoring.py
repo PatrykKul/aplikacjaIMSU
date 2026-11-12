@@ -4,7 +4,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 STYLES = ("V", "A", "K")
-STYLE_NAMES = {"V": "wzrokowiec", "A": "słuchowiec", "K": "kinestetyk"}
 
 
 @dataclass(frozen=True)
@@ -30,15 +29,3 @@ def compute_score(answer_styles: Iterable[str]) -> SurveyScore:
     if sum(points.values()) == 0:
         raise ValueError("no answers to score")
     return SurveyScore(points=points, dominant_style=dominant_styles(points))
-
-
-def is_valid_style(style: str | None) -> bool:
-    """A non-empty set of V/A/K letters without repeats, written in V, A, K order."""
-    if not style or any(letter not in STYLES for letter in style):
-        return False
-    return style == "".join(letter for letter in STYLES if letter in style)
-
-
-def describe_style(style: str) -> str:
-    """'VA' -> 'wzrokowiec + słuchowiec'."""
-    return " + ".join(STYLE_NAMES[letter] for letter in STYLES if letter in style)

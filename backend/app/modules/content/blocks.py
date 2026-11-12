@@ -1,4 +1,4 @@
-"""Lesson blocks: text (TipTap document) and attachments marked with V / A / K forms."""
+"""Lesson blocks of one version (V / A / K): text (TipTap document) and attachments."""
 
 import re
 from typing import Annotated, Any, Literal, Self
@@ -59,17 +59,10 @@ def _check_https_url(value: str) -> str:
     return value
 
 
-def _check_forms(value: list[str]) -> list[str]:
-    if len(set(value)) != len(value):
-        raise ValueError("forms must not repeat")
-    return value
-
-
 YoutubeUrl = Annotated[str, StringConstraints(max_length=300), AfterValidator(_check_youtube_url)]
 HttpsUrl = Annotated[
     str, StringConstraints(strip_whitespace=True, max_length=2000), AfterValidator(_check_https_url)
 ]
-Forms = Annotated[list[Form], Field(min_length=1, max_length=3), AfterValidator(_check_forms)]
 
 
 class TextBlock(BaseModel):
@@ -81,7 +74,6 @@ class TextBlock(BaseModel):
 class _Attachment(BaseModel):
     id: BlockId
     type: Literal["attachment"]
-    forms: Forms
     title: Title
     description: ShortText = ""
 

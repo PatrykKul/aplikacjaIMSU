@@ -45,38 +45,3 @@ def fill_survey(
         return response.json()
 
     return _fill
-
-
-def text_block(block_id: str) -> dict[str, Any]:
-    paragraph = {"type": "paragraph", "content": [{"type": "text", "text": "Treść"}]}
-    return {"id": block_id, "type": "text", "doc": {"type": "doc", "content": [paragraph]}}
-
-
-def link(block_id: str, forms: list[str]) -> dict[str, Any]:
-    return {
-        "id": block_id,
-        "type": "attachment",
-        "kind": "link",
-        "forms": forms,
-        "title": f"Materiał {block_id}",
-        "url": "https://example.com/material",
-    }
-
-
-@pytest.fixture
-def lesson_with_styles(
-    client: TestClient, teacher: User, make_course: Callable[..., dict[str, Any]]
-) -> dict[str, Any]:
-    """Published lesson with a common text and attachments for V, A, K and V+A."""
-    course = make_course(teacher, title="Funkcja liniowa", lessons=("Wykres",), published=True)
-    lesson_id = course["lessons"][0]["id"]
-    blocks = [
-        text_block("t1"),
-        link("v", ["V"]),
-        link("a", ["A"]),
-        link("k", ["K"]),
-        link("va", ["V", "A"]),
-    ]
-    response = client.put(f"/lessons/{lesson_id}/blocks", json={"blocks": blocks})
-    assert response.status_code == 200, response.json()
-    return {"course": course, "lesson_id": lesson_id}

@@ -19,3 +19,11 @@ class LessonBlocksResponse(BaseModel):
     (attachments with a file) and `youtube_id` (YouTube videos)."""
 
     blocks: list[dict[str, Any]]
+
+
+class LessonVersionsResponse(BaseModel):
+    """All three versions of a lesson (an empty block list for a version not written yet)."""
+
+    V: LessonBlocksResponse
+    A: LessonBlocksResponse
+    K: LessonBlocksResponse
