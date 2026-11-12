@@ -1,22 +1,172 @@
 "use client";
 
 import Link from "next/link";
+import { type FormEvent, useState } from "react";
 
+import type { Form } from "@/features/content/types";
 import { PageMessage } from "@/shared/layout/page-states";
 import { cn } from "@/shared/lib/utils";
 import { Button, buttonVariants } from "@/shared/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/shared/ui/radio-group";
 import { Spinner } from "@/shared/ui/spinner";
 
-import { useLearningProfile } from "../hooks";
-import { STYLE_DESCRIPTIONS, describeStyle, styleLetters } from "../styles";
+import { learningStyleError } from "../errors";
+import {
+  PASS_THRESHOLD,
+  STEP,
+  STYLE_DESCRIPTIONS,
+  formLabel,
+  pointsText,
+  styleName,
+} from "../explain";
+import { useChooseTiedStyle, useLearningProfile } from "../hooks";
+import type { LearningProfile } from "../types";
 import { StyleBars } from "./StyleBars";
+
+/** R1: a tie of the survey - the student picks one of the tied styles. */
+function TieChoice({ ties }: { ties: Form[] }) {
+  const [picked, setPicked] = useState<Form | null>(null);
+  const choose = useChooseTiedStyle();
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (picked) {
+      choose.mutate(picked);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-1">
+        <h2 id="tie-title" className="text-xl font-semibold">
+          Wybierz jeden styl
+        </h2>
+        <p className="text-muted-foreground">
+          {ties.map(formLabel).join(" i ")} mają tyle samo punktów. System uczy
+          w jednym stylu naraz – wybierz ten, który bardziej do Ciebie pasuje.
+          Wyniki quizów pokażą, czy to dobry wybór.
+        </p>
+      </div>
+      <RadioGroup
+        aria-labelledby="tie-title"
+        value={picked}
+        onValueChange={(value) => setPicked(value as Form)}
+      >
+        {ties.map((form) => (
+          <label
+            key={form}
+            className={cn(
+              "flex min-h-control cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 text-sm transition-colors hover:bg-muted/50",
+              picked === form && "border-primary bg-primary/5",
+            )}
+          >
+            <RadioGroupItem value={form} className="mt-0.5" />
+            <span>
+              <span className="font-medium">{formLabel(form)}</span>
+              <span className="block text-muted-foreground">
+                {STYLE_DESCRIPTIONS[form]}
+              </span>
+            </span>
+          </label>
+        ))}
+      </RadioGroup>
+      {choose.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {learningStyleError(choose.error)}
+        </p>
+      )}
+      <Button type="submit" disabled={!picked || choose.isPending}>
+        {choose.isPending && <Spinner data-icon="inline-start" />}
+        Wybieram ten styl
+      </Button>
+    </form>
+  );
+}
+
+function HowItWorks() {
+  return (
+    <section aria-labelledby="how-title" className="space-y-2">
+      <h2 id="how-title" className="text-xl font-semibold">
+        Co dalej
+      </h2>
+      <ul className="max-w-[65ch] list-disc space-y-1.5 pl-5 text-muted-foreground">
+        <li>
+          Każda lekcja ma trzy wersje: wzrokową, słuchową i kinestetyczną.
+          Dostajesz wersję w formie swojego stylu, a w każdej lekcji możesz
+          przełączyć się na inną.
+        </li>
+        <li>
+          Procenty zmieniają się po quizach: pierwsze podejście w danej formie w
+          lekcji to +{STEP} punktów za zaliczenie (od {PASS_THRESHOLD}%) albo −
+          {STEP} za niezaliczenie.
+        </li>
+        <li>
+          Gdy inna forma okaże się lepsza i potwierdzona wynikami, system
+          zaproponuje zmianę stylu – decyzja należy do Ciebie.
+        </li>
+      </ul>
+    </section>
+  );
+}
+
+function Result({ profile }: { profile: LearningProfile }) {
+  const survey = profile.survey!;
+  const tie = profile.style === null && profile.tie_styles.length > 0;
+
+  return (
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <p className="text-sm text-muted-foreground">Twój wynik ankiety VAK</p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {profile.style
+            ? `Twój styl: ${styleName(profile.style)}`
+            : "Remis w ankiecie"}
+        </h1>
+        {profile.style && (
+          <p className="max-w-[65ch] text-lg text-muted-foreground">
+            {STYLE_DESCRIPTIONS[profile.style]}
+          </p>
+        )}
+      </div>
+
+      <section aria-labelledby="survey-percentages" className="space-y-3">
+        <h2 id="survey-percentages" className="text-xl font-semibold">
+          Procenty z ankiety
+        </h2>
+        <StyleBars
+          values={survey.percentages}
+          label="Procenty form z ankiety"
+        />
+        <p className="text-sm text-muted-foreground tabular-nums">
+          Punkty: {pointsText(survey.points)}. Każda odpowiedź dała jeden punkt
+          jednej formie; każda forma ma co najmniej 5%.
+        </p>
+      </section>
+
+      {tie ? (
+        <TieChoice ties={profile.tie_styles} />
+      ) : (
+        <>
+          <HowItWorks />
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/courses"
+              className={cn(buttonVariants({ size: "lg" }))}
+            >
+              Przejdź do kursów
+            </Link>
+            <Link
+              href="/profile"
+              className={cn(buttonVariants({ size: "lg", variant: "outline" }))}
+            >
+              Mój styl
+            </Link>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export function SurveyResult() {
   const profile = useLearningProfile();
@@ -32,14 +182,14 @@ export function SurveyResult() {
     return (
       <PageMessage
         title="Nie udało się wczytać wyniku"
+        description={learningStyleError(profile.error)}
         action={
           <Button onClick={() => profile.refetch()}>Spróbuj ponownie</Button>
         }
       />
     );
   }
-  const result = profile.data.last_result;
-  if (!result) {
+  if (!profile.data.survey) {
     return (
       <PageMessage
         title="Nie masz jeszcze wyniku"
@@ -52,72 +202,5 @@ export function SurveyResult() {
       />
     );
   }
-
-  const letters = styleLetters(result.dominant_style);
-  const total = result.points.V + result.points.A + result.points.K;
-
-  return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <p className="text-sm text-muted-foreground">Twój wynik ankiety VAK</p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Twój styl: {describeStyle(result.dominant_style)}
-        </h1>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Co to znaczy</CardTitle>
-          <CardDescription>
-            {letters.length > 1
-              ? "Remis w ankiecie: dostaniesz materiały dla każdego z tych stylów."
-              : "Materiały w lekcjach zostaną dobrane do tego stylu."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2 text-sm">
-            {letters.map((form) => (
-              <li key={form}>
-                <strong>{form}</strong> – {STYLE_DESCRIPTIONS[form]}
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Punkty z ankiety</CardTitle>
-          <CardDescription>
-            Każda odpowiedź dała jeden punkt jednemu stylowi.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <StyleBars
-            values={result.points}
-            max={total}
-            label="Punkty z ankiety"
-          />
-        </CardContent>
-      </Card>
-
-      <p className="text-sm text-muted-foreground">
-        Styl możesz w każdej chwili zmienić w zakładce „Mój styl”. System
-        podpowie też zmianę, jeśli wyniki quizów pokażą, że lepiej idzie Ci z
-        innymi materiałami.
-      </p>
-
-      <div className="flex flex-wrap gap-3">
-        <Link href="/courses" className={cn(buttonVariants({ size: "lg" }))}>
-          Przejdź do kursów
-        </Link>
-        <Link
-          href="/profile"
-          className={cn(buttonVariants({ size: "lg", variant: "outline" }))}
-        >
-          Mój styl uczenia się
-        </Link>
-      </div>
-    </div>
-  );
+  return <Result profile={profile.data} />;
 }

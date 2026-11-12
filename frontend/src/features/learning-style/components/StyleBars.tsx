@@ -1,24 +1,25 @@
-import { FORMS, type Form } from "@/features/content/types";
+import { FORMS } from "@/features/content/types";
+import { cn } from "@/shared/lib/utils";
 
-import { STYLE_NAMES } from "../styles";
-import type { StyleWeights } from "../types";
-
-/** Literal classes, so Tailwind can find them. */
-const BAR_COLORS: Record<Form, string> = {
-  V: "bg-form-v",
-  A: "bg-form-a",
-  K: "bg-form-k",
-};
+import { formLabel } from "../explain";
+import { FORM_BAR } from "../form-tones";
+import type { Percentages } from "../types";
 
 type StyleBarsProps = {
-  values: StyleWeights;
-  /** Value of a full bar (survey: number of questions; weights: 30). */
-  max: number;
+  values: Percentages;
+  /** Value of a full bar (100 for percentages). */
+  max?: number;
   label: string;
+  unit?: string;
 };
 
 /** Three horizontal bars for V, A and K with their numbers. */
-export function StyleBars({ values, max, label }: StyleBarsProps) {
+export function StyleBars({
+  values,
+  max = 100,
+  label,
+  unit = "%",
+}: StyleBarsProps) {
   return (
     <dl aria-label={label} className="space-y-3">
       {FORMS.map((form) => {
@@ -27,19 +28,22 @@ export function StyleBars({ values, max, label }: StyleBarsProps) {
         return (
           <div
             key={form}
-            className="grid grid-cols-[7.5rem_1fr_2rem] items-center gap-3"
+            className="grid grid-cols-[9.5rem_minmax(0,1fr)_3rem] items-center gap-3"
           >
-            <dt className="text-sm">
-              <span className="font-semibold">{form}</span> ·{" "}
-              {STYLE_NAMES[form]}
-            </dt>
+            <dt className="text-sm">{formLabel(form)}</dt>
             <dd className="h-2.5 overflow-hidden rounded-full bg-muted">
               <div
-                className={`h-full rounded-full transition-[width] ${BAR_COLORS[form]}`}
+                className={cn(
+                  "h-full rounded-full transition-[width]",
+                  FORM_BAR[form],
+                )}
                 style={{ width: `${width}%` }}
               />
             </dd>
-            <dd className="text-right text-sm tabular-nums">{value}</dd>
+            <dd className="text-right text-sm font-medium tabular-nums">
+              {value}
+              {unit}
+            </dd>
           </div>
         );
       })}
