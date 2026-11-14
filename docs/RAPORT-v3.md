@@ -1,6 +1,6 @@
 # Raport: IMSU v3 — przebudowa adaptacji (etap 9, 12.11.2026)
 
-Zlecenie: `..\ZADANIE-CLAUDE-CODE-IMSU-v3.md`. Specyfikacja zaakceptowana przez Patryka 12.11 z dwiema poprawkami (progi okresu próbnego ±10, czyszczenie wyborów formy przy zmianie stylu); jest w historii gita (`git show b8832ef:docs/08-praca-biezaca.md`). Gałąź `feat/v3-adaptacja`, bez pushu i bez merge do `main`.
+Zlecenie: `..\ZADANIE-CLAUDE-CODE-IMSU-v3.md`. Specyfikacja zaakceptowana przez Patryka 12.11 z dwiema poprawkami (progi okresu próbnego ±10, czyszczenie wyborów formy przy zmianie stylu); jest w historii gita (`git show b8832ef:docs/08-praca-biezaca.md`). Gałąź `feat/v3-adaptacja`; 15.11 scalona lokalnie do `main` (fast-forward), bez pushu — sekcja „Scalenie do main i instrukcja dla Bartka” na końcu.
 
 ## Ściąga: jak działa system (do nauki przed pokazem)
 
@@ -65,11 +65,11 @@ Stan po poprawkach z 12.11 (szczegóły w sekcji „Poprawki po teście”):
 1. ~~Zrzuty do wygenerowania ponownie~~ — **zrobione**: 50 zrzutów w `docs/zrzuty-v3/` z pełnego przejścia.
 2. **Nagrań nikt nie odsłuchał uchem.** Każde z 48 nagrań przeczytało cały tekst (sprawdzone znacznikami słów edge-tts), ale brzmienie słów kodu i liter („łajl”, „rejndż”, „iks”, „igrek”) trzeba ocenić uchem — przesłuchaj 2–3 nagrania.
 3. ~~Kod jako zwykły akapit~~ — **zrobione**: `code` i `codeBlock` w edytorze i w lekcjach demo.
-4. Merge `feat/v3-adaptacja` → `main`, push i powiadomienie Bartka (jego lokalna baza: `alembic downgrade base`, `alembic upgrade head`, seed; starsza baza z danymi v3 — `alembic upgrade head`, seed i `--refresh-demo-media`) — Twoja decyzja.
+4. ~~Merge `feat/v3-adaptacja` → `main`~~ — **zrobione lokalnie 15.11** (fast-forward). Zostaje push i powiadomienie Bartka — instrukcja w sekcji „Scalenie do main i instrukcja dla Bartka”.
 5. ~~Drobne ustalenia z przeglądu kodu~~ — **zrobione** (pochwała w dzienniku, zdania w `explain.ts`, semantyka `null`, zestaw pytań a forma lekcji).
 6. ~~Worktree agentów~~ — **usunięte** (`wt/a1`–`a5`, `wt/b1`–`b3` i ich gałęzie).
 7. Twoje prywatne konto ucznia (spoza kont demo) ma wyniki w Programowaniu — wlicza się do statystyk tego kursu (np. „A 87%, 1 uczeń”); reset kont demo go nie rusza.
-8. Twoje prywatne konto ucznia ma też prośbę o zapis do Matematyki — widać ją w panelu kursu. Na zrzutach 22, 23 i 44 wiersz z imieniem i adresem jest zamazany (commit `f58da9f`), ale **niezamazane wersje są w lokalnym commicie `53b9c5e`** — przed pushem zdecyduj, czy przepisać historię, czy zostawić. Przed pokazem tę prośbę warto odrzucić (scenariusz, przygotowanie).
+8. Twoje prywatne konto ucznia ma też prośbę o zapis do Matematyki — widać ją w panelu kursu. Na zrzutach 22, 23 i 44 wiersz z imieniem i adresem jest zamazany (commit `ab44914`, przed przepisaniem `f58da9f`), a 15.11 historia została przepisana tak, że żaden commit nie ma niezamazanych wersji (szczegóły na końcu raportu; hashe commitów od `53b9c5e` w górę się zmieniły). Przed pokazem tę prośbę warto odrzucić (scenariusz, przygotowanie).
 
 ## Decyzje podjęte samodzielnie
 
@@ -112,3 +112,51 @@ Zlecenie: `..\ZADANIE-CLAUDE-CODE-IMSU-v3-poprawki.md`. Decyzje D55–D62 (`04-d
 | Playwright `frontend/e2e/demo-tour.mjs` | **50 zrzutów na dysku** w `docs/zrzuty-v3/`, 0 błędów 500 i JS, 0 poziomych przewinięć, wszystkie nowe kontrole spełnione: zmiana właściciela Programowania na Annę i z powrotem (sprawdzone przez API), przyciski lekcji (Zosia, Kuba), wersja A z kilkoma nagraniami i rozwiniętą transkrypcją, blok kodu (komputer i telefon), ścieżka A → V → A u Szymona (`uczen3`) z wpisem o cofnięciu, wierszem „Zmiana stylu na V (ręcznie)” i przekreślonym znacznikiem; po przejściu `--reset-students` |
 
 **Co nie działa / uwagi:** brzmienie nagrań do odsłuchania (pkt 2 wyżej); `--refresh-demo-media` za każdym razem wgrywa 48 nagrań od nowa (stare zostają w `files`) i nadpisuje zmiany nauczyciela w treści kursów demo; kurs demo przepięty na konto spoza kont demo nie zostanie rozpoznany przez seed. W trakcie przejścia Patryk przypadkiem zatrzymał dev serwer — uruchomiłem go ponownie (`npm run dev` w `frontend/`, log w katalogu tymczasowym sesji).
+
+## Scalenie do main i instrukcja dla Bartka (15.11)
+
+**Przepisanie historii.** Zrzuty 22, 23 i 44 z `docs/zrzuty-v3/` miały w commitach `53b9c5e` i `be878b8` wersje z prywatnym adresem e-mail Patryka (gałąź nigdy nie była wypychana). `git filter-branch --index-filter` na zakresie `ce106dc..feat/v3-adaptacja` podmienił w tych commitach 3 pliki na wersje zamazane; potem usunięte `refs/original`, wygaszony reflog, `git gc --prune=now --aggressive`. Sprawdzone: drzewo ostatniego commita identyczne jak przed przepisaniem (`83657a6`), commity sprzed `53b9c5e` mają te same hashe, 3 stare bloby nie istnieją w bazie obiektów (`git cat-file -e`), wyszukiwanie adresu we wszystkich blobach historii: 0 trafień (uwaga: adres na PNG to piksele, więc to wyszukiwanie go nie wykrywa — dowodem jest brak starych blobów).
+
+**Scalenie.** `origin/main` = `ce106dc` (przodek gałęzi) → `main` przesunięty fast-forward na `82985b7`, 96 commitów przed `origin/main`. Bez pushu.
+
+**Sprawdzone na `main`:** `pytest` 540 passed; `ruff check .` i `ruff format --check .` czyste; `npm run lint`, `npm run format:check`, `npm test` (8 pass); `npm run build` w osobnej kopii (`git archive main` + `npm ci`) przechodzi; na bazie Patryka `seed` i `seed --reset-students` dają stan ze `SCENARIUSZ-POKAZU.md`.
+
+**Ścieżka Bartka sprawdzona na osobnej bazie:** kod z `ce106dc` (`alembic upgrade head` + seed v2) → kod z `main`:
+- sam `alembic upgrade head` przechodzi, ale **seed się wywraca** (`COURSE_NOT_FOUND` przy zapisie Marty do Programowania — dane v2 nie pasują do v3; README to zapowiada);
+- `alembic downgrade base` → `upgrade head` → seed → `--refresh-demo-media` → `--reset-students` → seed ponownie: wszystko exit 0, Matematyka `V 60% · A 86% · K 70%`, drugi seed bez zmian;
+- ratunek po nieudanym seedzie (sam `upgrade head` i błąd) przez `downgrade base` → `upgrade head` → seed: działa.
+
+### Instrukcja dla Bartka (po `git pull` na `main`)
+
+Twoja baza jest sprzed v3 (ostatnia migracja `249e835bc4e5`, klasy). Dane v2 nie przechodzą do v3, więc bazę trzeba przebudować od zera — to kasuje dane w Twojej lokalnej bazie. Sam `alembic upgrade head` nie wystarczy (migracja przejdzie, ale seed się wywróci); jeśli już tak zrobiłeś, po prostu wykonaj kroki z punktu 2.
+
+1. Docker Desktop, potem w katalogu głównym `docker compose up -d` (compose bez zmian; pliki `.env` bez nowych kluczy).
+2. Backend (`backend/`):
+   ```
+   .\venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   alembic downgrade base
+   alembic upgrade head
+   python -m app.demo.seed
+   uvicorn app.main:app --reload --port 8001
+   ```
+   Seed na końcu wypisuje m.in. `Matematyka: funkcja liniowa (Anna Nowak): V 60% (3 ucz.) · A 86% (3 ucz.) · K 70% (2 ucz.)` i `Gotowe. Hasło wszystkich kont demo: Demo123!`.
+3. Frontend (`frontend/`): `npm ci` (zmienił się `package.json`), potem `npm run dev` → http://localhost:3001.
+4. `python -m app.demo.seed --refresh-demo-media` — **po przebudowie z punktu 2 niepotrzebne** (seed od zera wgrywa aktualne nagrania i treść). Tylko gdy wersja A lekcji ma jedno nagranie zamiast trzech + powtórki albo w Programowaniu nie ma bloków kodu. Wgrywa 48 nagrań od nowa i nadpisuje zmiany w treści kursów demo.
+5. Przed pokazem i po każdej próbie: `python -m app.demo.seed --reset-students` (przywraca stan startowy wszystkich kont demo).
+6. Konta demo — hasło wszystkich: `Demo123!` (stany startowe: `SCENARIUSZ-POKAZU.md`):
+
+| Konto | Kto |
+|---|---|
+| `admin.demo@imsu.pl` | administrator |
+| `nauczyciel.demo@imsu.pl` | Anna Nowak — Matematyka |
+| `nauczyciel.angielski@imsu.pl` | Katarzyna Wróbel — Angielski |
+| `nauczyciel.programowanie@imsu.pl` | Paweł Sikora — Programowanie |
+| `nauczyciel.nowy@imsu.pl` | Piotr Zieliński — czeka na zatwierdzenie |
+| `uczen.nowy@imsu.pl` | Ola Kowalska — bez ankiety |
+| `uczen.zapis@imsu.pl` | Zosia Mazur — prośba o zapis do Matematyki |
+| `uczen.demo@imsu.pl` | Kuba Wiśniewski — główny uczeń pokazu |
+| `uczen.zmiana@imsu.pl` | Marta Lewandowska — okres próbny po zmianie stylu |
+| `uczen1@imsu.pl` … `uczen6@imsu.pl` | klasa (Antoni, Julia, Szymon, Lena, Filip, Maja) |
+
+U Ciebie w Programowaniu skuteczność A pokaże `–` (u Patryka `87%`, bo liczy się jego prywatne konto) — to poprawne.
