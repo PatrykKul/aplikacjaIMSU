@@ -4,6 +4,7 @@ import { CloudOffIcon, PencilIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { LESSON_MIN_STUDENTS } from "@/features/learning-style/explain";
 import { ApiError } from "@/shared/api/client";
 import { PageMessage } from "@/shared/layout/page-states";
 import { cn } from "@/shared/lib/utils";
@@ -14,6 +15,7 @@ import { useCourseStats, useEnrollments, useTeacherCourse } from "../hooks";
 import { CourseStudentsTable } from "./CourseStudentsTable";
 import { EnrollmentRequests } from "./EnrollmentRequests";
 import { FormEffectiveness } from "./FormEffectiveness";
+import { LessonDifficulty } from "./LessonDifficulty";
 import { StyleDistribution } from "./StyleDistribution";
 
 type PanelSectionProps = {
@@ -140,6 +142,17 @@ export function CoursePanel({ courseId }: { courseId: number }) {
         <CourseStudentsTable
           courseId={courseId}
           students={stats.data.students}
+        />
+      </PanelSection>
+
+      <PanelSection
+        id="panel-lessons"
+        title="Które lekcje sprawiają trudność"
+        description={`Zaliczalność to odsetek uczniów, którzy zaliczyli lekcję, spośród tych, którzy ją rozpoczęli; procenty i średnie są podawane od ${LESSON_MIN_STUDENTS} uczniów w lekcji.`}
+      >
+        <LessonDifficulty
+          lessons={stats.data.lessons}
+          hardest={stats.data.hardest}
         />
       </PanelSection>
 

@@ -655,3 +655,85 @@ export function journalText(entry: JournalEntry): string {
     }
   }
 }
+
+// --- Course panel statistics (teacher, stage 10; `learning_style/stats.py`, `assessment/stats.py`) ---
+
+export const LESSON_MIN_STUDENTS = 3;
+export const MATRIX_MIN_RESULTS = 2;
+export const FORM_GAP = 20;
+export const QUESTION_MIN_DRAWS = 5;
+export const HARD_BELOW = 40;
+export const EASY_ABOVE = 90;
+
+/** Names of forms in the course panel: "praktyczna" for K. */
+const PANEL_FORM: Record<Form, string> = {
+  V: "wzrokowa",
+  A: "słuchowa",
+  K: "praktyczna",
+};
+
+export function panelFormName(form: Form): string {
+  return PANEL_FORM[form];
+}
+
+/** "za mało danych (n = 2)" */
+export function notEnoughDataText(n: number): string {
+  return `za mało danych (n = ${n})`;
+}
+
+/** "2,1": one decimal with a Polish comma. */
+export function decimalText(value: number): string {
+  return value.toFixed(1).replace(".", ",");
+}
+
+/** "lekcja 3 „Miejsce zerowe”" */
+function panelLessonName(lesson: { number: number; title: string }): string {
+  return `lekcja ${lesson.number} „${lesson.title}”`;
+}
+
+/** "1 podejścia", "2 podejść", "2,1 podejścia" (genitive, after "średnio"). */
+function attemptsGenitive(value: number): string {
+  if (!Number.isInteger(value)) {
+    return `${decimalText(value)} podejścia`;
+  }
+  return `${value} ${plural(value, "podejścia", "podejść", "podejść")}`;
+}
+
+type HardestLesson = {
+  number: number;
+  title: string;
+  started: number;
+  passed: number;
+  pass_rate: number | null;
+  attempts_to_pass: number | null;
+};
+
+/** The sentence under "Które lekcje sprawiają trudność" (`hardest`). */
+export function hardestLessonText(
+  hardest: HardestLesson | null,
+  lessons: { started: number }[],
+): string {
+  if (hardest === null) {
+    if (lessons.length === 0) {
+      return "Kurs nie ma jeszcze opublikowanych lekcji.";
+    }
+    return lessons.some((lesson) => lesson.started >= LESSON_MIN_STUDENTS)
+      ? `Każdą lekcję z co najmniej ${LESSON_MIN_STUDENTS} uczniami zaliczyli wszyscy, którzy ją rozpoczęli.`
+      : `Za mało danych, żeby wskazać najtrudniejszą lekcję: żadnej lekcji nie rozpoczęło jeszcze ${LESSON_MIN_STUDENTS} uczniów.`;
+  }
+  const name = panelLessonName(hardest);
+  const { started, passed } = hardest;
+  if (passed === 0) {
+    return `Najtrudniejsza jest ${name}: nie zaliczył jej żaden z ${started} uczniów, którzy ją rozpoczęli.`;
+  }
+  const verb = passed === 1 ? "zaliczył" : "zaliczyło";
+  const rate = hardest.pass_rate === null ? "" : ` (${hardest.pass_rate}%)`;
+  const head = `Najtrudniejsza jest ${name}: ${verb} ją ${passed} z ${started} uczniów${rate}.`;
+  if (hardest.attempts_to_pass === null) {
+    return head;
+  }
+  const attempts = attemptsGenitive(hardest.attempts_to_pass);
+  return passed === 1
+    ? `${head} Uczeń, który ją zaliczył, potrzebował ${attempts}.`
+    : `${head} Uczniowie, którzy ją zaliczyli, potrzebowali średnio ${attempts}.`;
+}
