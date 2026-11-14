@@ -1,4 +1,4 @@
-"""Adaptation rules R1-R8 (docs/08): pure functions, no database and no FastAPI.
+"""Adaptation rules R1-R8 and R12 (docs/08): pure functions, no database and no FastAPI.
 
 Every decision of the system comes from one function here and carries the numbers it was
 made from. Inputs and outputs are plain dataclasses and dicts; the service turns them into
@@ -27,6 +27,7 @@ HELPED_GAIN = 10  # average gain (points) from which the change "helped"
 REVERT_DROP = 10  # average drop (points) from which we propose going back
 RENEW_AFTER = 2  # new counted results after which a rejected proposal may come back
 HINT_MIN_STUDENTS = 2  # course hint: min. students in a form
+ATTENTION_STREAK = 3  # counted failures in a row that need attention (R12)
 
 Percentages = dict[str, int]
 
@@ -255,6 +256,8 @@ class SuggestedForm:
 class Suggestion:
     failed: FailedForm
     suggested: SuggestedForm
+    # "soft": the previous counted result in the failed form was passed; otherwise "strong"
+    strength: str
 
 
 def retry_suggestion(
@@ -269,6 +272,10 @@ def retry_suggestion(
     Candidates: the two forms other than the failed one. A form confirmed by results wins
     (highest percentage, then higher average, then V, A, K). Without one, the form ranked
     higher in the survey (then higher current percentage, then V, A, K).
+    `results` are the student's results in order; the last one is `failed` itself.
+    Strength: "soft" when the previous counted result in the failed form (any lesson, the
+    current result excluded) was passed — a single slip; otherwise (a second failure in a row
+    or nothing to compare with) "strong".
     """
     candidates = [form for form in FORMS if form != failed.form]
     confirmed = [form for form in candidates if stats[form].confirmed]
@@ -302,7 +309,13 @@ def retry_suggestion(
             survey_percent=survey[form],
             best=best,
         ),
+        strength=_strength(failed.form, results[:-1]),
     )
+
+
+def _strength(form: str, earlier: Sequence[Result]) -> str:
+    last = next((r for r in reversed(earlier) if r.counted and r.form == form), None)
+    return "soft" if last is not None and last.passed else "strong"
 
 
 def _or_minus_one(value: int | None) -> int:
@@ -530,3 +543,44 @@ def course_hint(course_results: Iterable[CourseResult], student_id: int) -> Hint
     if not hints:
         return None
     return min(hints, key=lambda h: (-h.average, -h.students, _rank(h.form)))
+
+
+# --- R12. A run of failures ----------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class FormScore:
+    lesson_id: int
+    lesson_title: str
+    form: str
+    percent: int
+
+
+@dataclass(frozen=True)
+class Attention:
+    streak: int  # counted failures in a row, from the newest backwards
+    results: tuple[FormScore, ...]  # the last ATTENTION_STREAK counted results, oldest first
+
+
+def attention(results: Sequence[Result]) -> Attention | None:
+    """>= 3 counted results in a row below the threshold (all courses, any form).
+
+    Counted from the newest backwards; not counted attempts are skipped and the first counted
+    pass ends the run, so a pass makes the attention go away.
+    Example: 55, 40, 50 (counted, failed) -> streak 3 with these three results.
+    """
+    counted = [r for r in results if r.counted]
+    streak = 0
+    for result in reversed(counted):
+        if result.passed:
+            break
+        streak += 1
+    if streak < ATTENTION_STREAK:
+        return None
+    return Attention(
+        streak=streak,
+        results=tuple(
+            FormScore(r.lesson_id, r.lesson_title, r.form, r.percent)
+            for r in counted[-ATTENTION_STREAK:]
+        ),
+    )
