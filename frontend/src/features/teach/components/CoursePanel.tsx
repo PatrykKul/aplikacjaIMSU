@@ -145,7 +145,7 @@ export function CoursePanel({ courseId }: { courseId: number }) {
       <PanelSection
         id="panel-students"
         title={`Uczniowie (${stats.data.students.length})`}
-        description="Styl i procenty V / A / K ucznia, zaliczone lekcje tego kursu i średnia jego policzonych wyników. Kliknij ucznia, żeby zobaczyć wykres i dziennik decyzji."
+        description="Styl i procenty V / A / K ucznia, zaliczone lekcje tego kursu i średnia jego policzonych wyników. Kliknij ucznia, żeby zobaczyć wykres i dziennik decyzji. Przy uczniu, którego trzy ostatnie policzone wyniki są poniżej progu, są słowa „wymaga uwagi” i te wyniki."
       >
         <CourseStudentsTable
           courseId={courseId}

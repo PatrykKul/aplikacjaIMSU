@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { FORMS } from "@/features/content/types";
+import { attentionNoteText } from "@/features/learning-style/explain";
 import {
   Table,
   TableBody,
@@ -88,6 +89,11 @@ export function CourseStudentsTable({
                 <span className="block text-sm text-muted-foreground">
                   {row.email}
                 </span>
+                {row.attention && (
+                  <span className="block text-sm font-medium">
+                    {attentionNoteText(row.attention)}
+                  </span>
+                )}
               </TableCell>
               <TableCell>
                 {row.style ? (

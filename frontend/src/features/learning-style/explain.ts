@@ -829,3 +829,11 @@ export function matrixConclusions(
       : `Formy działają podobnie we wszystkich lekcjach, które da się porównać (${comparable} z ${matrix.length}).`,
   ];
 }
+
+/** R12 at the student in the course table: "wymaga uwagi: 55%, 40%, 50%". */
+export function attentionNoteText(attention: {
+  results: { percent: number }[];
+}): string {
+  const results = attention.results.map((result) => `${result.percent}%`);
+  return `wymaga uwagi: ${results.join(", ")}`;
+}

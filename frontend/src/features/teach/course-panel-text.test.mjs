@@ -223,3 +223,20 @@ describe("matrix", () => {
     ]);
   });
 });
+
+// --- (8) R12 at the student ---
+
+describe("attention", () => {
+  test("the three results in chronological order", () => {
+    const result = (percent) => ({
+      lesson_id: 1,
+      lesson_title: "L",
+      form: "V",
+      percent,
+    });
+    assert.equal(
+      text.attentionNoteText({ streak: 4, results: [55, 40, 50].map(result) }),
+      "wymaga uwagi: 55%, 40%, 50%",
+    );
+  });
+});
