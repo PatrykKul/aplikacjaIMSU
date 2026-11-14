@@ -25,7 +25,6 @@ from app.modules.learning_style.stats import (
     lesson_results,
     lesson_stats,
     mean_tenths,
-    rate,
     student_summary,
     style_distribution,
 )
@@ -80,14 +79,6 @@ def test_lesson_results_only_attempted_lessons_in_order():
 
 
 # --- Rounding helpers ----------------------------------------------------------------------------
-
-
-def test_rate_rounds_half_up():
-    assert rate(1, 2) == 50
-    assert rate(2, 3) == 67  # 66.67
-    assert rate(1, 3) == 33
-    assert rate(1, 8) == 13  # 12.5 -> 13 (not banker's rounding)
-    assert rate(0, 4) == 0 and rate(4, 4) == 100
 
 
 def test_mean_tenths_one_decimal_half_up():

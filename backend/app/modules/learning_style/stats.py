@@ -17,6 +17,7 @@ from app.modules.learning_style.rules import (
     Result,
     average,
     form_stats,
+    rate,
 )
 
 # --- Constants (docs/08 "Stałe"; repeated in the frontend's explain.ts) --------------------------
@@ -25,11 +26,6 @@ FIRST_TRY_MIN_LESSONS = 2  # form table: "first time" pass rate
 LESSON_MIN_STUDENTS = 3  # lesson statistics: pass rate, first average, the hardest lesson
 MATRIX_MIN_RESULTS = 2  # lesson x form matrix: a cell's average and the conclusions
 FORM_GAP = 20  # matrix conclusion: best minus worst form (points)
-
-
-def rate(part: int, whole: int) -> int:
-    """`part / whole` in percent, rounded half up (exact); `whole` > 0."""
-    return floor(Fraction(100 * part, whole) + Fraction(1, 2))
 
 
 def mean_tenths(values: Iterable[int]) -> float | None:

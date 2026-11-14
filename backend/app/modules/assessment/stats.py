@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from app.modules.learning_style.stats import rate
+from app.modules.learning_style.rules import rate
 
 # --- Constants (docs/08 "Stałe"; repeated in the frontend's explain.ts) --------------------------
 

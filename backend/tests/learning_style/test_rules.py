@@ -28,6 +28,7 @@ from app.modules.learning_style.rules import (
     is_counted,
     is_passed,
     praise,
+    rate,
     retry_suggestion,
     survey_leaders,
     survey_percentages,
@@ -78,6 +79,14 @@ def test_average_rounds_half_up():
     assert average([80, 100, 80]) == 87  # 86.67
     assert average([40, 41]) == 41  # 40.5 -> 41 (not banker's rounding)
     assert average([]) is None
+
+
+def test_rate_rounds_half_up():
+    assert rate(1, 2) == 50
+    assert rate(2, 3) == 67  # 66.67
+    assert rate(1, 3) == 33
+    assert rate(1, 8) == 13  # 12.5 -> 13 (not banker's rounding)
+    assert rate(0, 4) == 0 and rate(4, 4) == 100
 
 
 # --- R1. Survey ----------------------------------------------------------------------------------

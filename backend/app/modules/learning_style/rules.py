@@ -80,6 +80,11 @@ def average(values: Iterable[int]) -> int | None:
     return floor(Fraction(sum(items), len(items)) + Fraction(1, 2))
 
 
+def rate(part: int, whole: int) -> int:
+    """`part / whole` in percent, rounded half up like `average` (1/8 -> 13); `whole` > 0."""
+    return floor(Fraction(100 * part, whole) + Fraction(1, 2))
+
+
 def _round_largest_remainder(shares: Mapping[str, Fraction]) -> Percentages:
     """Integers summing to the (integer) total of `shares`.
 
