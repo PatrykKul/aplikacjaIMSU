@@ -182,3 +182,44 @@ describe("questions", () => {
     );
   });
 });
+
+// --- (6) Lesson × form matrix ---
+
+const cells = (V, A, K) => ({ cells: { V, A, K } });
+const cell = (average, n) => ({ average, n });
+
+describe("matrix", () => {
+  test("cell text or a dash below 2 results", () => {
+    assert.equal(text.matrixCellText(cell(88, 4)), "88% · 4");
+    assert.equal(text.matrixCellText(cell(null, 1)), null);
+  });
+
+  test("a form gap names both forms and the version to review", () => {
+    const gap = {
+      number: 2,
+      title: "Pętla while",
+      best: { form: "A", average: 88, n: 4 },
+      worst: { form: "K", average: 55, n: 3 },
+    };
+    assert.deepEqual(text.matrixConclusions([], [gap]), [
+      "W lekcji 2 „Pętla while” forma słuchowa ma średnio 88% (n = 4), a praktyczna 55% (n = 3). Wersję praktyczną tej lekcji dobrze jest przejrzeć.",
+    ]);
+  });
+
+  test("no gaps: similar forms, only comparable lessons, too few results", () => {
+    const full = cells(cell(80, 3), cell(75, 2), cell(70, 2));
+    const one = cells(cell(80, 3), cell(null, 1), cell(null, 0));
+    assert.deepEqual(text.matrixConclusions([full, full], []), [
+      "Formy działają podobnie we wszystkich lekcjach.",
+    ]);
+    assert.deepEqual(text.matrixConclusions([full, one], []), [
+      "Formy działają podobnie we wszystkich lekcjach, które da się porównać (1 z 2).",
+    ]);
+    assert.deepEqual(text.matrixConclusions([one], []), [
+      "Za mało wyników, żeby porównać formy: średnia w komórce pojawia się od 2 wyników.",
+    ]);
+    assert.deepEqual(text.matrixConclusions([], []), [
+      "Kurs nie ma jeszcze opublikowanych lekcji.",
+    ]);
+  });
+});

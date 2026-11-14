@@ -771,3 +771,61 @@ export function questionSummaryText(
     ? all
     : `${all}, w tym ${hard} ${plural(hard, "trudne", "trudne", "trudnych")}`;
 }
+
+/** Accusative: "Wersję wzrokową tej lekcji…" */
+const PANEL_FORM_ACC: Record<Form, string> = {
+  V: "wzrokową",
+  A: "słuchową",
+  K: "praktyczną",
+};
+
+type MatrixCellLike = { average: number | null; n: number };
+
+/** "88% · 4"; below 2 results the cell shows a dash (`average` is null). */
+export function matrixCellText(cell: MatrixCellLike): string | null {
+  return cell.average === null ? null : `${cell.average}% · ${cell.n}`;
+}
+
+type FormGapLike = {
+  number: number;
+  title: string;
+  best: { form: Form; average: number; n: number };
+  worst: { form: Form; average: number; n: number };
+};
+
+/** One lesson whose forms differ by at least 20 points. */
+export function formGapText(gap: FormGapLike): string {
+  const { best, worst } = gap;
+  return (
+    `W lekcji ${gap.number} „${gap.title}” forma ${PANEL_FORM[best.form]} ma średnio ${best.average}% (n = ${best.n}), ` +
+    `a ${PANEL_FORM[worst.form]} ${worst.average}% (n = ${worst.n}). ` +
+    `Wersję ${PANEL_FORM_ACC[worst.form]} tej lekcji dobrze jest przejrzeć.`
+  );
+}
+
+/** Sentences under "W jakiej formie działa każda lekcja". */
+export function matrixConclusions(
+  matrix: { cells: Record<Form, MatrixCellLike> }[],
+  gaps: FormGapLike[],
+): string[] {
+  if (gaps.length > 0) {
+    return gaps.map(formGapText);
+  }
+  if (matrix.length === 0) {
+    return ["Kurs nie ma jeszcze opublikowanych lekcji."];
+  }
+  const comparable = matrix.filter(
+    (row) =>
+      FORMS.filter((form) => row.cells[form].average !== null).length >= 2,
+  ).length;
+  if (comparable === 0) {
+    return [
+      `Za mało wyników, żeby porównać formy: średnia w komórce pojawia się od ${MATRIX_MIN_RESULTS} wyników.`,
+    ];
+  }
+  return [
+    comparable === matrix.length
+      ? "Formy działają podobnie we wszystkich lekcjach."
+      : `Formy działają podobnie we wszystkich lekcjach, które da się porównać (${comparable} z ${matrix.length}).`,
+  ];
+}

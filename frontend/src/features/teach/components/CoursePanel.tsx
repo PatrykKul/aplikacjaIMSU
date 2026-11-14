@@ -8,6 +8,7 @@ import {
   EASY_ABOVE,
   HARD_BELOW,
   LESSON_MIN_STUDENTS,
+  MATRIX_MIN_RESULTS,
   QUESTION_MIN_DRAWS,
 } from "@/features/learning-style/explain";
 import { ApiError } from "@/shared/api/client";
@@ -21,6 +22,7 @@ import { CourseStudentsTable } from "./CourseStudentsTable";
 import { EnrollmentRequests } from "./EnrollmentRequests";
 import { FormEffectiveness } from "./FormEffectiveness";
 import { LessonDifficulty } from "./LessonDifficulty";
+import { LessonFormMatrix } from "./LessonFormMatrix";
 import { QuestionAnalysis } from "./QuestionAnalysis";
 import { StyleDistribution } from "./StyleDistribution";
 
@@ -176,6 +178,17 @@ export function CoursePanel({ courseId }: { courseId: number }) {
         description="Jak wypadają quizy przerobione w każdej z wersji lekcji tego kursu."
       >
         <FormEffectiveness forms={stats.data.forms} />
+      </PanelSection>
+
+      <PanelSection
+        id="panel-matrix"
+        title="W jakiej formie działa każda lekcja"
+        description={`W komórce średnia pierwszych podejść w tej formie i liczba tych wyników; średnia pojawia się od ${MATRIX_MIN_RESULTS} wyników, wcześniej w komórce jest kreska.`}
+      >
+        <LessonFormMatrix
+          matrix={stats.data.matrix}
+          form_gaps={stats.data.form_gaps}
+        />
       </PanelSection>
 
       <PanelSection
