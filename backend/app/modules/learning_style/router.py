@@ -15,6 +15,7 @@ from app.modules.learning_style.schemas import (
     LessonStudyStateResponse,
     ProgressResponse,
     StudentDetailResponse,
+    StudentStatsResponse,
     StudyResponse,
     StyleRequest,
     SurveyQuestionResponse,
@@ -134,3 +135,8 @@ def get_progress(db: DbSession, user: StudentUser) -> ProgressResponse:
 @me_router.get("/journal")
 def get_journal(db: DbSession, user: StudentUser) -> list[JournalEntry]:
     return service.journal(db, user)
+
+
+@me_router.get("/stats")
+def get_stats(db: DbSession, user: StudentUser) -> StudentStatsResponse:
+    return service.student_stats(db, user)

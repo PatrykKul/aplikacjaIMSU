@@ -127,6 +127,23 @@ class SuggestedFormResponse(BaseModel):
 class RetrySuggestion(BaseModel):
     failed: FailedFormResponse
     suggested: SuggestedFormResponse
+    # R5: "soft" after a passed previous counted result in the form; events logged before the
+    # field existed read as "strong"
+    strength: Literal["soft", "strong"] = "strong"
+
+
+class AttentionResultResponse(BaseModel):
+    lesson_id: int
+    lesson_title: str
+    form: Form
+    percent: int
+
+
+class AttentionResponse(BaseModel):
+    """R12: counted failures in a row (all courses) and the last three of them, oldest first."""
+
+    streak: int
+    results: list[AttentionResultResponse]
 
 
 class PraiseResponse(BaseModel):
@@ -153,6 +170,7 @@ class QuizFeedback(BaseModel):
     suggestion: RetrySuggestion | None
     proposal: Proposal | None  # open after this attempt
     trial: Trial | None  # running, or finished by this attempt
+    attention: AttentionResponse | None  # R12, the state after this attempt
 
 
 # --- Studying a lesson ---------------------------------------------------------------------------
@@ -255,6 +273,35 @@ class ProgressResponse(BaseModel):
     lessons: list[LessonResultResponse]
 
 
+class FormTableRowResponse(BaseModel):
+    """One form of the student (all courses): `stats.FormTableRow`."""
+
+    lessons: int
+    attempts: int
+    passed_lessons: int
+    first_try_lessons: int
+    first_try_passed: int
+    first_try_rate: int | None  # None below FIRST_TRY_MIN_LESSONS
+    average: int | None
+    best: int | None
+    confirmed: bool
+    percent: int | None  # None without a profile
+
+
+class StudentSummaryResponse(BaseModel):
+    passed_lessons: int  # all courses
+    attempts: int
+    average: int | None  # of counted results
+    counted: int
+    streak: int  # counted passes in a row, from the newest backwards
+
+
+class StudentStatsResponse(BaseModel):
+    summary: StudentSummaryResponse
+    forms: dict[str, FormTableRowResponse]
+    attention: AttentionResponse | None
+
+
 class FormEffectResponse(BaseModel):
     average: int | None
     counted_results: int
@@ -278,6 +325,45 @@ class CourseStudentResponse(BaseModel):
     average: int | None  # counted results in this course
     last_activity: datetime | None  # last result in this course
     open_proposal: OpenProposalBrief | None
+    attention: AttentionResponse | None  # R12 over all the student's courses
+
+
+class LessonStatsRowResponse(BaseModel):
+    lesson_id: int
+    title: str
+    number: int
+    started: int
+    passed: int
+    pass_rate: int | None  # None below LESSON_MIN_STUDENTS started
+    first_average: int | None  # None below LESSON_MIN_STUDENTS started
+    first_results: int
+    attempts_to_pass: float | None  # one decimal; None without a pass
+
+
+class MatrixCellResponse(BaseModel):
+    average: int | None  # None below MATRIX_MIN_RESULTS
+    n: int
+
+
+class MatrixRowResponse(BaseModel):
+    lesson_id: int
+    title: str
+    number: int
+    cells: dict[str, MatrixCellResponse]
+
+
+class FormMeanResponse(BaseModel):
+    form: Form
+    average: int
+    n: int
+
+
+class FormGapResponse(BaseModel):
+    lesson_id: int
+    title: str
+    number: int
+    best: FormMeanResponse
+    worst: FormMeanResponse
 
 
 class CourseStatsResponse(BaseModel):
@@ -285,6 +371,10 @@ class CourseStatsResponse(BaseModel):
     styles: dict[str, int]  # V, A, K, none
     students: list[CourseStudentResponse]
     pending_requests: int
+    lessons: list[LessonStatsRowResponse]  # published lessons in course order
+    hardest: LessonStatsRowResponse | None
+    matrix: list[MatrixRowResponse]
+    form_gaps: list[FormGapResponse]
 
 
 class StudentRefResponse(BaseModel):
@@ -299,3 +389,5 @@ class StudentDetailResponse(BaseModel):
     history: list[HistoryPointResponse]
     lessons: list[LessonResultResponse]
     journal: list[JournalEntry]
+    forms: dict[str, FormTableRowResponse]  # all the student's courses
+    attention: AttentionResponse | None

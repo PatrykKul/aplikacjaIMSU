@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.learning_style.models import StyleTrial
+from app.modules.learning_style.models import DecisionEvent, StyleTrial
 from tests.learning_style.conftest import (
     journal_types,
     last_event,
@@ -139,6 +139,7 @@ def test_failure_suggests_the_second_survey_form(client: TestClient, course, lea
             "survey_percent": 40,
             "best": None,
         },
+        "strength": "soft",  # lesson 1 in V was passed
     }
     assert feedback["suggestion"] == expected
     assert feedback["proposal"] is None
@@ -192,6 +193,7 @@ def test_kuba_path_to_the_proposal_and_trial(client: TestClient, course, learner
             "survey_percent": 40,
             "best": None,
         },
+        "strength": "strong",  # the counted V result of lesson 2 failed too
     }
     study = set_form(client, l3, "A")
     assert (study["form"], study["form_source"]) == ("A", "choice")
@@ -602,3 +604,86 @@ def test_accepted_proposal_clears_choices(client: TestClient, course, learner):
     ]
     study = client.get(f"/lessons/{l4}/study").json()
     assert (study["form"], study["form_source"]) == ("A", "style")
+
+
+# --- Strength of the suggestion (R5) -------------------------------------------------------------
+
+
+def test_suggestion_strength_in_feedback_event_and_study(client: TestClient, course, learner):
+    learner(course["id"], KUBA)
+    l1, l2 = lesson_ids(course)[:2]
+    take_quiz(client, l1, 80)
+    first = take_quiz(client, l2, 40)["feedback"]["suggestion"]
+    assert first["strength"] == "soft"  # the previous counted V result passed
+    assert last_event(client, "retry_suggestion")["data"]["strength"] == "soft"
+    assert client.get(f"/lessons/{l2}/study").json()["suggestion"]["strength"] == "soft"
+    # a not counted retry in V: the previous counted V result is lesson 2's 40%
+    retry = take_quiz(client, l2, 60)["feedback"]
+    assert (retry["counted"], retry["suggestion"]["strength"]) == (False, "strong")
+    assert last_event(client, "retry_suggestion")["data"]["strength"] == "strong"
+
+
+def test_suggestion_strength_without_a_previous_result_is_strong(
+    client: TestClient, course, learner
+):
+    learner(course["id"], KUBA)
+    feedback = take_quiz(client, lesson_ids(course)[0], 20)["feedback"]
+    assert feedback["suggestion"]["strength"] == "strong"
+
+
+def test_study_suggestion_of_an_old_event_reads_as_strong(
+    client: TestClient, course, learner, db: Session
+):
+    learner(course["id"], KUBA)
+    l1 = lesson_ids(course)[0]
+    take_quiz(client, l1, 20)
+    event = db.scalar(select(DecisionEvent).where(DecisionEvent.type == "retry_suggestion"))
+    assert event is not None
+    event.data = {key: value for key, value in event.data.items() if key != "strength"}
+    db.commit()
+    assert client.get(f"/lessons/{l1}/study").json()["suggestion"]["strength"] == "strong"
+
+
+# --- A run of failures (R12) ---------------------------------------------------------------------
+
+
+def attention_events(client: TestClient) -> list[dict[str, Any]]:
+    return [
+        entry for entry in client.get("/me/journal").json() if entry["type"] == "attention_needed"
+    ]
+
+
+def test_attention_after_three_counted_failures(client: TestClient, course, learner):
+    learner(course["id"], KUBA)
+    l1, l2 = lesson_ids(course)[:2]
+    assert take_quiz(client, l1, 40)["feedback"]["attention"] is None
+    set_form(client, l1, "A")
+    assert take_quiz(client, l1, 20)["feedback"]["attention"] is None  # 2 failures
+    assert attention_events(client) == []
+    set_form(client, l1, "K")
+    third = take_quiz(client, l1, 60)["feedback"]
+    expected = {
+        "streak": 3,
+        "results": [
+            {"lesson_id": l1, "lesson_title": "Lekcja 1", "form": "V", "percent": 40},
+            {"lesson_id": l1, "lesson_title": "Lekcja 1", "form": "A", "percent": 20},
+            {"lesson_id": l1, "lesson_title": "Lekcja 1", "form": "K", "percent": 60},
+        ],
+    }
+    assert third["attention"] == expected
+    (event,) = attention_events(client)
+    assert event["data"] == expected
+    assert (event["course"]["id"], event["lesson"]["id"]) == (course["id"], l1)
+
+    # not counted attempts change nothing and log nothing more
+    assert take_quiz(client, l1, 0)["feedback"]["attention"] == expected
+    assert take_quiz(client, l1, 80)["feedback"]["attention"] == expected  # passed, not counted
+    # a fourth counted failure: streak 4, no second event for the same run
+    fourth = take_quiz(client, l2, 40)["feedback"]["attention"]
+    assert fourth["streak"] == 4
+    assert [item["percent"] for item in fourth["results"]] == [20, 60, 40]
+    assert len(attention_events(client)) == 1
+    # a counted pass ends the run
+    set_form(client, l2, "A")
+    assert take_quiz(client, l2, 80)["feedback"]["attention"] is None
+    assert len(attention_events(client)) == 1

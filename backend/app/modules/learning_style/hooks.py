@@ -26,7 +26,7 @@ from app.modules.learning_style.schemas import (
 def record_quiz_result(
     db: Session, *, user: User, lesson: Lesson, draw_id: int | None, percent: int
 ) -> QuizFeedback:
-    """Store the result in the student model and apply rules R2-R7 (one commit)."""
+    """Store the result in the student model and apply rules R2-R7 and R12 (one commit)."""
     profile = service.require_style(db, user)
     style = profile.style
     assert style is not None
@@ -96,6 +96,13 @@ def record_quiz_result(
         suggestion = rules.retry_suggestion(results[-1], after, form_stats, survey, results)
         service.log_event(db, user.id, "retry_suggestion", asdict(suggestion), **where)
 
+    # 4a. A run of failures (R12): logged once per run, when it reaches ATTENTION_STREAK
+    attention = rules.attention(results)
+    if attention is not None and counted and attention.streak == rules.ATTENTION_STREAK:
+        # this counted failure made the run exactly ATTENTION_STREAK long
+        data = service.attention_data(attention)
+        service.log_event(db, user.id, "attention_needed", data, **where)
+
     # 5. Trial period: finish after 2 results in the new style, maybe propose going back (R7)
     trial = service.running_trial(db, user.id)
     if trial is not None:
@@ -122,6 +129,7 @@ def record_quiz_result(
         suggestion=None if suggestion is None else RetrySuggestion(**asdict(suggestion)),
         proposal=None if proposal is None else service.proposal_response(proposal),
         trial=None if shown_trial is None else service.trial_response(db, shown_trial),
+        attention=service.attention_response(attention),
     )
 
 
