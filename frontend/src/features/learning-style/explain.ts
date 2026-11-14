@@ -737,3 +737,37 @@ export function hardestLessonText(
     ? `${head} Uczeń, który ją zaliczył, potrzebował ${attempts}.`
     : `${head} Uczniowie, którzy ją zaliczyli, potrzebowali średnio ${attempts}.`;
 }
+
+/** "trudne" / "łatwe" / "w normie"; below 5 draws "za mało danych (n = 3)". */
+export function questionRatingText(
+  rating: "hard" | "easy" | "normal" | null,
+  drawn: number,
+): string {
+  switch (rating) {
+    case "hard":
+      return "trudne";
+    case "easy":
+      return "łatwe";
+    case "normal":
+      return "w normie";
+    default:
+      return notEnoughDataText(drawn);
+  }
+}
+
+/** "6 pytań, w tym 2 trudne"; a lesson without a quiz: "bez quizu". */
+export function questionSummaryText(
+  questions: { rating: "hard" | "easy" | "normal" | null }[],
+): string {
+  const count = questions.length;
+  if (count === 0) {
+    return "bez quizu";
+  }
+  const all = `${count} ${plural(count, "pytanie", "pytania", "pytań")}`;
+  const hard = questions.filter(
+    (question) => question.rating === "hard",
+  ).length;
+  return hard === 0
+    ? all
+    : `${all}, w tym ${hard} ${plural(hard, "trudne", "trudne", "trudnych")}`;
+}

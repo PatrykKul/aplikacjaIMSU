@@ -4,7 +4,12 @@ import { CloudOffIcon, PencilIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { LESSON_MIN_STUDENTS } from "@/features/learning-style/explain";
+import {
+  EASY_ABOVE,
+  HARD_BELOW,
+  LESSON_MIN_STUDENTS,
+  QUESTION_MIN_DRAWS,
+} from "@/features/learning-style/explain";
 import { ApiError } from "@/shared/api/client";
 import { PageMessage } from "@/shared/layout/page-states";
 import { cn } from "@/shared/lib/utils";
@@ -16,6 +21,7 @@ import { CourseStudentsTable } from "./CourseStudentsTable";
 import { EnrollmentRequests } from "./EnrollmentRequests";
 import { FormEffectiveness } from "./FormEffectiveness";
 import { LessonDifficulty } from "./LessonDifficulty";
+import { QuestionAnalysis } from "./QuestionAnalysis";
 import { StyleDistribution } from "./StyleDistribution";
 
 type PanelSectionProps = {
@@ -154,6 +160,14 @@ export function CoursePanel({ courseId }: { courseId: number }) {
           lessons={stats.data.lessons}
           hardest={stats.data.hardest}
         />
+      </PanelSection>
+
+      <PanelSection
+        id="panel-questions"
+        title="Które pytania są za trudne albo źle ułożone"
+        description={`Wylosowane to liczba wysłanych zestawów z tym pytaniem; procenty i ocena są podawane od ${QUESTION_MIN_DRAWS} wylosowań, a pytanie poniżej ${HARD_BELOW}% poprawnych odpowiedzi jest trudne, powyżej ${EASY_ABOVE}% łatwe.`}
+      >
+        <QuestionAnalysis courseId={courseId} />
       </PanelSection>
 
       <PanelSection

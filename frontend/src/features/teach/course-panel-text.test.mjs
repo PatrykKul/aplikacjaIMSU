@@ -153,3 +153,32 @@ describe("hardest lesson", () => {
     );
   });
 });
+
+// --- (5) Questions ---
+
+describe("questions", () => {
+  test("rating in words, too few draws with n", () => {
+    assert.equal(text.questionRatingText("hard", 12), "trudne");
+    assert.equal(text.questionRatingText("easy", 12), "łatwe");
+    assert.equal(text.questionRatingText("normal", 12), "w normie");
+    assert.equal(text.questionRatingText(null, 3), "za mało danych (n = 3)");
+  });
+
+  test("summary of a lesson with Polish plurals", () => {
+    const rated = (...ratings) => ratings.map((rating) => ({ rating }));
+    assert.equal(text.questionSummaryText([]), "bez quizu");
+    assert.equal(text.questionSummaryText(rated("easy")), "1 pytanie");
+    assert.equal(
+      text.questionSummaryText(rated("hard", "normal", null)),
+      "3 pytania, w tym 1 trudne",
+    );
+    assert.equal(
+      text.questionSummaryText(rated("hard", "hard", "easy", "normal", null)),
+      "5 pytań, w tym 2 trudne",
+    );
+    assert.equal(
+      text.questionSummaryText(rated(...Array(12).fill("hard"))),
+      "12 pytań, w tym 12 trudnych",
+    );
+  });
+});
