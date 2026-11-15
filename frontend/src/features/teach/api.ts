@@ -8,6 +8,7 @@ import type {
   CourseUpdateInput,
   Enrollment,
   EnrollmentStatus,
+  LessonQuestionStats,
   LessonUpdateInput,
   LessonVersions,
   PoolQuestion,
@@ -97,4 +98,7 @@ export const statsApi = {
     api.get<CourseStats>(`/courses/${courseId}/stats`),
   student: (courseId: number, studentId: number) =>
     api.get<StudentDetail>(`/courses/${courseId}/students/${studentId}`),
+  /** assessment: how the questions of each published lesson work. */
+  questions: (courseId: number) =>
+    api.get<LessonQuestionStats[]>(`/courses/${courseId}/question-stats`),
 };

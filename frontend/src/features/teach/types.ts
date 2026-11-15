@@ -131,6 +131,64 @@ export type CourseStudentRow = {
   average: number | null;
   last_activity: string | null;
   open_proposal: { to: Form; kind: "switch" | "revert" } | null;
+  /** R12: three or more failed counted results in a row (all courses). */
+  attention: Attention | null;
+};
+
+/** One of the last three counted results of a streak (chronological order). */
+export type AttentionResult = {
+  lesson_id: number;
+  lesson_title: string;
+  form: Form;
+  percent: number;
+};
+
+/** R12 `Attention`: the current streak of failed counted results. */
+export type Attention = {
+  streak: number;
+  results: AttentionResult[];
+};
+
+/** A published lesson in `GET /courses/{id}/stats` → `lessons`. */
+export type LessonStatsRow = {
+  lesson_id: number;
+  title: string;
+  number: number;
+  /** Students with at least one attempt. */
+  started: number;
+  /** Students with a passed attempt. */
+  passed: number;
+  /** Percent of `passed / started`; null when `started < 3`. */
+  pass_rate: number | null;
+  /** Average of the counted results; null when `started < 3`. */
+  first_average: number | null;
+  first_results: number;
+  /** Average attempts up to the first pass (1 decimal); null when `passed = 0`. */
+  attempts_to_pass: number | null;
+};
+
+export type MatrixCell = {
+  /** Average of the counted results in the form; null when `n < 2`. */
+  average: number | null;
+  n: number;
+};
+
+export type LessonFormMatrixRow = {
+  lesson_id: number;
+  title: string;
+  number: number;
+  cells: Record<Form, MatrixCell>;
+};
+
+export type FormGapSide = { form: Form; average: number; n: number };
+
+/** A lesson whose best and worst form differ by at least 20 points. */
+export type FormGap = {
+  lesson_id: number;
+  title: string;
+  number: number;
+  best: FormGapSide;
+  worst: FormGapSide;
 };
 
 export type CourseStats = {
@@ -138,6 +196,47 @@ export type CourseStats = {
   styles: Record<Form | "none", number>;
   students: CourseStudentRow[];
   pending_requests: number;
+  /** Published lessons in the order of the course. */
+  lessons: LessonStatsRow[];
+  /** Lowest pass rate among lessons with 3+ students; null without one. */
+  hardest: LessonStatsRow | null;
+  matrix: LessonFormMatrixRow[];
+  form_gaps: FormGap[];
+};
+
+// --- assessment: question statistics ---
+
+export type QuestionRating = "hard" | "easy" | "normal";
+
+export type TopWrongAnswer = {
+  answer_id: string;
+  text: string;
+  count: number;
+  /** `count / drawn` in percent; null when `drawn < 5`. */
+  percent: number | null;
+};
+
+export type QuestionStatsRow = {
+  question_id: string;
+  text: string;
+  /** In how many submitted draws the question was. */
+  drawn: number;
+  correct: number;
+  /** null when `drawn < 5`. */
+  correct_percent: number | null;
+  /** The most chosen wrong answer; null when nobody answered wrong. */
+  top_wrong: TopWrongAnswer | null;
+  /** null when `drawn < 5`. */
+  rating: QuestionRating | null;
+};
+
+/** `GET /courses/{id}/question-stats`: one item per published lesson. */
+export type LessonQuestionStats = {
+  lesson_id: number;
+  title: string;
+  number: number;
+  /** Sorted by the backend: lowest `correct_percent` first, null last. */
+  questions: QuestionStatsRow[];
 };
 
 /** Limits shared with the backend (`curriculum/schemas.py`, `assessment/schemas.py`). */

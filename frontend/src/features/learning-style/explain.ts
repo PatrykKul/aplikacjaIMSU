@@ -877,3 +877,185 @@ export function journalText(
     }
   }
 }
+
+// --- Course panel statistics (teacher, stage 10; `learning_style/stats.py`, `assessment/stats.py`) ---
+
+export const LESSON_MIN_STUDENTS = 3;
+export const MATRIX_MIN_RESULTS = 2;
+export const FORM_GAP = 20;
+export const QUESTION_MIN_DRAWS = 5;
+export const HARD_BELOW = 40;
+export const EASY_ABOVE = 90;
+
+/** Names of forms in the course panel: "praktyczna" for K. */
+const PANEL_FORM: Record<Form, string> = {
+  V: "wzrokowa",
+  A: "słuchowa",
+  K: "praktyczna",
+};
+
+export function panelFormName(form: Form): string {
+  return PANEL_FORM[form];
+}
+
+/** "za mało danych (n = 2)" */
+export function notEnoughDataText(n: number): string {
+  return `za mało danych (n = ${n})`;
+}
+
+/** "2,1": one decimal with a Polish comma. */
+export function decimalText(value: number): string {
+  return value.toFixed(1).replace(".", ",");
+}
+
+/** "lekcja 3 „Miejsce zerowe”" */
+function panelLessonName(lesson: { number: number; title: string }): string {
+  return `lekcja ${lesson.number} „${lesson.title}”`;
+}
+
+/** "1 podejścia", "2 podejść", "2,1 podejścia" (genitive, after "średnio"). */
+function attemptsGenitive(value: number): string {
+  if (!Number.isInteger(value)) {
+    return `${decimalText(value)} podejścia`;
+  }
+  return `${value} ${plural(value, "podejścia", "podejść", "podejść")}`;
+}
+
+type HardestLesson = {
+  number: number;
+  title: string;
+  started: number;
+  passed: number;
+  pass_rate: number | null;
+  attempts_to_pass: number | null;
+};
+
+/** The sentence under "Które lekcje sprawiają trudność" (`hardest`). */
+export function hardestLessonText(
+  hardest: HardestLesson | null,
+  lessons: { started: number }[],
+): string {
+  if (hardest === null) {
+    if (lessons.length === 0) {
+      return "Kurs nie ma jeszcze opublikowanych lekcji.";
+    }
+    return lessons.some((lesson) => lesson.started >= LESSON_MIN_STUDENTS)
+      ? `Każdą lekcję z co najmniej ${LESSON_MIN_STUDENTS} uczniami zaliczyli wszyscy, którzy ją rozpoczęli.`
+      : `Za mało danych, żeby wskazać najtrudniejszą lekcję: żadnej lekcji nie rozpoczęło jeszcze ${LESSON_MIN_STUDENTS} uczniów.`;
+  }
+  const name = panelLessonName(hardest);
+  const { started, passed } = hardest;
+  if (passed === 0) {
+    return `Najtrudniejsza jest ${name}: nie zaliczył jej żaden z ${started} uczniów, którzy ją rozpoczęli.`;
+  }
+  const verb = passed === 1 ? "zaliczył" : "zaliczyło";
+  const rate = hardest.pass_rate === null ? "" : ` (${hardest.pass_rate}%)`;
+  const head = `Najtrudniejsza jest ${name}: ${verb} ją ${passed} z ${started} uczniów${rate}.`;
+  if (hardest.attempts_to_pass === null) {
+    return head;
+  }
+  const attempts = attemptsGenitive(hardest.attempts_to_pass);
+  return passed === 1
+    ? `${head} Uczeń, który ją zaliczył, potrzebował ${attempts}.`
+    : `${head} Uczniowie, którzy ją zaliczyli, potrzebowali średnio ${attempts}.`;
+}
+
+/** "trudne" / "łatwe" / "w normie"; below 5 draws "za mało danych (n = 3)". */
+export function questionRatingText(
+  rating: "hard" | "easy" | "normal" | null,
+  drawn: number,
+): string {
+  switch (rating) {
+    case "hard":
+      return "trudne";
+    case "easy":
+      return "łatwe";
+    case "normal":
+      return "w normie";
+    default:
+      return notEnoughDataText(drawn);
+  }
+}
+
+/** "6 pytań, w tym 2 trudne"; a lesson without a quiz: "bez quizu". */
+export function questionSummaryText(
+  questions: { rating: "hard" | "easy" | "normal" | null }[],
+): string {
+  const count = questions.length;
+  if (count === 0) {
+    return "bez quizu";
+  }
+  const all = `${count} ${plural(count, "pytanie", "pytania", "pytań")}`;
+  const hard = questions.filter(
+    (question) => question.rating === "hard",
+  ).length;
+  return hard === 0
+    ? all
+    : `${all}, w tym ${hard} ${plural(hard, "trudne", "trudne", "trudnych")}`;
+}
+
+/** Accusative: "Wersję wzrokową tej lekcji…" */
+const PANEL_FORM_ACC: Record<Form, string> = {
+  V: "wzrokową",
+  A: "słuchową",
+  K: "praktyczną",
+};
+
+type MatrixCellLike = { average: number | null; n: number };
+
+/** "88% · 4"; below 2 results the cell shows a dash (`average` is null). */
+export function matrixCellText(cell: MatrixCellLike): string | null {
+  return cell.average === null ? null : `${cell.average}% · ${cell.n}`;
+}
+
+type FormGapLike = {
+  number: number;
+  title: string;
+  best: { form: Form; average: number; n: number };
+  worst: { form: Form; average: number; n: number };
+};
+
+/** One lesson whose forms differ by at least 20 points. */
+export function formGapText(gap: FormGapLike): string {
+  const { best, worst } = gap;
+  return (
+    `W lekcji ${gap.number} „${gap.title}” forma ${PANEL_FORM[best.form]} ma średnio ${best.average}% (n = ${best.n}), ` +
+    `a ${PANEL_FORM[worst.form]} ${worst.average}% (n = ${worst.n}). ` +
+    `Wersję ${PANEL_FORM_ACC[worst.form]} tej lekcji dobrze jest przejrzeć.`
+  );
+}
+
+/** Sentences under "W jakiej formie działa każda lekcja". */
+export function matrixConclusions(
+  matrix: { cells: Record<Form, MatrixCellLike> }[],
+  gaps: FormGapLike[],
+): string[] {
+  if (gaps.length > 0) {
+    return gaps.map(formGapText);
+  }
+  if (matrix.length === 0) {
+    return ["Kurs nie ma jeszcze opublikowanych lekcji."];
+  }
+  const comparable = matrix.filter(
+    (row) =>
+      FORMS.filter((form) => row.cells[form].average !== null).length >= 2,
+  ).length;
+  if (comparable === 0) {
+    return [
+      `Za mało wyników, żeby porównać formy: średnia w komórce pojawia się od ${MATRIX_MIN_RESULTS} wyników.`,
+    ];
+  }
+  return [
+    comparable === matrix.length
+      ? "Formy działają podobnie we wszystkich lekcjach."
+      : `Formy działają podobnie we wszystkich lekcjach, które da się porównać (${comparable} z ${matrix.length}).`,
+  ];
+}
+
+/** R12 at the student in the course table: "wymaga uwagi: 55%, 40%, 50%". */
+export function attentionNoteText(attention: {
+  results: { percent: number }[];
+}): string {
+  const results = attention.results.map((result) => `${result.percent}%`);
+  return `wymaga uwagi: ${results.join(", ")}`;
+}
