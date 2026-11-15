@@ -1,20 +1,26 @@
 import random
+from collections.abc import Collection
+from dataclasses import asdict
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
+from app.modules.assessment import stats
 from app.modules.assessment.drawing import draw_questions
 from app.modules.assessment.grading import GradingError, grade
 from app.modules.assessment.models import LessonQuiz, QuizDraw
 from app.modules.assessment.readiness import quiz_issues
 from app.modules.assessment.schemas import (
     AttemptResponse,
+    LessonQuestionStatsResponse,
     QuestionResultResponse,
+    QuestionStatsRowResponse,
     QuizContent,
     QuizEditResponse,
     QuizQuestion,
+    ReviewQuestionResponse,
     StudentQuestionResponse,
     StudentQuizResponse,
 )
@@ -217,3 +223,81 @@ def submit_attempt(
         ],
         feedback=feedback,
     )
+
+
+# --- Statistics: questions to review (student), question analysis (author) ----------------------
+
+
+def _pools(db: Session, lesson_ids: Collection[int]) -> dict[int, list[dict[str, Any]]]:
+    if not lesson_ids:
+        return {}
+    quizzes = db.scalars(select(LessonQuiz).where(LessonQuiz.lesson_id.in_(lesson_ids)))
+    return {quiz.lesson_id: list(quiz.questions) for quiz in quizzes}
+
+
+def _submitted_draws(
+    db: Session, lesson_ids: Collection[int], user_ids: Collection[int]
+) -> list[stats.SubmittedDraw]:
+    if not lesson_ids or not user_ids:
+        return []
+    rows = db.scalars(
+        select(QuizDraw)
+        .where(
+            QuizDraw.lesson_id.in_(lesson_ids),
+            QuizDraw.user_id.in_(user_ids),
+            QuizDraw.submitted_at.is_not(None),
+        )
+        .order_by(QuizDraw.id)
+    )
+    return [
+        stats.SubmittedDraw(
+            draw_id=row.id,
+            lesson_id=row.lesson_id,
+            question_ids=tuple(row.question_ids),
+            answers=row.answers or {},
+            submitted_at=row.submitted_at,
+        )
+        for row in rows
+        if row.submitted_at is not None
+    ]
+
+
+def review_questions(db: Session, user: User) -> list[ReviewQuestionResponse]:
+    """ "To review": wrong answers of the last submitted draw of each lesson the student can
+    still study (published lessons of the courses they are accepted in), newest first."""
+    learning_style.require_student(user)
+    lessons = []
+    for course in curriculum.list_courses(db, user):
+        if not curriculum.is_accepted(db, course.id, user.id):
+            continue
+        for number, lesson in enumerate(curriculum.published_lessons(course), 1):
+            lessons.append(
+                stats.LessonInfo(course.id, course.title, lesson.id, lesson.title, number)
+            )
+    ids = [lesson.lesson_id for lesson in lessons]
+    found = stats.review_questions(lessons, _pools(db, ids), _submitted_draws(db, ids, [user.id]))
+    return [ReviewQuestionResponse.model_validate(asdict(item)) for item in found]
+
+
+def question_stats(db: Session, course_id: int, teacher: User) -> list[LessonQuestionStatsResponse]:
+    """Question analysis of each published lesson, from the submitted draws of the students
+    accepted in the course now."""
+    course = curriculum.get_owned_course(db, course_id, teacher)
+    lessons = curriculum.published_lessons(course)
+    ids = [lesson.id for lesson in lessons]
+    pools = _pools(db, ids)
+    draws = _submitted_draws(db, ids, curriculum.accepted_student_ids(db, course.id))
+    return [
+        LessonQuestionStatsResponse(
+            lesson_id=lesson.id,
+            title=lesson.title,
+            number=number,
+            questions=[
+                QuestionStatsRowResponse.model_validate(asdict(row))
+                for row in stats.question_stats(
+                    pools.get(lesson.id, []), [d for d in draws if d.lesson_id == lesson.id]
+                )
+            ],
+        )
+        for number, lesson in enumerate(lessons, 1)
+    ]

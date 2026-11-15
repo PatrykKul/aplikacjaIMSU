@@ -33,19 +33,24 @@ from app.modules.learning_style.models import (
     SurveyResult,
 )
 from app.modules.learning_style.schemas import (
+    AttentionResponse,
     CourseHint,
     CourseProgressResponse,
     CourseStatsResponse,
     CourseStudentResponse,
     FormEffectResponse,
+    FormGapResponse,
     FormStatsResponse,
+    FormTableRowResponse,
     HistoryPointResponse,
     JournalEntry,
     LastResultResponse,
     LearningProfileResponse,
     LessonRefResponse,
     LessonResultResponse,
+    LessonStatsRowResponse,
     LessonStudyStateResponse,
+    MatrixRowResponse,
     OpenProposalBrief,
     ProgressResponse,
     Proposal,
@@ -53,6 +58,8 @@ from app.modules.learning_style.schemas import (
     RetrySuggestion,
     StudentDetailResponse,
     StudentRefResponse,
+    StudentStatsResponse,
+    StudentSummaryResponse,
     StudyResponse,
     SurveyChoice,
     SurveySummaryResponse,
@@ -276,6 +283,46 @@ def rule_results(db: Session, rows: Sequence[QuizResult]) -> list[rules.Result]:
         )
         for row in rows
     ]
+
+
+def results_by_user(db: Session, user_ids: Collection[int]) -> dict[int, list[rules.Result]]:
+    """All results of several students (all courses), each list in the order recorded."""
+    if not user_ids:
+        return {}
+    rows = list(
+        db.scalars(
+            select(QuizResult).where(QuizResult.user_id.in_(user_ids)).order_by(QuizResult.id)
+        )
+    )
+    grouped: dict[int, list[rules.Result]] = {}
+    for row, result in zip(rows, rule_results(db, rows), strict=True):
+        grouped.setdefault(row.user_id, []).append(result)
+    return grouped
+
+
+# --- A run of failures (R12) and the form table --------------------------------------------------
+
+
+def attention_data(attention: rules.Attention) -> dict[str, Any]:
+    """`data` of the `attention_needed` event (the same shape as `AttentionResponse`)."""
+    return {
+        "streak": attention.streak,
+        "results": [asdict(result) for result in attention.results],
+    }
+
+
+def attention_response(attention: rules.Attention | None) -> AttentionResponse | None:
+    return (
+        None if attention is None else AttentionResponse.model_validate(attention_data(attention))
+    )
+
+
+def form_table(
+    results: Sequence[rules.Result], profile: LearningProfile | None
+) -> dict[str, FormTableRowResponse]:
+    percentages = None if profile is None else profile.percentages
+    rows = stats.form_table(results, percentages)
+    return {form: FormTableRowResponse(**asdict(row)) for form, row in rows.items()}
 
 
 # --- Proposals and trials ------------------------------------------------------------------------
@@ -932,6 +979,21 @@ def journal(db: Session, user: User) -> list[JournalEntry]:
     return _journal_entries(db, list(events))
 
 
+def student_stats(db: Session, user: User) -> StudentStatsResponse:
+    """ "My progress" numbers: summary line, form table and the run of failures (R12)."""
+    require_student(user)
+    rows = user_results(db, user.id)
+    results = rule_results(db, rows)
+    # Lessons passed in any course (completions come from `curriculum`)
+    passed = curriculum.passed_lesson_ids(db, user.id, list({row.lesson_id for row in rows}))
+    summary = stats.student_summary(results)
+    return StudentStatsResponse(
+        summary=StudentSummaryResponse(passed_lessons=len(passed), **asdict(summary)),
+        forms=form_table(results, get_profile(db, user.id)),
+        attention=attention_response(rules.attention(results)),
+    )
+
+
 # --- Teacher: course statistics and student details ----------------------------------------------
 
 
@@ -958,12 +1020,17 @@ def _open_proposals(db: Session, user_ids: Collection[int]) -> dict[int, StylePr
 
 
 def course_stats(db: Session, course_id: int, teacher: User) -> CourseStatsResponse:
-    """Course panel: form effectiveness, styles of the students and a row per student."""
+    """Course panel: form effectiveness, styles of the students, a row per student, lesson
+    statistics with the hardest lesson and the lesson x form matrix with its gaps.
+
+    Only students accepted now count; a student's attention (R12) looks at all their courses.
+    """
     course = curriculum.get_owned_course(db, course_id, teacher)
     results = course_results(db, course.id)
     student_ids = curriculum.accepted_student_ids(db, course.id)
     profiles = _profiles(db, student_ids)
     proposals = _open_proposals(db, student_ids)
+    all_results = results_by_user(db, student_ids)
     students = []
     for student in identity.get_users(db, student_ids):
         own = [r for r in results if r.user_id == student.id]
@@ -984,15 +1051,31 @@ def course_stats(db: Session, course_id: int, teacher: User) -> CourseStatsRespo
                 open_proposal=None
                 if proposal is None
                 else OpenProposalBrief(to=proposal.to_style, kind=proposal.kind),
+                attention=attention_response(rules.attention(all_results.get(student.id, []))),
             )
         )
     effects = stats.form_effectiveness(as_course_results(results))
     styles = [None if (p := profiles.get(sid)) is None else p.style for sid in student_ids]
+    lessons = [
+        stats.LessonRef(lesson.id, lesson.title, number)
+        for number, lesson in enumerate(curriculum.published_lessons(course), 1)
+    ]
+    scores = [
+        stats.LessonResult(r.user_id, r.lesson_id, r.form, r.percent, r.passed, r.counted)
+        for r in results
+    ]
+    lesson_rows = stats.lesson_stats(lessons, scores)
+    hardest = stats.hardest_lesson(lesson_rows)
+    matrix = stats.lesson_form_matrix(lessons, scores)
     return CourseStatsResponse(
         forms={form: FormEffectResponse(**asdict(effect)) for form, effect in effects.items()},
         styles=stats.style_distribution(styles),
         students=students,
         pending_requests=_pending_requests(db, course.id),
+        lessons=[LessonStatsRowResponse(**asdict(row)) for row in lesson_rows],
+        hardest=None if hardest is None else LessonStatsRowResponse(**asdict(hardest)),
+        matrix=[MatrixRowResponse.model_validate(asdict(row)) for row in matrix],
+        form_gaps=[FormGapResponse.model_validate(asdict(gap)) for gap in stats.form_gaps(matrix)],
     )
 
 
@@ -1024,6 +1107,7 @@ def student_detail(
         )
         .order_by(DecisionEvent.created_at.desc(), DecisionEvent.id.desc())
     )
+    results = rule_results(db, user_results(db, student.id))
     return StudentDetailResponse(
         student=StudentRefResponse(
             id=student.id, display_name=student.display_name, email=student.email
@@ -1032,4 +1116,6 @@ def student_detail(
         history=history(db, student.id),
         lessons=lesson_results(db, student.id, course.id),
         journal=_journal_entries(db, list(events)),
+        forms=form_table(results, get_profile(db, student.id)),
+        attention=attention_response(rules.attention(results)),
     )

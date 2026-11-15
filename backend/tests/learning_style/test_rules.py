@@ -1,12 +1,15 @@
-"""Adaptation rules R1-R8 with the numbers from the specification (docs/08)."""
+"""Adaptation rules R1-R8 and R12 with the numbers from the specification (docs/08)."""
 
 from itertools import product
 
 import pytest
 
 from app.modules.learning_style.rules import (
+    ATTENTION_STREAK,
     FORMS,
+    Attention,
     CourseResult,
+    FormScore,
     FormStats,
     Hint,
     LessonScore,
@@ -16,6 +19,7 @@ from app.modules.learning_style.rules import (
     TrialDecision,
     TrialInfo,
     apply_result,
+    attention,
     average,
     counted_total,
     course_hint,
@@ -24,6 +28,7 @@ from app.modules.learning_style.rules import (
     is_counted,
     is_passed,
     praise,
+    rate,
     retry_suggestion,
     survey_leaders,
     survey_percentages,
@@ -74,6 +79,14 @@ def test_average_rounds_half_up():
     assert average([80, 100, 80]) == 87  # 86.67
     assert average([40, 41]) == 41  # 40.5 -> 41 (not banker's rounding)
     assert average([]) is None
+
+
+def test_rate_rounds_half_up():
+    assert rate(1, 2) == 50
+    assert rate(2, 3) == 67  # 66.67
+    assert rate(1, 3) == 33
+    assert rate(1, 8) == 13  # 12.5 -> 13 (not banker's rounding)
+    assert rate(0, 4) == 0 and rate(4, 4) == 100
 
 
 # --- R1. Survey ----------------------------------------------------------------------------------
@@ -366,6 +379,59 @@ def test_previous_result_is_from_another_lesson_and_counted():
     assert suggestion.failed.previous == LessonScore(1, "Lekcja 1", 60)
 
 
+# --- R5. Strength of the suggestion --------------------------------------------------------------
+
+
+def strength_of(*history: Result) -> str:
+    items = list(history)
+    survey = pct(45, 40, 15)
+    return retry_suggestion(items[-1], survey, stats_of(*items), survey, items).strength
+
+
+def test_soft_after_a_passed_previous_result_in_the_form():
+    assert strength_of(result(1, "V", 80), result(2, "V", 40)) == "soft"
+
+
+def test_strong_after_a_failed_previous_result_in_the_form():
+    # second failure in a row in V
+    assert strength_of(result(1, "V", 40), result(2, "V", 60)) == "strong"
+
+
+def test_strong_without_a_previous_counted_result_in_the_form():
+    assert strength_of(result(1, "V", 40)) == "strong"
+    # results in other forms do not count
+    assert strength_of(result(1, "A", 80), result(2, "K", 100), result(3, "V", 40)) == "strong"
+
+
+def test_strength_looks_at_the_most_recent_counted_result_in_the_form():
+    # both directions: an older pass does not soften a newer failure and vice versa
+    assert strength_of(result(1, "V", 80), result(2, "V", 40), result(3, "V", 60)) == "strong"
+    assert strength_of(result(1, "V", 40), result(2, "V", 80), result(3, "V", 60)) == "soft"
+
+
+def test_strength_skips_not_counted_results():
+    # a passed retry in lesson 1 is not counted: the counted result there failed
+    history = (result(1, "V", 40), result(1, "V", 80, counted=False), result(2, "V", 40))
+    assert strength_of(*history) == "strong"
+    history = (result(1, "V", 80), result(2, "V", 0, counted=False), result(3, "V", 40))
+    assert strength_of(*history) == "soft"
+
+
+def test_strength_of_a_not_counted_retry_in_the_same_form():
+    # the retry itself is excluded; the previous counted V result is lesson 1's first attempt
+    assert strength_of(result(1, "V", 40), result(1, "V", 60, counted=False)) == "strong"
+    history = (result(1, "V", 80), result(2, "V", 40), result(2, "V", 60, counted=False))
+    assert strength_of(*history) == "strong"  # lesson 2's counted V failed
+    history = (result(1, "V", 40), result(2, "V", 80), result(2, "V", 60, counted=False))
+    assert strength_of(*history) == "soft"  # lesson 2's counted V passed
+
+
+def test_strength_of_a_failure_in_a_chosen_form():
+    # style V, lesson redone in A: A's previous counted result decides
+    history = (result(1, "A", 80), result(2, "V", 40), result(2, "A", 60))
+    assert strength_of(*history) == "soft"
+
+
 # --- R6. Switch proposal -------------------------------------------------------------------------
 
 KUBA = [
@@ -581,3 +647,55 @@ def test_no_hint_for_a_student_with_results_or_without_data():
     assert course_hint(results, student_id=1) is None
     assert course_hint([course_result(1, "A", 80)], student_id=99) is None
     assert course_hint([], student_id=99) is None
+
+
+# --- R12. A run of failures ----------------------------------------------------------------------
+
+
+def test_attention_after_three_counted_failures():
+    history = [result(1, "V", 80), result(2, "V", 60), result(3, "A", 40), result(4, "V", 0)]
+    assert attention(history) == Attention(
+        streak=3,
+        results=(
+            FormScore(2, "Lekcja 2", "V", 60),
+            FormScore(3, "Lekcja 3", "A", 40),
+            FormScore(4, "Lekcja 4", "V", 0),
+        ),
+    )
+    assert ATTENTION_STREAK == 3
+
+
+def test_no_attention_after_two_failures():
+    assert attention([result(1, "V", 80), result(2, "V", 60), result(3, "V", 40)]) is None
+    assert attention([result(1, "V", 60), result(2, "V", 40)]) is None
+    assert attention([]) is None
+
+
+def test_attention_streak_grows_and_keeps_the_last_three():
+    history = [result(lesson, "V", 40) for lesson in range(1, 6)]
+    found = attention(history)
+    assert found is not None
+    assert found.streak == 5
+    assert [item.lesson_id for item in found.results] == [3, 4, 5]
+
+
+def test_attention_skips_not_counted_results():
+    history = [
+        result(1, "V", 40),
+        result(1, "V", 80, counted=False),  # a passed retry does not end the run
+        result(2, "V", 20),
+        result(2, "V", 0, counted=False),  # a failed retry does not extend it
+        result(3, "A", 60),
+    ]
+    found = attention(history)
+    assert found is not None
+    assert found.streak == 3
+    assert [(item.lesson_id, item.percent) for item in found.results] == [(1, 40), (2, 20), (3, 60)]
+    assert attention(history[:4]) is None  # 2 counted failures only
+
+
+def test_a_counted_pass_ends_the_attention():
+    failures = [result(1, "V", 40), result(2, "V", 40), result(3, "V", 40)]
+    assert attention(failures) is not None
+    assert attention([*failures, result(4, "A", 80)]) is None
+    assert attention([*failures, result(4, "A", 80), result(5, "A", 60)]) is None

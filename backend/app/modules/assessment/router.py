@@ -7,8 +7,10 @@ from app.modules.assessment import service
 from app.modules.assessment.schemas import (
     AttemptRequest,
     AttemptResponse,
+    LessonQuestionStatsResponse,
     QuizContent,
     QuizEditResponse,
+    ReviewQuestionResponse,
     StudentQuizResponse,
 )
 from app.modules.identity.dependencies import CurrentUser, TeacherUser, require_role
@@ -17,6 +19,8 @@ from app.modules.identity.models import User, UserRole
 StudentUser = Annotated[User, Depends(require_role(UserRole.STUDENT))]
 
 quiz_router = APIRouter(prefix="/lessons", tags=["assessment"])
+review_router = APIRouter(prefix="/me", tags=["assessment"])
+question_stats_router = APIRouter(prefix="/courses", tags=["assessment"])
 
 
 # --- Teacher (the admin reads the pool) ----------------------------------------------------------
@@ -53,3 +57,18 @@ def submit_attempt(
     lesson_id: int, data: AttemptRequest, db: DbSession, user: StudentUser
 ) -> AttemptResponse:
     return service.submit_attempt(db, lesson_id, user, data.draw_id, data.answers)
+
+
+# --- Statistics ----------------------------------------------------------------------------------
+
+
+@review_router.get("/review-questions")
+def get_review_questions(db: DbSession, user: StudentUser) -> list[ReviewQuestionResponse]:
+    return service.review_questions(db, user)
+
+
+@question_stats_router.get("/{course_id}/question-stats")
+def get_question_stats(
+    course_id: int, db: DbSession, user: TeacherUser
+) -> list[LessonQuestionStatsResponse]:
+    return service.question_stats(db, course_id, user)
