@@ -5,16 +5,26 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { CourseProgressBar } from "@/features/courses/components/CourseProgressBar";
+import { AttentionNote } from "@/features/learning-style/components/AttentionNote";
+import { useLearningProfile } from "@/features/learning-style/hooks";
 import { PageMessage } from "@/shared/layout/page-states";
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 
-import { useMyJournal, useMyProgress } from "../hooks";
+import {
+  useMyJournal,
+  useMyProgress,
+  useMyReviewQuestions,
+  useMyStats,
+} from "../hooks";
 import { lessonNumbers } from "../chart-data";
 import type { CourseProgress } from "../types";
 import { DecisionJournal } from "./DecisionJournal";
+import { FormTable } from "./FormTable";
 import { LessonResultsTable } from "./LessonResultsTable";
 import { PercentChart } from "./PercentChart";
+import { ReviewQuestions } from "./ReviewQuestions";
+import { StatsSummary } from "./StatsSummary";
 
 function Section({
   id,
@@ -40,6 +50,43 @@ function Section({
       {children}
     </section>
   );
+}
+
+/** Loading and error of one section; the rest of the page stays usable. */
+function SectionQuery<T>({
+  query,
+  errorText,
+  children,
+}: {
+  query: {
+    isPending: boolean;
+    isError: boolean;
+    data: T | undefined;
+    refetch: () => unknown;
+  };
+  errorText: string;
+  children: (data: T) => ReactNode;
+}) {
+  if (query.isPending) {
+    return (
+      <div className="flex justify-center py-6">
+        <Spinner className="size-5" />
+      </div>
+    );
+  }
+  if (query.isError || query.data === undefined) {
+    return (
+      <div className="space-y-3">
+        <p role="alert" className="text-sm text-destructive">
+          {errorText}
+        </p>
+        <Button variant="outline" onClick={() => query.refetch()}>
+          Spróbuj ponownie
+        </Button>
+      </div>
+    );
+  }
+  return <>{children(query.data)}</>;
 }
 
 function Courses({ courses }: { courses: CourseProgress[] }) {
@@ -100,6 +147,9 @@ function Courses({ courses }: { courses: CourseProgress[] }) {
 export function ProgressPage() {
   const progress = useMyProgress();
   const journal = useMyJournal();
+  const stats = useMyStats();
+  const review = useMyReviewQuestions();
+  const profile = useLearningProfile();
 
   if (progress.isPending) {
     return (
@@ -132,6 +182,51 @@ export function ProgressPage() {
           decyzja systemu z liczbami, z których wynika.
         </p>
       </div>
+
+      {stats.data?.attention && (
+        <AttentionNote attention={stats.data.attention} />
+      )}
+
+      <Section
+        id="summary"
+        title="Podsumowanie"
+        description="Średni wynik i seria liczą tylko pierwsze podejście do lekcji w danej formie, bez powtórek."
+      >
+        <SectionQuery
+          query={stats}
+          errorText="Nie udało się wczytać podsumowania."
+        >
+          {(data) => <StatsSummary summary={data.summary} />}
+        </SectionQuery>
+      </Section>
+
+      <Section
+        id="forms"
+        title="W której formie idzie Ci najlepiej"
+        description="Jeden wiersz to jedna forma, liczby ze wszystkich Twoich kursów. „Za pierwszym razem” i „Średnia” liczą pierwsze podejście do lekcji w tej formie; procent zaliczeń pojawia się od 2 lekcji."
+      >
+        <SectionQuery
+          query={stats}
+          errorText="Nie udało się wczytać tabeli form."
+        >
+          {(data) => (
+            <FormTable forms={data.forms} style={profile.data?.style ?? null} />
+          )}
+        </SectionQuery>
+      </Section>
+
+      <Section
+        id="review"
+        title="Do powtórki"
+        description="Pytania z ostatniego podejścia do każdej lekcji, na które odpowiedź była błędna. Najnowsze na górze, najwyżej 5."
+      >
+        <SectionQuery
+          query={review}
+          errorText="Nie udało się wczytać pytań do powtórki."
+        >
+          {(questions) => <ReviewQuestions questions={questions} />}
+        </SectionQuery>
+      </Section>
 
       <Section
         id="chart"

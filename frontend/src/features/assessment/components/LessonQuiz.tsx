@@ -12,6 +12,7 @@ import {
   formName,
   inForm,
   quizScoreText,
+  suggestionStrength,
 } from "@/features/learning-style/explain";
 import type { Study } from "@/features/learning-style/types";
 import { ApiError } from "@/shared/api/client";
@@ -123,6 +124,11 @@ function QuizResultView({
 }) {
   const { feedback } = result;
   const unlocked = feedback.unlocked_lesson;
+  // R5 soft: "Rozwiąż jeszcze raz" moves up to the suggestion, as the main action
+  const softRetry =
+    !feedback.passed &&
+    feedback.suggestion !== null &&
+    suggestionStrength(feedback.suggestion) === "soft";
   return (
     <div className="space-y-8">
       <div aria-live="polite" className="space-y-1">
@@ -152,31 +158,35 @@ function QuizResultView({
         feedback={feedback}
         onRetryInForm={onRetryInForm}
         retryPending={retryPending}
+        onAgain={onAgain}
       />
 
-      <div className="flex flex-wrap gap-3 border-t pt-6">
-        <Button variant="outline" onClick={onAgain}>
-          <RotateCcwIcon data-icon="inline-start" />
-          Rozwiąż jeszcze raz
-        </Button>
-        {unlocked && (
-          <Link
-            href={`/courses/${courseId}/lessons/${unlocked.id}`}
-            className={cn(buttonVariants())}
-          >
-            Lekcja {unlocked.number}: {unlocked.title}
-            <ArrowRightIcon data-icon="inline-end" />
-          </Link>
-        )}
-        {feedback.course_completed && (
-          <Link
-            href={`/courses/${courseId}`}
-            className={cn(buttonVariants({ variant: "outline" }))}
-          >
-            Wróć do kursu
-          </Link>
-        )}
-      </div>
+      {/* R5 soft: a failed attempt, the only action is in the suggestion above */}
+      {!softRetry && (
+        <div className="flex flex-wrap gap-3 border-t pt-6">
+          <Button variant="outline" onClick={onAgain}>
+            <RotateCcwIcon data-icon="inline-start" />
+            Rozwiąż jeszcze raz
+          </Button>
+          {unlocked && (
+            <Link
+              href={`/courses/${courseId}/lessons/${unlocked.id}`}
+              className={cn(buttonVariants())}
+            >
+              Lekcja {unlocked.number}: {unlocked.title}
+              <ArrowRightIcon data-icon="inline-end" />
+            </Link>
+          )}
+          {feedback.course_completed && (
+            <Link
+              href={`/courses/${courseId}`}
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              Wróć do kursu
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 }

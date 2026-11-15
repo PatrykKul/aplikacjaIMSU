@@ -11,6 +11,7 @@ import {
   quizChangeRule,
 } from "../explain";
 import type { QuizFeedback } from "../types";
+import { AttentionNote } from "./AttentionNote";
 import { RetrySuggestionBox } from "./RetrySuggestionBox";
 import { StyleProposalBanner } from "./StyleProposalBanner";
 import { TrialNote } from "./TrialNote";
@@ -20,6 +21,8 @@ type QuizFeedbackPanelProps = {
   /** R5 action: change the form of the lesson and draw new questions. */
   onRetryInForm: (form: Form) => void;
   retryPending?: boolean;
+  /** A new set of questions in the same form (main action of R5 soft). */
+  onAgain?: () => void;
 };
 
 /** What the system decided after the attempt, with the numbers behind it. */
@@ -27,6 +30,7 @@ export function QuizFeedbackPanel({
   feedback,
   onRetryInForm,
   retryPending,
+  onAgain,
 }: QuizFeedbackPanelProps) {
   return (
     <div className="space-y-5">
@@ -64,8 +68,11 @@ export function QuizFeedbackPanel({
           suggestion={feedback.suggestion}
           onRetry={onRetryInForm}
           pending={retryPending}
+          onAgain={onAgain}
         />
       )}
+
+      {feedback.attention && <AttentionNote attention={feedback.attention} />}
 
       {feedback.trial && <TrialNote trial={feedback.trial} />}
 
