@@ -256,6 +256,45 @@ describe("R5 strength", () => {
   });
 });
 
+describe("cancelled trial in the journal", () => {
+  const trial = {
+    id: 2,
+    at: "2026-11-15T10:00:00Z",
+    course: null,
+    lesson: null,
+    type: "trial_started",
+    data: {
+      trial_id: 7,
+      from: "A",
+      to: "V",
+      source: "manual",
+      before_average: 100,
+      replaced_trial_id: null,
+    },
+  };
+
+  test("a running trial is not marked", () => {
+    assert.doesNotMatch(explain.journalText(trial), /Anulowany/);
+  });
+
+  test("reverted and replaced trials say so in their own entry", () => {
+    const reverted = explain.journalText(trial, {
+      cancelledTrials: new Map([[7, "reverted"]]),
+    });
+    assert.match(
+      reverted,
+      /Anulowany: zmiana stylu cofnięta przed pierwszą lekcją\.$/,
+    );
+    const replaced = explain.journalText(trial, {
+      cancelledTrials: new Map([[7, "replaced"]]),
+    });
+    assert.match(
+      replaced,
+      /Anulowany: przed pierwszą lekcją styl zmieniony ponownie\.$/,
+    );
+  });
+});
+
 describe("table cells", () => {
   test("below the threshold and status words", () => {
     assert.equal(explain.tooFewText(1), "za mało danych (n = 1)");

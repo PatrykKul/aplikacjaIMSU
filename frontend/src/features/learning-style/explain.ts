@@ -5,6 +5,7 @@
  */
 import { FORMS, type Form } from "@/features/content/types";
 import type { HistoryEvent } from "@/features/progress/chart-data";
+import type { TrialCancel } from "@/features/progress/journal-data";
 import type {
   ClearedLesson,
   JournalEntry,
@@ -762,8 +763,22 @@ export function journalLabel(entry: JournalEntry): string {
   return JOURNAL_LABELS[entry.type] ?? "Zdarzenie";
 }
 
+/** What the journal knows from other entries (see `progress/journal-data.ts`). */
+export type JournalContext = {
+  /** Trials cancelled later, by `trial_id`. */
+  cancelledTrials?: Map<number, TrialCancel>;
+};
+
+const TRIAL_CANCEL_TEXT: Record<TrialCancel, string> = {
+  reverted: "Anulowany: zmiana stylu cofnięta przed pierwszą lekcją.",
+  replaced: "Anulowany: przed pierwszą lekcją styl zmieniony ponownie.",
+};
+
 /** One entry of the journal as sentences; neutral voice (also for the teacher). */
-export function journalText(entry: JournalEntry): string {
+export function journalText(
+  entry: JournalEntry,
+  context: JournalContext = {},
+): string {
   switch (entry.type) {
     case "survey_completed": {
       const { percentages, style, tie_styles } = entry.data;
@@ -823,7 +838,9 @@ export function journalText(entry: JournalEntry): string {
         clearedLessonsText(entry.data.cleared_lessons, entry.data.to),
       );
     case "trial_started": {
-      const { from, to, before_average, replaced_trial_id } = entry.data;
+      const { trial_id, from, to, before_average, replaced_trial_id } =
+        entry.data;
+      const cancel = context.cancelledTrials?.get(trial_id);
       return joinSentences(
         `Okres próbny stylu ${STYLE_ADJ_GEN[to]} (${to}): ${lessonsText(TRIAL_LESSONS)}.`,
         replaced_trial_id
@@ -831,6 +848,7 @@ export function journalText(entry: JournalEntry): string {
           : before_average === null
             ? `${noBaselineText(from)}.`
             : `Średnia przed zmianą: ${before_average}% ${inForm(from)}.`,
+        cancel ? TRIAL_CANCEL_TEXT[cancel] : "",
       );
     }
     case "praise":
