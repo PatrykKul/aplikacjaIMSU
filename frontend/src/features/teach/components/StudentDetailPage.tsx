@@ -9,6 +9,7 @@ import type { LearningProfile } from "@/features/learning-style/types";
 import { lessonNumbers } from "@/features/progress/chart-data";
 import { DecisionJournal } from "@/features/progress/components/DecisionJournal";
 import { FormPercentages } from "@/features/progress/components/FormPercentages";
+import { FormTable } from "@/features/progress/components/FormTable";
 import { LessonResultsTable } from "@/features/progress/components/LessonResultsTable";
 import { PercentChart } from "@/features/progress/components/PercentChart";
 import { ApiError } from "@/shared/api/client";
@@ -117,7 +118,7 @@ export function StudentDetailPage({
     );
   }
 
-  const { student, profile, history, lessons, journal } = detail.data;
+  const { student, profile, history, lessons, journal, forms } = detail.data;
 
   return (
     <div className="space-y-12">
@@ -155,6 +156,18 @@ export function StudentDetailPage({
         description="Profil ucznia ze wszystkich kursów: start z ankiety, potem +10 / −10 za pierwsze podejście w danej formie w lekcji."
       >
         <FormPercentages profile={profile} />
+      </DetailSection>
+
+      <DetailSection
+        id="student-form-table"
+        title="W której formie uczniowi idzie najlepiej"
+        description="Jeden wiersz to jedna forma, liczby ze wszystkich kursów ucznia. „Za pierwszym razem” i „Średnia” liczą pierwsze podejście do lekcji w tej formie; procent zaliczeń pojawia się od 2 lekcji."
+      >
+        {forms ? (
+          <FormTable forms={forms} style={profile.style} voice="neutral" />
+        ) : (
+          <p className="text-muted-foreground">Brak danych o formach.</p>
+        )}
       </DetailSection>
 
       <DetailSection id="student-chart" title="Procenty w czasie">
