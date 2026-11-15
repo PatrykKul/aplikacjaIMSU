@@ -21,7 +21,7 @@
 | gotowość / publikacja lekcji | readiness / publication |
 | blok lekcji: tekst / załącznik | block: text / attachment |
 | typ załącznika | attachment kind |
-| forma: wzrokowa / słuchowa / kinestetyczna | form: `V` / `A` / `K` |
+| forma: wzrokowa / słuchowa / praktyczna (w interfejsie zawsze „praktyczna”; „kinestetyczna” tylko w dokumentacji jako nazwa z teorii VAK, D66) | form: `V` / `A` / `K` |
 | wersja lekcji (V / A / K) | lesson version (`lesson_contents.form`) |
 | forma lekcji (wybór „przerób w innej formie”) | lesson form (`lesson_forms`) |
 | plik | file |

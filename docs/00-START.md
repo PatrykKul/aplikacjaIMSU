@@ -51,6 +51,7 @@ Ten katalog zawiera pełny kontekst projektu dla każdej nowej sesji pracy (czł
 ## Aktualny status
 
 - **Termin: koniec listopada 2026.**
-- Zrobione: etapy 0–7 (v2) i **etap 9 — v3** (12.11): jeden styl i profil procentowy, lekcje w trzech wersjach z pulą pytań, reguły adaptacji R1–R11 z dziennikiem decyzji, statystyki ucznia i panel kursu, zapisy na kurs (klasy usunięte), zatwierdzanie nauczycieli, nowe dane demo i scenariusz. Poprawki po teście Patryka (12.11, D55–D62). Testy backendu: 540. Raport: `RAPORT-v3.md`.
-- Gałąź `feat/v3-adaptacja` czeka na merge do `main` (decyzja autora).
+- Zrobione: etapy 0–7 (v2) i **etap 9 — v3** (12.11): jeden styl i profil procentowy, lekcje w trzech wersjach z pulą pytań, reguły adaptacji R1–R11 z dziennikiem decyzji, statystyki ucznia i panel kursu, zapisy na kurs (klasy usunięte), zatwierdzanie nauczycieli, nowe dane demo i scenariusz. Poprawki po teście Patryka (12.11, D55–D62). Raport: `RAPORT-v3.md`.
+- **Etap 10 — statystyki i język komunikatów** (15.11, gałąź `feat/statystyki`, D63–D67): podsumowanie, tabela form i „Do powtórki” u ucznia; trudność lekcji, analiza pytań, macierz lekcja × forma i „wymaga uwagi” w panelu kursu; R5 soft / strong, R12; forma K w interfejsie „praktyczna”. Testy backendu: 602, frontendu: 49. Raport: sekcja „Statystyki (15.11)” w `RAPORT-v3.md`.
+- v3 scalone do `main` 15.11. Gałąź `feat/statystyki` czeka na audyt i merge (decyzja autora).
 - **Następny:** etap 8 — dokumentacja do oddania i pokaz (scenariusz i LaTeX zaktualizowane w etapie 9).
