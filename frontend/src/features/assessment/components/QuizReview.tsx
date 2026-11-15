@@ -21,7 +21,7 @@ export function QuizReview({ results }: { results: QuestionResult[] }) {
                 : "text-feedback-incorrect-foreground",
             )}
           >
-            {result.correct ? "Dobrze!" : "Jeszcze nie"}
+            {result.correct ? "Poprawnie" : "Niepoprawnie"}
           </p>
           <ul className="grid gap-2">
             {result.answers.map((answer) => {

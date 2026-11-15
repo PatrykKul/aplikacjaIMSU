@@ -202,7 +202,7 @@ describe("matrix", () => {
       worst: { form: "K", average: 55, n: 3 },
     };
     assert.deepEqual(text.matrixConclusions([], [gap]), [
-      "W lekcji 2 „Pętla while” forma słuchowa ma średnio 88% (n = 4), a praktyczna 55% (n = 3). Wersję praktyczną tej lekcji dobrze jest przejrzeć.",
+      "W lekcji 2 „Pętla while” forma słuchowa ma średnio 88% (n = 4), a praktyczna 55% (n = 3). Sprawdź wersję praktyczną tej lekcji.",
     ]);
   });
 

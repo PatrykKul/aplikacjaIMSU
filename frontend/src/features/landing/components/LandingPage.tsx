@@ -36,7 +36,7 @@ const formCards: FormCard[] = [
   },
   {
     letter: "K",
-    title: "Przez działanie",
+    title: "Praktycznie",
     description: "Zadanie krok po kroku z kartą do wykonania.",
     icon: HandIcon,
     tone: "bg-form-k-soft text-form-k-foreground",
@@ -57,7 +57,7 @@ const steps = [
   {
     title: "Quiz i decyzja z danych",
     description:
-      "Wynik zmienia procent formy, w której się uczyłeś. Gdy w innej formie idzie Ci lepiej, system pokazuje liczby i proponuje zmianę – decydujesz Ty.",
+      "Wynik quizu zmienia procent formy, w której była lekcja. Gdy w innej formie idzie Ci lepiej, system pokazuje liczby i proponuje zmianę. Decyzja należy do Ciebie.",
   },
 ];
 
@@ -96,7 +96,7 @@ export function LandingPage() {
               Ucz się po swojemu
             </h1>
             <p className="max-w-[55ch] text-lg text-muted-foreground">
-              IMSU podaje lekcje w formie, z której najłatwiej się uczysz –
+              IMSU podaje lekcje w formie, z której najłatwiej się uczysz:
               obrazem, dźwiękiem albo przez działanie. Po każdym quizie
               sprawdza, co naprawdę działa, i podpowiada zmianę stylu. Decyzja
               zawsze należy do Ciebie.

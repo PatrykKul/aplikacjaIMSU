@@ -5,7 +5,13 @@
 // copies, and loaded as plain JavaScript.
 
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, test } from "node:test";
@@ -204,7 +210,7 @@ describe("R12 attention", () => {
     });
     assert.equal(
       text,
-      "3 lekcje z rzędu poniżej progu: „Pętla for” 55%, „Funkcje” 40%, „Listy” 50%. Wskazówka: spróbować innej formy albo poprosić nauczyciela o pomoc.",
+      "3 lekcje z rzędu poniżej progu: „Pętla for” 55%, „Funkcje” 40%, „Listy” 50%. Wskazówka po tej serii: inna forma lekcji albo pomoc nauczyciela.",
     );
     assert.equal(
       explain.journalLabel({ type: "attention_needed" }),
@@ -250,7 +256,7 @@ describe("R5 strength", () => {
       });
     assert.match(
       journal(suggestion("soft")),
-      /^Sugestia: rozwiązać quiz jeszcze raz, ewentualnie przerobić lekcję w formie praktycznej\./,
+      /^Sugestia: rozwiązać quiz jeszcze raz albo przerobić lekcję w formie praktycznej\./,
     );
     assert.match(journal(suggestion()), /^Sugestia: przerobić lekcję w formie/);
   });
@@ -301,6 +307,97 @@ describe("table cells", () => {
     assert.equal(explain.formStatusText(true), "potwierdzona wynikami");
     assert.equal(explain.formStatusText(false), "tylko z ankiety");
     assert.equal(explain.activeStyleText(), "Twój styl");
-    assert.equal(explain.formUiLabel("K"), "Praktyczna (K)");
+    assert.equal(explain.formLabel("K"), "Praktyczna (K)");
+  });
+});
+
+describe("point 9: language of the messages", () => {
+  test("one name per form: K is praktyczna", () => {
+    assert.equal(explain.formName("K"), "praktyczna (K)");
+    assert.equal(explain.styleName("K"), "praktyczny (K)");
+    assert.equal(explain.inForm("K"), "w formie praktycznej");
+  });
+
+  test("the result of a quiz without the mechanics", () => {
+    assert.equal(
+      explain.quizChangeRule(true, false, "A"),
+      "Ten wynik obniżył udział formy słuchowej w Twoim profilu.",
+    );
+    assert.equal(
+      explain.quizChangeRule(true, true, "V"),
+      "Ten wynik podniósł udział formy wzrokowej w Twoim profilu.",
+    );
+    const before = { V: 40, A: 47, K: 13 };
+    const after = { V: 35, A: 57, K: 8 };
+    assert.deepEqual(
+      explain.quizChangeParts({
+        form: "A",
+        counted: true,
+        passed: true,
+        percentages_before: before,
+        percentages_after: after,
+        unlocked_lesson: { id: 4, number: 4, title: "Pętla while" },
+      }),
+      ["Udział formy słuchowej: 47% → 57%.", "Lekcja 4 jest już otwarta."],
+    );
+  });
+
+  test("the reason of the suggestion in full sentences, without gender", () => {
+    const survey = { V: 40, A: 20, K: 40 };
+    assert.equal(
+      explain.suggestionReason(
+        {
+          failed: { form: "A", percent: 60, previous: { percent: 100 } },
+          suggested: {
+            form: "K",
+            reason: "survey",
+            percent: 30,
+            survey_percent: 40,
+            best: null,
+          },
+        },
+        { survey },
+      ),
+      "W formie słuchowej masz w tym quizie 60%, w poprzedniej lekcji 100%. W Twojej ankiecie forma praktyczna była na drugim miejscu (40%). Nie masz jeszcze wyników w tej formie.",
+    );
+    assert.equal(
+      explain.suggestionReason({
+        failed: { form: "V", percent: 40, previous: null },
+        suggested: {
+          form: "A",
+          reason: "confirmed",
+          percent: 45,
+          survey_percent: 30,
+          best: { lesson_id: 1, lesson_title: "Wzór i wykres", percent: 80 },
+        },
+      }),
+      "W formie wzrokowej masz w tym quizie 40%. W formie słuchowej masz zaliczoną lekcję „Wzór i wykres” (80%).",
+    );
+  });
+
+  // Every text of the interface: no K under its old name, no "warto",
+  // no "my" without a subject, no gendered verbs addressed to the student
+  test("no forbidden phrases in the sources of the interface", () => {
+    const forbidden =
+      /kinestetyczn|proporcjonaln|(?<!\p{L})warto(?!\p{L})|nie mamy|\p{L}+(łeś|łaś)(?!\p{L})|jesteś( \p{L}+)? zapisany|Ups!/iu;
+    const hits = [];
+    const walk = (folder) => {
+      for (const entry of readdirSync(folder, { withFileTypes: true })) {
+        const full = path.join(folder, entry.name);
+        if (entry.isDirectory()) {
+          walk(full);
+        } else if (/\.tsx?$/.test(entry.name)) {
+          readFileSync(full, "utf8")
+            .split("\n")
+            .forEach((line, index) => {
+              if (forbidden.test(line)) {
+                hits.push(`${path.relative(src, full)}:${index + 1}`);
+              }
+            });
+        }
+      }
+    };
+    walk(src);
+    assert.deepEqual(hits, []);
   });
 });

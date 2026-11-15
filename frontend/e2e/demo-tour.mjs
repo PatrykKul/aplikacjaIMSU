@@ -268,7 +268,7 @@ console.log("nauczyciel.demo: kursy, edytor lekcji, panel kursu");
   for (const [tab, name] of [
     ["Wzrokowa (V)", "anna-lekcja-wersja-v"],
     ["Słuchowa (A)", "anna-lekcja-wersja-a"],
-    ["Kinestetyczna (K)", "anna-lekcja-wersja-k"],
+    ["Praktyczna (K)", "anna-lekcja-wersja-k"],
     ["Quiz (pula)", "anna-lekcja-pula-pytan"],
   ]) {
     await page.getByRole("tab", { name: tab }).click();

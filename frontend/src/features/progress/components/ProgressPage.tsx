@@ -93,7 +93,7 @@ function Courses({ courses }: { courses: CourseProgress[] }) {
   if (courses.length === 0) {
     return (
       <p className="text-muted-foreground">
-        Nie jesteś jeszcze zapisany na żaden kurs.{" "}
+        Nie masz jeszcze żadnego kursu.{" "}
         <Link
           href="/courses"
           className="font-medium underline underline-offset-4"
@@ -218,7 +218,7 @@ export function ProgressPage() {
       <Section
         id="review"
         title="Do powtórki"
-        description="Pytania z ostatniego podejścia do każdej lekcji, na które odpowiedź była błędna. Najnowsze na górze, najwyżej 5."
+        description="Pytania, na które w ostatnim podejściu do lekcji padła zła odpowiedź. Najnowsze są na górze, najwyżej 5."
       >
         <SectionQuery
           query={review}
@@ -231,7 +231,7 @@ export function ProgressPage() {
       <Section
         id="chart"
         title="Procenty form w czasie"
-        description="Start z ankiety, potem zmiana po każdym policzonym quizie. Zmiana stylu nie zmienia procentów – na wykresie to pionowa linia."
+        description="Procenty startują z ankiety i zmieniają się po każdym policzonym quizie. Zmiana stylu nie zmienia procentów, na wykresie jest pionową linią."
       >
         <PercentChart
           history={data.history}
@@ -246,7 +246,7 @@ export function ProgressPage() {
       <Section
         id="results"
         title="Wyniki lekcji"
-        description="Każde podejście do quizu. Procenty zmienia tylko pierwsze podejście w danej formie w danej lekcji."
+        description="Tu jest każde podejście do quizu. Procenty zmienia tylko pierwsze podejście do lekcji w danej formie."
       >
         <LessonResultsTable lessons={data.lessons} />
       </Section>
@@ -254,7 +254,7 @@ export function ProgressPage() {
       <Section
         id="journal"
         title="Dziennik decyzji"
-        description="Od najnowszych. Każda reakcja systemu wynika z reguły i ma swoje liczby."
+        description="Najnowsze wpisy są na górze. Przy każdej reakcji systemu są liczby, z których wynika."
       >
         {journal.isPending ? (
           <div className="flex justify-center py-6">

@@ -135,9 +135,8 @@ function QuizResultView({
         <p
           className={cn(
             "text-xl font-semibold tabular-nums",
-            result.passed
-              ? "text-feedback-correct-foreground"
-              : "text-feedback-incorrect-foreground",
+            // A failed quiz is not an error: neutral text, red only for wrong answers
+            result.passed && "text-feedback-correct-foreground",
           )}
         >
           {quizScoreText(

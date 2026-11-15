@@ -6,7 +6,7 @@ import {
   activeStyleText,
   formStatusText,
   formTableConclusion,
-  formUiLabel,
+  formLabel,
   lessonsText,
   tooFewText,
 } from "@/features/learning-style/explain";
@@ -151,7 +151,7 @@ export function FormTable({ forms, style, voice = "student" }: FormTableProps) {
                 <TableCell className="py-3">
                   <FormMark
                     form={form}
-                    label={formUiLabel(form)}
+                    label={formLabel(form)}
                     className="font-medium"
                   />
                   {form === style && (

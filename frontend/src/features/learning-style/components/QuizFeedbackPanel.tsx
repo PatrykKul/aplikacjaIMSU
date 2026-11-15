@@ -39,10 +39,11 @@ export function QuizFeedbackPanel({
           Co to zmieniło
         </h3>
         <p className="text-lg tabular-nums">
-          {quizChangeParts(feedback).join(" · ")}
+          {quizChangeParts(feedback).join(" ")}
         </p>
         <p className="text-sm text-muted-foreground">
-          {quizChangeRule(feedback.counted, feedback.passed)} Teraz:{" "}
+          {quizChangeRule(feedback.counted, feedback.passed, feedback.form)}{" "}
+          Twój profil teraz:{" "}
           <span className="tabular-nums">
             {percentagesText(feedback.percentages_after)}
           </span>
@@ -57,7 +58,7 @@ export function QuizFeedbackPanel({
             className="mt-0.5 size-5 shrink-0 text-feedback-correct-foreground"
           />
           <p>
-            <span className="font-medium">Świetna seria! </span>
+            <span className="font-medium">Dobra seria: </span>
             {praiseText(feedback.praise)}.
           </p>
         </div>

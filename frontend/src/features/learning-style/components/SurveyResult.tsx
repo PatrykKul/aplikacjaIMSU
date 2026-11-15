@@ -13,7 +13,6 @@ import { Spinner } from "@/shared/ui/spinner";
 import { learningStyleError } from "../errors";
 import {
   PASS_THRESHOLD,
-  STEP,
   STYLE_DESCRIPTIONS,
   formLabel,
   pointsText,
@@ -42,9 +41,9 @@ function TieChoice({ ties }: { ties: Form[] }) {
           Wybierz jeden styl
         </h2>
         <p className="text-muted-foreground">
-          {ties.map(formLabel).join(" i ")} mają tyle samo punktów. System uczy
-          w jednym stylu naraz – wybierz ten, który bardziej do Ciebie pasuje.
-          Wyniki quizów pokażą, czy to dobry wybór.
+          {ties.map(formLabel).join(" i ")} mają tyle samo punktów. Lekcje są
+          podawane w jednym stylu naraz, więc wybierz ten, który bardziej do
+          Ciebie pasuje. Wyniki quizów pokażą, czy to dobry wybór.
         </p>
       </div>
       <RadioGroup
@@ -91,18 +90,18 @@ function HowItWorks() {
       </h2>
       <ul className="max-w-[65ch] list-disc space-y-1.5 pl-5 text-muted-foreground">
         <li>
-          Każda lekcja ma trzy wersje: wzrokową, słuchową i kinestetyczną.
+          Każda lekcja ma trzy wersje: wzrokową, słuchową i praktyczną.
           Dostajesz wersję w formie swojego stylu, a w każdej lekcji możesz
           przełączyć się na inną.
         </li>
         <li>
-          Procenty zmieniają się po quizach: pierwsze podejście w danej formie w
-          lekcji to +{STEP} punktów za zaliczenie (od {PASS_THRESHOLD}%) albo −
-          {STEP} za niezaliczenie.
+          Procenty zmieniają się po quizach. Zaliczony quiz (od {PASS_THRESHOLD}
+          %) podnosi udział formy, w której była lekcja, niezaliczony go obniża.
+          Dokładne zasady są w zakładce „Mój styl”.
         </li>
         <li>
-          Gdy inna forma okaże się lepsza i potwierdzona wynikami, system
-          zaproponuje zmianę stylu – decyzja należy do Ciebie.
+          Gdy inna forma okaże się lepsza i potwierdzona wynikami, pojawi się
+          propozycja zmiany stylu. Decyzja należy do Ciebie.
         </li>
       </ul>
     </section>
@@ -139,7 +138,7 @@ function Result({ profile }: { profile: LearningProfile }) {
         />
         <p className="text-sm text-muted-foreground tabular-nums">
           Punkty: {pointsText(survey.points)}. Każda odpowiedź dała jeden punkt
-          jednej formie; każda forma ma co najmniej 5%.
+          jednej formie. Każda forma ma co najmniej 5%.
         </p>
       </section>
 
