@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.demo import seed
 from app.demo.courses import COURSES, Audio
+from app.modules.assessment import service as assessment
 from app.modules.assessment.models import LessonQuiz, QuizDraw
 from app.modules.authoring import service as authoring
 from app.modules.content import service as content
@@ -369,6 +370,37 @@ def test_math_questions_hard_and_easy(db: Session) -> None:
             if len(answers) >= 5 and 100 * sum(a == keys[qid] for a in answers) > 90 * len(answers)
         ]
         assert easy, number
+
+
+def test_math_panel_sections_have_data_and_conclusions(db: Session) -> None:
+    """Course panel sections 4-6 through the services the API uses: lesson stats with the
+    hardest lesson, question analysis with a hard and an easy question per lesson, the form
+    matrix with its gap, and the student who needs attention."""
+    math = course(db, "m")
+    teacher = user(db, seed.TEACHER.email)
+    stats = learning_style.course_stats(db, math.id, teacher)
+    assert all(row.pass_rate is not None for row in stats.lessons)
+    assert stats.hardest is not None and stats.hardest.number == 2
+    assert any((row.attempts_to_pass or 0) > 1 for row in stats.lessons)
+    assert [gap.number for gap in stats.form_gaps] == [3]
+    gap = stats.form_gaps[0]
+    assert (gap.best.form, gap.best.average, gap.worst.form, gap.worst.average) == (
+        "A",
+        90,
+        "V",
+        47,
+    )
+    assert all(cell.n > 0 for row in stats.matrix for cell in row.cells.values() if cell.average)
+    flagged = [s.email for s in stats.students if s.attention is not None]
+    assert flagged == ["uczen12@imsu.pl"]
+    lessons = assessment.question_stats(db, math.id, teacher)
+    assert len(lessons) == 4
+    for lesson in lessons:
+        ratings = {q.rating for q in lesson.questions}
+        assert {"hard", "easy"} <= ratings, lesson.number
+        hardest = lesson.questions[0]
+        assert hardest.rating == "hard" and hardest.top_wrong is not None, lesson.number
+        assert hardest.top_wrong.percent is not None and hardest.top_wrong.percent > 50
 
 
 def test_other_courses_belong_to_their_teachers(db: Session) -> None:
