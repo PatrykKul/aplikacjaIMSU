@@ -74,8 +74,8 @@ function ManualStyle({ profile }: { profile: LearningProfile }) {
           Zmień styl
         </h2>
         <p className="max-w-[65ch] text-muted-foreground">
-          Możesz sam wybrać styl, w którym chcesz się uczyć. Procenty się nie
-          zmienią – zmieniają je tylko wyniki quizów.
+          Styl możesz też wybrać samodzielnie. Procenty się przy tym nie
+          zmienią, zmieniają je tylko wyniki quizów.
         </p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -127,10 +127,10 @@ function ManualStyle({ profile }: { profile: LearningProfile }) {
                 : "Zmienić styl?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Procenty się nie zmienią, zmiana trafi do dziennika. Lekcje,
-              których jeszcze nie zaliczyłeś, dostaniesz w nowej formie. Przez{" "}
-              {lessonsText(TRIAL_LESSONS)} potrwa okres próbny – sprawdzimy, czy
-              zmiana pomogła.
+              Procenty się nie zmienią, a zmiana trafi do dziennika. Lekcje,
+              które nie są jeszcze zaliczone, dostaniesz w nowej formie. Przez{" "}
+              {lessonsText(TRIAL_LESSONS)} potrwa okres próbny, po nim
+              zobaczysz, czy zmiana pomogła.
               {profile.open_proposal &&
                 " Otwarta propozycja systemu zostanie zamknięta."}
             </AlertDialogDescription>
@@ -186,8 +186,8 @@ export function LearningStylePanel() {
         title="Nie znamy jeszcze Twojego stylu"
         description={
           data.survey_completed
-            ? "Ankieta dała remis – wybierz jeden styl."
-            : "Wypełnij ankietę – to 20 krótkich pytań."
+            ? "Ankieta dała remis. Wybierz jeden styl."
+            : "Wypełnij ankietę. To 20 krótkich pytań."
         }
         action={
           <Link
@@ -212,8 +212,7 @@ export function LearningStylePanel() {
           <strong className="font-semibold">{styleName(data.style)}</strong>
           {data.style_source && (
             <span className="text-muted-foreground">
-              {" "}
-              – {styleSourceText(data.style_source)}
+              , {styleSourceText(data.style_source)}
             </span>
           )}
         </p>
@@ -235,10 +234,12 @@ export function LearningStylePanel() {
             Procenty form
           </h2>
           <p className="max-w-[65ch] text-muted-foreground">
-            Start z ankiety, potem tylko wyniki quizów: pierwsze podejście w
-            danej formie w lekcji to +{STEP} punktów za zaliczenie (od{" "}
-            {PASS_THRESHOLD}%) albo −{STEP} za niezaliczenie. Forma jest
-            potwierdzona wynikami, gdy zaliczyłeś w niej co najmniej jeden quiz.
+            Procenty startują z ankiety, potem zmieniają je tylko wyniki quizów.
+            Liczy się pierwsze podejście do lekcji w danej formie: zaliczenie
+            (od {PASS_THRESHOLD}%) daje tej formie +{STEP} punktów,
+            niezaliczenie −{STEP}. Pozostałe dwie formy oddają albo dostają te
+            punkty tak, żeby suma zawsze wynosiła 100%. Forma jest potwierdzona
+            wynikami, gdy masz w niej co najmniej jeden zaliczony quiz.
           </p>
         </div>
         <FormPercentages profile={data} />

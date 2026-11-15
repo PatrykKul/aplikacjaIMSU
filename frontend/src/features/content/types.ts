@@ -8,7 +8,7 @@ export const FORMS: Form[] = ["V", "A", "K"];
 export const FORM_LABELS: Record<Form, string> = {
   V: "Wzrokowa (V)",
   A: "Słuchowa (A)",
-  K: "Kinestetyczna (K)",
+  K: "Praktyczna (K)",
 };
 
 export type AttachmentKind = "image" | "video" | "audio" | "pdf" | "link";

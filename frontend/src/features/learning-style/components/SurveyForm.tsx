@@ -47,7 +47,7 @@ export function SurveyForm() {
     return (
       <PageMessage
         title="Ankieta jest już wypełniona"
-        description="Ankietę wypełnia się tylko raz – potem procenty zmieniają wyniki quizów. Styl możesz zmienić w zakładce „Mój styl”."
+        description="Ankietę wypełnia się tylko raz, potem procenty zmieniają wyniki quizów. Styl możesz zmienić w zakładce „Mój styl”."
         action={
           <Link href="/survey/result" className={cn(buttonVariants())}>
             Zobacz swój wynik
@@ -116,8 +116,8 @@ export function SurveyForm() {
         </h1>
         <p className="text-muted-foreground">
           20 krótkich pytań. Wybierz odpowiedź, która najbardziej do Ciebie
-          pasuje; nie ma złych odpowiedzi. Wynik to procenty trzech form:
-          wzrokowej, słuchowej i kinestetycznej – lekcje dostaniesz w formie z
+          pasuje. Nie ma złych odpowiedzi. Wynik to procenty trzech form:
+          wzrokowej, słuchowej i praktycznej. Lekcje dostaniesz w formie z
           najwyższym procentem. Ankietę wypełnia się raz, potem procenty
           zmieniają wyniki quizów.
         </p>

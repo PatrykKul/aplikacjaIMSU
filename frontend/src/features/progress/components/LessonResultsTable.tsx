@@ -16,7 +16,9 @@ import type { LessonProgress } from "../types";
 
 /**
  * Every quiz attempt grouped by lesson. The first attempt in a form (the one
- * that changed the percentages, R2) is marked in the last column.
+ * that changed the percentages, R2) is marked in the last column. Course and
+ * lesson titles wrap, so the table fits the page on a computer; on a phone it
+ * scrolls inside its own container.
  */
 export function LessonResultsTable({ lessons }: { lessons: LessonProgress[] }) {
   const withAttempts = lessons.filter((lesson) => lesson.attempts.length > 0);
@@ -54,10 +56,16 @@ export function LessonResultsTable({ lessons }: { lessons: LessonProgress[] }) {
                 >
                   {first && (
                     <>
-                      <TableCell rowSpan={span} className="align-top">
+                      <TableCell
+                        rowSpan={span}
+                        className="max-w-48 min-w-32 align-top whitespace-normal"
+                      >
                         {lesson.course_title}
                       </TableCell>
-                      <TableCell rowSpan={span} className="align-top">
+                      <TableCell
+                        rowSpan={span}
+                        className="max-w-64 min-w-40 align-top whitespace-normal"
+                      >
                         <span className="font-medium">
                           {lesson.number !== null && `${lesson.number}. `}
                           {lesson.lesson_title}
@@ -88,9 +96,7 @@ export function LessonResultsTable({ lessons }: { lessons: LessonProgress[] }) {
                       attempt.counted ? "font-medium" : "text-muted-foreground",
                     )}
                   >
-                    {attempt.counted
-                      ? "policzone – pierwsze w tej formie"
-                      : "powtórka – bez zmian"}
+                    {attempt.counted ? "liczy się" : "powtórka, bez zmian"}
                   </TableCell>
                 </TableRow>
               );

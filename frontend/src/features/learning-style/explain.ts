@@ -5,21 +5,26 @@
  */
 import { FORMS, type Form } from "@/features/content/types";
 import type { HistoryEvent } from "@/features/progress/chart-data";
+import type { TrialCancel } from "@/features/progress/journal-data";
 import type {
   ClearedLesson,
   JournalEntry,
   Percentages,
+  StatsSummary,
 } from "@/features/progress/types";
 import { plural } from "@/shared/lib/plural";
 
 import type {
+  Attention,
   CourseHint,
   FormStats,
+  FormTable,
   LearningProfile,
   LessonRef,
   Praise,
   Proposal,
   ProposalEvidence,
+  RetryStrength,
   RetrySuggestion,
   StyleSource,
   Trial,
@@ -34,41 +39,47 @@ export const TRIAL_LESSONS = 2;
 export const HELPED_GAIN = 10;
 export const REVERT_DROP = 10;
 
+// Stage 10 (`learning_style/stats.py`, `rules.py`)
+export const FIRST_TRY_MIN_LESSONS = 2;
+export const ATTENTION_STREAK = 3;
+
 // --- Names of forms and styles ---
+// One name per form in the interface: wzrokowa / słuchowa / praktyczna (V / A / K).
+// The older name of K is used only in the documentation.
 
 /** "forma wzrokowa" */
 const FORM_ADJ: Record<Form, string> = {
   V: "wzrokowa",
   A: "słuchowa",
-  K: "kinestetyczna",
+  K: "praktyczna",
 };
 
-/** "w formie wzrokowej" */
+/** "w formie wzrokowej", "udział formy wzrokowej" */
 const FORM_ADJ_LOC: Record<Form, string> = {
   V: "wzrokowej",
   A: "słuchowej",
-  K: "kinestetycznej",
+  K: "praktycznej",
 };
 
-/** "Wzrokowe 45% → 55%" (materials in this form) */
-const FORM_PLURAL: Record<Form, string> = {
-  V: "Wzrokowe",
-  A: "Słuchowe",
-  K: "Kinestetyczne",
+/** "Wersję wzrokową…", "formę wzrokową" */
+const FORM_ADJ_ACC: Record<Form, string> = {
+  V: "wzrokową",
+  A: "słuchową",
+  K: "praktyczną",
 };
 
 /** "styl wzrokowy" */
 const STYLE_ADJ: Record<Form, string> = {
   V: "wzrokowy",
   A: "słuchowy",
-  K: "kinestetyczny",
+  K: "praktyczny",
 };
 
 /** "powrót do stylu wzrokowego" */
 const STYLE_ADJ_GEN: Record<Form, string> = {
   V: "wzrokowego",
   A: "słuchowego",
-  K: "kinestetycznego",
+  K: "praktycznego",
 };
 
 export const STYLE_DESCRIPTIONS: Record<Form, string> = {
@@ -87,14 +98,19 @@ export function formLabel(form: Form): string {
   return capitalize(formName(form));
 }
 
-/** "Wzrokowe" - short name in lists of numbers. */
+/** "wzrokowa" - the bare name of the form. */
 export function formShort(form: Form): string {
-  return FORM_PLURAL[form];
+  return FORM_ADJ[form];
 }
 
 /** "w formie wzrokowej" */
 export function inForm(form: Form): string {
   return `w formie ${FORM_ADJ_LOC[form]}`;
+}
+
+/** "formy wzrokowej" */
+function ofForm(form: Form): string {
+  return `formy ${FORM_ADJ_LOC[form]}`;
 }
 
 /**
@@ -155,13 +171,13 @@ export function pointsText(points: Percentages): string {
   return FORMS.map((form) => `${form} ${points[form]}`).join(" · ");
 }
 
-/** "Słuchowe 47% → 57%" */
+/** "Udział formy słuchowej: 47% → 57%." */
 export function percentChangeText(
   form: Form,
   before: Percentages,
   after: Percentages,
 ): string {
-  return `${FORM_PLURAL[form]} ${before[form]}% → ${after[form]}%`;
+  return `Udział ${ofForm(form)}: ${before[form]}% → ${after[form]}%.`;
 }
 
 /** "w 1 lekcji", "w 3 lekcjach" */
@@ -180,7 +196,7 @@ export function quizScoreText(
 ): string {
   return passed
     ? `Zaliczone: ${correct} z ${total} (${value}%)`
-    : `Jeszcze nie: ${correct} z ${total} (${value}%) – zaliczenie od ${PASS_THRESHOLD}%`;
+    : `Jeszcze niezaliczone: ${correct} z ${total} (${value}%). Zaliczenie od ${PASS_THRESHOLD}%`;
 }
 
 type ChangeData = {
@@ -194,59 +210,91 @@ type ChangeData = {
 };
 
 /**
- * "Co to zmieniło": ["Słuchowe 47% → 57%", "Lekcja 4 odblokowana"]
- * or ["To kolejne podejście w tej formie – procenty bez zmian"].
+ * "Co to zmieniło", sentences: ["Udział formy słuchowej: 47% → 57%.",
+ * "Lekcja 4 jest już otwarta."] or ["Procenty form bez zmian."].
  */
 export function quizChangeParts(change: ChangeData): string[] {
   const { form, percentages_before: before, percentages_after: after } = change;
   const parts: string[] = [];
   if (!change.counted) {
-    parts.push("To kolejne podejście w tej formie – procenty bez zmian");
+    parts.push("Procenty form bez zmian.");
   } else if (before[form] === after[form]) {
     // R2: the form is already at its limit
     parts.push(
       change.passed
-        ? `${FORM_PLURAL[form]} ${after[form]}% – to już maksimum`
-        : `${FORM_PLURAL[form]} ${after[form]}% – to już minimum`,
+        ? `Udział ${ofForm(form)}: ${after[form]}%, to już najwyższa możliwa wartość.`
+        : `Udział ${ofForm(form)}: ${after[form]}%, to już najniższa możliwa wartość.`,
     );
   } else {
     parts.push(percentChangeText(form, before, after));
   }
   if (change.unlocked_lesson) {
-    parts.push(`Lekcja ${change.unlocked_lesson.number} odblokowana`);
+    parts.push(`Lekcja ${change.unlocked_lesson.number} jest już otwarta.`);
   }
   if (change.course_completed) {
-    parts.push("Kurs ukończony");
+    parts.push("Kurs ukończony.");
   }
   return parts;
 }
 
-/** Why the percentages changed (or not), for the result of a quiz. */
-export function quizChangeRule(counted: boolean, passed: boolean): string {
+/**
+ * What the result did to the profile, without the mechanics (the rule with
+ * numbers is in "Mój styl").
+ */
+export function quizChangeRule(
+  counted: boolean,
+  passed: boolean,
+  form: Form,
+): string {
   if (!counted) {
-    return "Procenty zmienia tylko pierwsze podejście w danej formie w danej lekcji.";
+    return "To kolejne podejście do tej lekcji w tej formie. Profil zmienia tylko pierwsze.";
   }
   return passed
-    ? `Pierwsze podejście w tej formie zaliczone: forma +${STEP} punktów, pozostałe dwie oddają je proporcjonalnie.`
-    : `Pierwsze podejście w tej formie niezaliczone: forma −${STEP} punktów, pozostałe dwie dostają je proporcjonalnie.`;
+    ? `Ten wynik podniósł udział ${ofForm(form)} w Twoim profilu.`
+    : `Ten wynik obniżył udział ${ofForm(form)} w Twoim profilu.`;
 }
 
-/** R4: "3 lekcje z rzędu zaliczone w formie wzrokowej, średnio 87%" */
+/** R4: "3 lekcje z rzędu zaliczone w formie wzrokowej, średni wynik 87%" */
 export function praiseText(praise: Praise): string {
-  return `${lessonsText(praise.streak)} z rzędu zaliczone ${inForm(praise.form)}, średnio ${praise.average}%`;
+  return `${lessonsText(praise.streak)} z rzędu zaliczone ${inForm(praise.form)}, średni wynik ${praise.average}%`;
 }
 
 // --- R5: retry in another form ---
 
 type Voice = "student" | "neutral";
 
-const ORDINALS = ["pierwsze", "drugie", "trzecie"];
+const ORDINALS = ["pierwszym", "drugim", "trzecim"];
 
 function surveyRank(form: Form, survey: Percentages): string | null {
   const sorted = [...FORMS].sort(
     (a, b) => survey[b] - survey[a] || FORMS.indexOf(a) - FORMS.indexOf(b),
   );
   return ORDINALS[sorted.indexOf(form)] ?? null;
+}
+
+/** Events and answers written before stage 10 have no `strength`. */
+export function suggestionStrength(suggestion: RetrySuggestion): RetryStrength {
+  return suggestion.strength ?? "strong";
+}
+
+/** R5 soft: the main action after the quiz. */
+export const SOFT_RETRY_ACTION = "Rozwiąż jeszcze raz";
+
+/**
+ * R5 soft, the calm second option, split around its links:
+ * after the quiz "Możesz też [przerobić tę lekcję w formie słuchowej]."; above
+ * the lesson "Możesz [rozwiązać quiz jeszcze raz] albo [przerobić …]."
+ */
+export const SOFT_RETRY_TEXT = {
+  afterQuiz: "Możesz też",
+  inLesson: "Możesz",
+  quizLink: "rozwiązać quiz jeszcze raz",
+  or: "albo",
+};
+
+/** The link of the soft option: "przerobić tę lekcję w formie słuchowej" */
+export function softSuggestionLink(form: Form): string {
+  return `przerobić tę lekcję ${inForm(form)}`;
 }
 
 /** "Spróbuj tej lekcji w formie słuchowej" */
@@ -260,9 +308,10 @@ export function suggestionAction(form: Form): string {
 }
 
 /**
- * The reason with numbers, e.g. "Wzrokowe: ten quiz 40%, poprzednia lekcja 40%.
- * Słuchowe zaliczyłeś w lekcji „Wzór i wykres” na 80%."
- * `survey` (percentages of the survey) lets us say which place the form had.
+ * The reason with numbers, in full sentences, e.g. "W formie wzrokowej masz w
+ * tym quizie 40%, w poprzedniej lekcji 40%. W formie słuchowej masz zaliczoną
+ * lekcję „Wzór i wykres” (80%)."
+ * `survey` (percentages of the survey) gives the place of the form in it.
  */
 export function suggestionReason(
   suggestion: RetrySuggestion,
@@ -271,36 +320,42 @@ export function suggestionReason(
   const { failed, suggested } = suggestion;
   const student = (options.voice ?? "student") === "student";
 
-  let failedText = `${FORM_PLURAL[failed.form]}: ten quiz ${failed.percent}%`;
-  if (failed.previous) {
-    failedText += `, poprzednia lekcja ${failed.previous.percent}%`;
-  }
-  failedText += ".";
+  const previous = failed.previous
+    ? `, w poprzedniej lekcji ${failed.previous.percent}%`
+    : "";
+  const failedText = student
+    ? `${capitalize(inForm(failed.form))} masz w tym quizie ${failed.percent}%${previous}.`
+    : `${capitalize(inForm(failed.form))} wynik tego quizu to ${failed.percent}%${previous}.`;
 
-  const name = FORM_PLURAL[suggested.form];
+  const where = capitalize(inForm(suggested.form));
   let suggestedText: string;
   if (suggested.reason === "confirmed") {
     suggestedText = suggested.best
       ? student
-        ? `${name} zaliczyłeś w lekcji „${suggested.best.lesson_title}” na ${suggested.best.percent}%.`
-        : `${name}: lekcja „${suggested.best.lesson_title}” zaliczona na ${suggested.best.percent}%.`
-      : `${name} są potwierdzone wynikami (${suggested.percent}%).`;
+        ? `${where} masz zaliczoną lekcję „${suggested.best.lesson_title}” (${suggested.best.percent}%).`
+        : `${where} lekcja „${suggested.best.lesson_title}” jest zaliczona na ${suggested.best.percent}%.`
+      : `Forma ${FORM_ADJ[suggested.form]} jest potwierdzona wynikami, w profilu ma ${suggested.percent}%.`;
   } else {
     const rank = options.survey
       ? surveyRank(suggested.form, options.survey)
       : null;
-    const where = student ? "w Twojej ankiecie" : "w ankiecie";
+    const survey = student ? "W Twojej ankiecie" : "W ankiecie";
     const place = rank
-      ? `${name} były ${rank} ${where} (${suggested.survey_percent}%)`
-      : `${name} miały ${where} ${suggested.survey_percent}%`;
-    suggestedText = `${place}, nie mamy jeszcze o nich wyników – warto sprawdzić.`;
+      ? `${survey} forma ${FORM_ADJ[suggested.form]} była na ${rank} miejscu (${suggested.survey_percent}%).`
+      : `${survey} forma ${FORM_ADJ[suggested.form]} miała ${suggested.survey_percent}%.`;
+    suggestedText = student
+      ? `${place} Nie masz jeszcze wyników w tej formie.`
+      : `${place} W tej formie nie ma jeszcze wyników.`;
   }
   return `${failedText} ${suggestedText}`;
 }
 
 // --- R6 / R7: proposals ---
 
-/** "Wzrokowe: 3 lekcje, średnio 53% · Słuchowe: 1 lekcja, średnio 80%" */
+/**
+ * "W formie wzrokowej: 3 lekcje, średnio 53%. W formie słuchowej: 1 lekcja,
+ * średnio 80%."
+ */
 export function proposalEvidenceText(evidence: ProposalEvidence): string {
   const parts: string[] = [];
   // Revert (R7): the drop of the average comes first, form statistics after it
@@ -309,32 +364,32 @@ export function proposalEvidenceText(evidence: ProposalEvidence): string {
     evidence.after_average !== undefined
   ) {
     parts.push(
-      `Średnia przed zmianą ${percent(evidence.before_average)}, po zmianie ${percent(evidence.after_average)}`,
+      `Średnia przed zmianą: ${percent(evidence.before_average)}, po zmianie: ${percent(evidence.after_average)}.`,
     );
   }
   for (const side of [evidence.from, evidence.to]) {
     if (side) {
       parts.push(
-        `${FORM_PLURAL[side.form]}: ${lessonsText(side.lessons)}, średnio ${percent(side.average)}`,
+        `${capitalize(inForm(side.form))}: ${lessonsText(side.lessons)}, średnio ${percent(side.average)}.`,
       );
     }
   }
-  return parts.join(" · ");
+  return parts.join(" ");
 }
 
 /** The question of the banner. */
 export function proposalTitle(proposal: Proposal): string {
   return proposal.kind === "revert"
-    ? `Po zmianie stylu wyniki są słabsze – wrócić do stylu ${STYLE_ADJ_GEN[proposal.to]}?`
-    : `Lepiej idzie Ci ${inForm(proposal.to)} – przełączyć styl na stałe?`;
+    ? `Po zmianie stylu wyniki są słabsze. Wrócić do stylu ${STYLE_ADJ_GEN[proposal.to]}?`
+    : `${capitalize(inForm(proposal.to))} idzie Ci lepiej. Zmienić styl na ${STYLE_ADJ[proposal.to]}?`;
 }
 
 /** What accepting will do. */
 export function proposalEffect(proposal: Proposal): string {
-  const base = `Lekcje, których jeszcze nie zaliczyłeś, będą ${inForm(proposal.to)}.`;
+  const base = `Lekcje, które nie są jeszcze zaliczone, dostaniesz ${inForm(proposal.to)}. Procenty się nie zmienią.`;
   return proposal.kind === "revert"
-    ? `${base} Procenty się nie zmienią.`
-    : `${base} Procenty się nie zmienią, a przez ${lessonsText(TRIAL_LESSONS)} sprawdzimy, czy zmiana pomogła.`;
+    ? base
+    : `${base} Po ${lessonsText(TRIAL_LESSONS)} w nowej formie zobaczysz, czy zmiana pomogła.`;
 }
 
 // --- R7: trial ---
@@ -345,18 +400,18 @@ export function trialProgressText(trial: Trial): string {
 }
 
 /**
- * D60: no results in the previous form, e.g. "Brak wyników w formie wzrokowej
- * do porównania – po 2 lekcjach pokażemy średnią w nowej formie".
+ * D60: no results in the previous form, e.g. "W formie wzrokowej nie było
+ * wyników do porównania. Po 2 lekcjach w nowej formie pojawi się jej średnia".
  */
 export function noBaselineText(from: Form): string {
-  return `Brak wyników ${inForm(from)} do porównania – po ${lessonsText(TRIAL_LESSONS)} pokażemy średnią w nowej formie`;
+  return `${capitalize(inForm(from))} nie było wyników do porównania. Po ${lessonsText(TRIAL_LESSONS)} w nowej formie pojawi się jej średnia`;
 }
 
 /** D60, a replaced trial keeps its baseline: "… średnia 80% w formie słuchowej" */
 export function keptBaselineText(from: Form, before: number | null): string {
   return before === null
     ? noBaselineText(from)
-    : `Punkt odniesienia z poprzedniego okresu: średnia ${before}% ${inForm(from)}`;
+    : `Do porównania zostaje średnia z poprzedniego okresu: ${before}% ${inForm(from)}`;
 }
 
 /** "Zmiana pomogła: średnia 40% → 90%" */
@@ -375,14 +430,14 @@ export function trialOutcomeText(
       return `Po zmianie wyniki są słabsze: średnia ${percent(before)} → ${percent(after)}`;
     case "no_baseline":
       return from
-        ? `Brak wyników ${inForm(from)} do porównania. Średnia w nowej formie: ${percent(after)}`
+        ? `${capitalize(inForm(from))} nie było wyników do porównania. Średnia w nowej formie: ${percent(after)}`
         : `Średnia w nowej formie: ${percent(after)}`;
   }
 }
 
-/** The thresholds of R7 in one sentence. */
+/** The thresholds of R7 ("Mój styl" only: the place for the rules). */
 export function trialRuleText(): string {
-  return `Po ${TRIAL_LESSONS} lekcjach w nowej formie porównujemy średnią z wcześniejszą: wzrost o co najmniej ${HELPED_GAIN} punktów – zmiana pomogła; spadek o ${REVERT_DROP} lub więcej – zaproponujemy powrót; pomiędzy – bez wyraźnej różnicy.`;
+  return `Po ${lessonsText(TRIAL_LESSONS)} w nowej formie jej średnia jest porównywana z wcześniejszą. Wzrost o co najmniej ${HELPED_GAIN} punktów oznacza, że zmiana pomogła. Przy spadku o ${REVERT_DROP} punktów lub więcej pojawi się propozycja powrotu do poprzedniego stylu. Wynik pomiędzy to „bez wyraźnej różnicy”.`;
 }
 
 /** "Okres próbny stylu słuchowego (A): 1 z 2 lekcji w nowej formie. Średnia przed zmianą: 40%." */
@@ -436,20 +491,153 @@ export function lockedLessonText(number: number): string {
 
 // --- R6: cleared choices of the form after a change of the style ---
 
-/** "Wybory formy wyczyszczone w 2 lekcjach („A”, „B”) – obowiązuje teraz forma słuchowa." */
+/** "Wcześniejszy wybór formy usunięty w 2 lekcjach („A”, „B”), obowiązuje w nich teraz forma słuchowa." */
 export function clearedLessonsText(cleared: ClearedLesson[], to: Form): string {
   if (cleared.length === 0) {
     return "";
   }
   const titles = cleared.map((lesson) => `„${lesson.lesson_title}”`).join(", ");
-  return `Wybory formy wyczyszczone ${inLessonsText(cleared.length)} (${titles}) – obowiązuje teraz forma ${FORM_ADJ[to]}.`;
+  return `Wcześniejszy wybór formy usunięty ${inLessonsText(cleared.length)} (${titles}), obowiązuje w ${cleared.length === 1 ? "niej" : "nich"} teraz forma ${FORM_ADJ[to]}.`;
 }
 
 // --- D60: a change of the style undone before the first lesson ---
 
-/** "Zmiana na styl wzrokowy (V) cofnięta przed pierwszą lekcją – wracamy do stylu słuchowego (A)" */
+/** "Zmiana na styl wzrokowy (V) cofnięta przed pierwszą lekcją, znów obowiązuje styl słuchowy (A)" */
 export function styleChangeRevertedText(from: Form, to: Form): string {
-  return `Zmiana na styl ${styleName(from)} cofnięta przed pierwszą lekcją – wracamy do stylu ${STYLE_ADJ_GEN[to]} (${to})`;
+  return `Zmiana na styl ${styleName(from)} cofnięta przed pierwszą lekcją, znów obowiązuje styl ${styleName(to)}`;
+}
+
+// --- Stage 10: statistics of "Moje postępy" ---
+
+export type SummaryItem = { value: string; label: string };
+
+/** One row of 4 numbers: passed lessons, solved quizzes, average, streak. */
+export function statsSummaryItems(summary: StatsSummary): SummaryItem[] {
+  const { passed_lessons, attempts, average, counted, streak } = summary;
+  return [
+    {
+      value: String(passed_lessons),
+      label: plural(
+        passed_lessons,
+        "zaliczona lekcja",
+        "zaliczone lekcje",
+        "zaliczonych lekcji",
+      ),
+    },
+    {
+      value: String(attempts),
+      label: plural(
+        attempts,
+        "rozwiązany quiz",
+        "rozwiązane quizy",
+        "rozwiązanych quizów",
+      ),
+    },
+    {
+      value: percent(average),
+      label:
+        counted > 0
+          ? `średnia z pierwszych podejść (${lessonsText(counted)})`
+          : "średnia z pierwszych podejść",
+    },
+    {
+      value: String(streak),
+      label: plural(
+        streak,
+        "zaliczona lekcja z rzędu",
+        "zaliczone lekcje z rzędu",
+        "zaliczonych lekcji z rzędu",
+      ),
+    },
+  ];
+}
+
+/** A cell below the data threshold: "za mało danych (n = 1)". */
+export function tooFewText(n: number): string {
+  return `za mało danych (n = ${n})`;
+}
+
+/** Status of a form in words (R3). */
+export function formStatusText(confirmed: boolean): string {
+  return confirmed ? "potwierdzona wynikami" : "tylko z ankiety";
+}
+
+/** Next to the active style in the table of forms. */
+export function activeStyleText(voice: Voice = "student"): string {
+  return voice === "student" ? "Twój styl" : "styl ucznia";
+}
+
+/**
+ * One sentence under the table of forms, only facts from it, e.g.
+ * "Najwyższa średnia: słuchowa 84% (4 lekcje). Wzrokowa: 70% (2 lekcje).
+ * Praktyczna: nie masz jeszcze wyników."
+ */
+export function formTableConclusion(
+  forms: FormTable,
+  voice: Voice = "student",
+): string {
+  const student = voice === "student";
+  const withAverage = FORMS.filter((form) => forms[form].average !== null);
+  if (withAverage.length === 0) {
+    return student
+      ? "Nie masz jeszcze wyników quizów w żadnej formie."
+      : "Brak wyników quizów w żadnej formie.";
+  }
+  const averageOf = (form: Form) => forms[form].average ?? 0;
+  const describe = (form: Form) =>
+    `${averageOf(form)}% (${lessonsText(forms[form].first_try_lessons)})`;
+
+  // Highest average first; a tie keeps the order V, A, K
+  const sorted = [...withAverage].sort(
+    (a, b) =>
+      averageOf(b) - averageOf(a) || FORMS.indexOf(a) - FORMS.indexOf(b),
+  );
+  const top = sorted.filter((form) => averageOf(form) === averageOf(sorted[0]));
+  const rest = sorted.filter((form) => !top.includes(form));
+  const without = FORMS.filter((form) => forms[form].average === null);
+
+  const lead =
+    withAverage.length === 1
+      ? "Średnia z pierwszych podejść"
+      : "Najwyższa średnia";
+  const parts = [
+    `${lead}: ${top.map((form) => `${FORM_ADJ[form]} ${describe(form)}`).join(" i ")}.`,
+    ...rest.map((form) => `${capitalize(FORM_ADJ[form])}: ${describe(form)}.`),
+  ];
+  if (without.length > 0) {
+    const names = capitalize(without.map((form) => FORM_ADJ[form]).join(" i "));
+    parts.push(
+      `${names}: ${student ? "nie masz jeszcze wyników" : "brak wyników"}.`,
+    );
+  }
+  return parts.join(" ");
+}
+
+// --- Stage 10, R12: a series of failed counted results ---
+
+/** "Trzy ostatnie lekcje poniżej progu (55%, 40%, 50%)." - also for the teacher. */
+export function attentionSeries(attention: Attention): string {
+  const percents = attention.results
+    .map((result) => `${result.percent}%`)
+    .join(", ");
+  if (attention.streak === ATTENTION_STREAK) {
+    return `Trzy ostatnie lekcje poniżej progu (${percents}).`;
+  }
+  const lessons = plural(
+    attention.streak,
+    "ostatnia lekcja",
+    "ostatnie lekcje",
+    "ostatnich lekcji",
+  );
+  return `${attention.streak} ${lessons} poniżej progu, trzy najnowsze: ${percents}.`;
+}
+
+/**
+ * The message for the student: "Trzy ostatnie lekcje poniżej progu
+ * (55%, 40%, 50%). Spróbuj innej formy albo poproś nauczyciela o pomoc."
+ */
+export function attentionText(attention: Attention): string {
+  return `${attentionSeries(attention)} Spróbuj innej formy albo poproś nauczyciela o pomoc.`;
 }
 
 // --- The teacher's view of a student ---
@@ -464,7 +652,7 @@ export function profileSummaryLines(profile: LearningProfile): SummaryLine[] {
   } else if (!profile.style) {
     lines.push({
       label: "Styl",
-      text: "remis w ankiecie – uczeń jeszcze nie wybrał stylu",
+      text: "remis w ankiecie, uczeń jeszcze nie wybrał stylu",
     });
   } else {
     const source = styleSourceText(profile.style_source);
@@ -480,7 +668,7 @@ export function profileSummaryLines(profile: LearningProfile): SummaryLine[] {
     const evidenceText = proposalEvidenceText(evidence);
     lines.push({
       label: "Otwarta propozycja",
-      text: `${kind === "revert" ? "powrót do stylu" : "zmiana stylu na"} ${styleName(to)}${evidenceText ? ` – ${evidenceText}` : ""}`,
+      text: `${kind === "revert" ? "powrót do stylu" : "zmiana stylu na"} ${styleName(to)}${evidenceText ? `. ${evidenceText}` : ""}`,
     });
   }
   if (profile.trial) {
@@ -508,13 +696,13 @@ export function historyAxisLabel(event: HistoryEvent): string {
   }
 }
 
-/** Column "Zdarzenie": "Quiz: Pętla for – forma A, 100%", "Zmiana stylu na V (ręcznie)". */
+/** Column "Zdarzenie": "Quiz: Pętla for, forma A, 100%", "Zmiana stylu na V (ręcznie)". */
 export function historyEventText(event: HistoryEvent): string {
   switch (event.kind) {
     case "survey":
       return "Ankieta";
     case "quiz":
-      return `Quiz${event.lessonTitle ? `: ${event.lessonTitle}` : ""} – forma ${event.form}, ${event.percent}%`;
+      return `Quiz${event.lessonTitle ? `: ${event.lessonTitle}` : ""}, forma ${event.form}, ${event.percent}%`;
     case "tie":
       return `Wybór stylu przy remisie: ${event.style}`;
     case "style":
@@ -524,7 +712,7 @@ export function historyEventText(event: HistoryEvent): string {
           ? `Zmiana stylu na ${event.style} (propozycja systemu)`
           : `Zmiana stylu na ${event.style}`;
     case "revert":
-      return `Zmiana cofnięta – znów styl ${event.style}`;
+      return `Zmiana cofnięta, znów styl ${event.style}`;
     case "other":
       return "Zmiana procentów";
   }
@@ -562,6 +750,7 @@ const JOURNAL_LABELS: Record<JournalEntry["type"], string> = {
   trial_started: "Okres próbny",
   trial_finished: "Okres próbny",
   praise: "Pochwała",
+  attention_needed: "Wymaga uwagi",
 };
 
 /** Short kind of the entry, e.g. "Quiz", "Sugestia". */
@@ -569,8 +758,22 @@ export function journalLabel(entry: JournalEntry): string {
   return JOURNAL_LABELS[entry.type] ?? "Zdarzenie";
 }
 
+/** What the journal knows from other entries (see `progress/journal-data.ts`). */
+export type JournalContext = {
+  /** Trials cancelled later, by `trial_id`. */
+  cancelledTrials?: Map<number, TrialCancel>;
+};
+
+const TRIAL_CANCEL_TEXT: Record<TrialCancel, string> = {
+  reverted: "Anulowany: zmiana stylu cofnięta przed pierwszą lekcją.",
+  replaced: "Anulowany: przed pierwszą lekcją styl zmieniony ponownie.",
+};
+
 /** One entry of the journal as sentences; neutral voice (also for the teacher). */
-export function journalText(entry: JournalEntry): string {
+export function journalText(
+  entry: JournalEntry,
+  context: JournalContext = {},
+): string {
   switch (entry.type) {
     case "survey_completed": {
       const { percentages, style, tie_styles } = entry.data;
@@ -578,7 +781,7 @@ export function journalText(entry: JournalEntry): string {
         `Ankieta: ${percentagesText(percentages)}.`,
         style
           ? `Styl startowy: ${styleName(style)}.`
-          : `Remis (${tie_styles.join(", ")}) – styl do wyboru.`,
+          : `Remis (${tie_styles.join(", ")}), styl do wyboru.`,
       );
     }
     case "tie_resolved":
@@ -586,13 +789,15 @@ export function journalText(entry: JournalEntry): string {
     case "quiz_attempt": {
       const data = entry.data;
       return joinSentences(
-        `Quiz ${inForm(data.form)}: ${data.percent}% – ${data.passed ? "zaliczony" : "niezaliczony"}.`,
-        `${quizChangeParts(data).join(" · ")}.`,
+        `Quiz ${inForm(data.form)}: ${data.percent}%, ${data.passed ? "zaliczony" : "niezaliczony"}.`,
+        ...quizChangeParts(data),
       );
     }
     case "retry_suggestion":
       return joinSentences(
-        `Sugestia: przerobić lekcję ${inForm(entry.data.suggested.form)}.`,
+        suggestionStrength(entry.data) === "soft"
+          ? `Sugestia: rozwiązać quiz jeszcze raz albo przerobić lekcję ${inForm(entry.data.suggested.form)}.`
+          : `Sugestia: przerobić lekcję ${inForm(entry.data.suggested.form)}.`,
         suggestionReason(entry.data, { voice: "neutral" }),
       );
     case "lesson_form_changed":
@@ -600,9 +805,7 @@ export function journalText(entry: JournalEntry): string {
     case "proposal_created":
       return joinSentences(
         `Propozycja ${proposalName(entry.data.kind, entry.data.to)}.`,
-        proposalEvidenceText(entry.data.evidence)
-          ? `${proposalEvidenceText(entry.data.evidence)}.`
-          : "",
+        proposalEvidenceText(entry.data.evidence),
       );
     case "proposal_accepted":
       return joinSentences(
@@ -612,7 +815,7 @@ export function journalText(entry: JournalEntry): string {
     case "proposal_rejected":
       return `Odrzucona propozycja ${proposalName(entry.data.kind, entry.data.to)}.`;
     case "proposal_expired":
-      return `Propozycja ${proposalName(entry.data.kind, entry.data.to)} wygasła – jej warunek przestał obowiązywać.`;
+      return `Propozycja ${proposalName(entry.data.kind, entry.data.to)} wygasła, bo jej warunek przestał być spełniony.`;
     case "manual_style_change":
       return joinSentences(
         `Ręczna zmiana stylu: ${styleName(entry.data.from)} → ${styleName(entry.data.to)}.`,
@@ -628,7 +831,9 @@ export function journalText(entry: JournalEntry): string {
         clearedLessonsText(entry.data.cleared_lessons, entry.data.to),
       );
     case "trial_started": {
-      const { from, to, before_average, replaced_trial_id } = entry.data;
+      const { trial_id, from, to, before_average, replaced_trial_id } =
+        entry.data;
+      const cancel = context.cancelledTrials?.get(trial_id);
       return joinSentences(
         `Okres próbny stylu ${STYLE_ADJ_GEN[to]} (${to}): ${lessonsText(TRIAL_LESSONS)}.`,
         replaced_trial_id
@@ -636,10 +841,20 @@ export function journalText(entry: JournalEntry): string {
           : before_average === null
             ? `${noBaselineText(from)}.`
             : `Średnia przed zmianą: ${before_average}% ${inForm(from)}.`,
+        cancel ? TRIAL_CANCEL_TEXT[cancel] : "",
       );
     }
     case "praise":
       return `Pochwała: ${praiseText(entry.data)}.`;
+    case "attention_needed": {
+      const results = entry.data.results
+        .map((result) => `„${result.lesson_title}” ${result.percent}%`)
+        .join(", ");
+      return joinSentences(
+        `${capitalize(lessonsText(entry.data.streak))} z rzędu poniżej progu: ${results}.`,
+        "Wskazówka po tej serii: inna forma lekcji albo pomoc nauczyciela.",
+      );
+    }
     case "trial_finished":
       return joinSentences(
         `Koniec okresu próbnego stylu ${STYLE_ADJ_GEN[entry.data.to]} (${entry.data.to}).`,
@@ -654,4 +869,173 @@ export function journalText(entry: JournalEntry): string {
       return `Zdarzenie: ${unknown.type}.`;
     }
   }
+}
+
+// --- Course panel statistics (teacher, stage 10; `learning_style/stats.py`, `assessment/stats.py`) ---
+
+export const LESSON_MIN_STUDENTS = 3;
+export const MATRIX_MIN_RESULTS = 2;
+export const FORM_GAP = 20;
+export const QUESTION_MIN_DRAWS = 5;
+export const HARD_BELOW = 40;
+export const EASY_ABOVE = 90;
+
+/** Name of a form in the course panel: "praktyczna" for K. */
+export function panelFormName(form: Form): string {
+  return FORM_ADJ[form];
+}
+
+/** "za mało danych (n = 2)" */
+export function notEnoughDataText(n: number): string {
+  return `za mało danych (n = ${n})`;
+}
+
+/** "2,1": one decimal with a Polish comma. */
+export function decimalText(value: number): string {
+  return value.toFixed(1).replace(".", ",");
+}
+
+/** "lekcja 3 „Miejsce zerowe”" */
+function panelLessonName(lesson: { number: number; title: string }): string {
+  return `lekcja ${lesson.number} „${lesson.title}”`;
+}
+
+/** "1 podejścia", "2 podejść", "2,1 podejścia" (genitive, after "średnio"). */
+function attemptsGenitive(value: number): string {
+  if (!Number.isInteger(value)) {
+    return `${decimalText(value)} podejścia`;
+  }
+  return `${value} ${plural(value, "podejścia", "podejść", "podejść")}`;
+}
+
+type HardestLesson = {
+  number: number;
+  title: string;
+  started: number;
+  passed: number;
+  pass_rate: number | null;
+  attempts_to_pass: number | null;
+};
+
+/** The sentence under "Które lekcje sprawiają trudność" (`hardest`). */
+export function hardestLessonText(
+  hardest: HardestLesson | null,
+  lessons: { started: number }[],
+): string {
+  if (hardest === null) {
+    if (lessons.length === 0) {
+      return "Kurs nie ma jeszcze opublikowanych lekcji.";
+    }
+    return lessons.some((lesson) => lesson.started >= LESSON_MIN_STUDENTS)
+      ? `Każdą lekcję z co najmniej ${LESSON_MIN_STUDENTS} uczniami zaliczyli wszyscy, którzy ją rozpoczęli.`
+      : `Za mało danych, żeby wskazać najtrudniejszą lekcję: żadnej lekcji nie rozpoczęło jeszcze ${LESSON_MIN_STUDENTS} uczniów.`;
+  }
+  const name = panelLessonName(hardest);
+  const { started, passed } = hardest;
+  if (passed === 0) {
+    return `Najtrudniejsza jest ${name}: nie zaliczył jej żaden z ${started} uczniów, którzy ją rozpoczęli.`;
+  }
+  const verb = passed === 1 ? "zaliczył" : "zaliczyło";
+  const rate = hardest.pass_rate === null ? "" : ` (${hardest.pass_rate}%)`;
+  const head = `Najtrudniejsza jest ${name}: ${verb} ją ${passed} z ${started} uczniów${rate}.`;
+  if (hardest.attempts_to_pass === null) {
+    return head;
+  }
+  const attempts = attemptsGenitive(hardest.attempts_to_pass);
+  return passed === 1
+    ? `${head} Uczeń, który ją zaliczył, potrzebował ${attempts}.`
+    : `${head} Uczniowie, którzy ją zaliczyli, potrzebowali średnio ${attempts}.`;
+}
+
+/** "trudne" / "łatwe" / "w normie"; below 5 draws "za mało danych (n = 3)". */
+export function questionRatingText(
+  rating: "hard" | "easy" | "normal" | null,
+  drawn: number,
+): string {
+  switch (rating) {
+    case "hard":
+      return "trudne";
+    case "easy":
+      return "łatwe";
+    case "normal":
+      return "w normie";
+    default:
+      return notEnoughDataText(drawn);
+  }
+}
+
+/** "6 pytań, w tym 2 trudne"; a lesson without a quiz: "bez quizu". */
+export function questionSummaryText(
+  questions: { rating: "hard" | "easy" | "normal" | null }[],
+): string {
+  const count = questions.length;
+  if (count === 0) {
+    return "bez quizu";
+  }
+  const all = `${count} ${plural(count, "pytanie", "pytania", "pytań")}`;
+  const hard = questions.filter(
+    (question) => question.rating === "hard",
+  ).length;
+  return hard === 0
+    ? all
+    : `${all}, w tym ${hard} ${plural(hard, "trudne", "trudne", "trudnych")}`;
+}
+
+type MatrixCellLike = { average: number | null; n: number };
+
+/** "88% · 4"; below 2 results the cell shows a dash (`average` is null). */
+export function matrixCellText(cell: MatrixCellLike): string | null {
+  return cell.average === null ? null : `${cell.average}% · ${cell.n}`;
+}
+
+type FormGapLike = {
+  number: number;
+  title: string;
+  best: { form: Form; average: number; n: number };
+  worst: { form: Form; average: number; n: number };
+};
+
+/** One lesson whose forms differ by at least 20 points. */
+export function formGapText(gap: FormGapLike): string {
+  const { best, worst } = gap;
+  return (
+    `W lekcji ${gap.number} „${gap.title}” forma ${FORM_ADJ[best.form]} ma średnio ${best.average}% (n = ${best.n}), ` +
+    `a ${FORM_ADJ[worst.form]} ${worst.average}% (n = ${worst.n}). ` +
+    `Sprawdź wersję ${FORM_ADJ_ACC[worst.form]} tej lekcji.`
+  );
+}
+
+/** Sentences under "W jakiej formie działa każda lekcja". */
+export function matrixConclusions(
+  matrix: { cells: Record<Form, MatrixCellLike> }[],
+  gaps: FormGapLike[],
+): string[] {
+  if (gaps.length > 0) {
+    return gaps.map(formGapText);
+  }
+  if (matrix.length === 0) {
+    return ["Kurs nie ma jeszcze opublikowanych lekcji."];
+  }
+  const comparable = matrix.filter(
+    (row) =>
+      FORMS.filter((form) => row.cells[form].average !== null).length >= 2,
+  ).length;
+  if (comparable === 0) {
+    return [
+      `Za mało wyników, żeby porównać formy: średnia w komórce pojawia się od ${MATRIX_MIN_RESULTS} wyników.`,
+    ];
+  }
+  return [
+    comparable === matrix.length
+      ? "Formy działają podobnie we wszystkich lekcjach."
+      : `Formy działają podobnie we wszystkich lekcjach, które da się porównać (${comparable} z ${matrix.length}).`,
+  ];
+}
+
+/** R12 at the student in the course table: "wymaga uwagi: 55%, 40%, 50%". */
+export function attentionNoteText(attention: {
+  results: { percent: number }[];
+}): string {
+  const results = attention.results.map((result) => `${result.percent}%`);
+  return `wymaga uwagi: ${results.join(", ")}`;
 }

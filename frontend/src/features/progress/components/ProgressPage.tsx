@@ -5,16 +5,26 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { CourseProgressBar } from "@/features/courses/components/CourseProgressBar";
+import { AttentionNote } from "@/features/learning-style/components/AttentionNote";
+import { useLearningProfile } from "@/features/learning-style/hooks";
 import { PageMessage } from "@/shared/layout/page-states";
 import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 
-import { useMyJournal, useMyProgress } from "../hooks";
+import {
+  useMyJournal,
+  useMyProgress,
+  useMyReviewQuestions,
+  useMyStats,
+} from "../hooks";
 import { lessonNumbers } from "../chart-data";
 import type { CourseProgress } from "../types";
 import { DecisionJournal } from "./DecisionJournal";
+import { FormTable } from "./FormTable";
 import { LessonResultsTable } from "./LessonResultsTable";
 import { PercentChart } from "./PercentChart";
+import { ReviewQuestions } from "./ReviewQuestions";
+import { StatsSummary } from "./StatsSummary";
 
 function Section({
   id,
@@ -42,11 +52,48 @@ function Section({
   );
 }
 
+/** Loading and error of one section; the rest of the page stays usable. */
+function SectionQuery<T>({
+  query,
+  errorText,
+  children,
+}: {
+  query: {
+    isPending: boolean;
+    isError: boolean;
+    data: T | undefined;
+    refetch: () => unknown;
+  };
+  errorText: string;
+  children: (data: T) => ReactNode;
+}) {
+  if (query.isPending) {
+    return (
+      <div className="flex justify-center py-6">
+        <Spinner className="size-5" />
+      </div>
+    );
+  }
+  if (query.isError || query.data === undefined) {
+    return (
+      <div className="space-y-3">
+        <p role="alert" className="text-sm text-destructive">
+          {errorText}
+        </p>
+        <Button variant="outline" onClick={() => query.refetch()}>
+          Spróbuj ponownie
+        </Button>
+      </div>
+    );
+  }
+  return <>{children(query.data)}</>;
+}
+
 function Courses({ courses }: { courses: CourseProgress[] }) {
   if (courses.length === 0) {
     return (
       <p className="text-muted-foreground">
-        Nie jesteś jeszcze zapisany na żaden kurs.{" "}
+        Nie masz jeszcze żadnego kursu.{" "}
         <Link
           href="/courses"
           className="font-medium underline underline-offset-4"
@@ -100,6 +147,9 @@ function Courses({ courses }: { courses: CourseProgress[] }) {
 export function ProgressPage() {
   const progress = useMyProgress();
   const journal = useMyJournal();
+  const stats = useMyStats();
+  const review = useMyReviewQuestions();
+  const profile = useLearningProfile();
 
   if (progress.isPending) {
     return (
@@ -133,10 +183,55 @@ export function ProgressPage() {
         </p>
       </div>
 
+      {stats.data?.attention && (
+        <AttentionNote attention={stats.data.attention} />
+      )}
+
+      <Section
+        id="summary"
+        title="Podsumowanie"
+        description="Średni wynik i seria liczą tylko pierwsze podejście do lekcji w danej formie, bez powtórek."
+      >
+        <SectionQuery
+          query={stats}
+          errorText="Nie udało się wczytać podsumowania."
+        >
+          {(data) => <StatsSummary summary={data.summary} />}
+        </SectionQuery>
+      </Section>
+
+      <Section
+        id="forms"
+        title="W której formie idzie Ci najlepiej"
+        description="Jeden wiersz to jedna forma, liczby ze wszystkich Twoich kursów. „Za pierwszym razem” i „Średnia” liczą pierwsze podejście do lekcji w tej formie; procent zaliczeń pojawia się od 2 lekcji."
+      >
+        <SectionQuery
+          query={stats}
+          errorText="Nie udało się wczytać tabeli form."
+        >
+          {(data) => (
+            <FormTable forms={data.forms} style={profile.data?.style ?? null} />
+          )}
+        </SectionQuery>
+      </Section>
+
+      <Section
+        id="review"
+        title="Do powtórki"
+        description="Pytania, na które w ostatnim podejściu do lekcji padła zła odpowiedź. Najnowsze są na górze, najwyżej 5."
+      >
+        <SectionQuery
+          query={review}
+          errorText="Nie udało się wczytać pytań do powtórki."
+        >
+          {(questions) => <ReviewQuestions questions={questions} />}
+        </SectionQuery>
+      </Section>
+
       <Section
         id="chart"
         title="Procenty form w czasie"
-        description="Start z ankiety, potem zmiana po każdym policzonym quizie. Zmiana stylu nie zmienia procentów – na wykresie to pionowa linia."
+        description="Procenty startują z ankiety i zmieniają się po każdym policzonym quizie. Zmiana stylu nie zmienia procentów, na wykresie jest pionową linią."
       >
         <PercentChart
           history={data.history}
@@ -151,7 +246,7 @@ export function ProgressPage() {
       <Section
         id="results"
         title="Wyniki lekcji"
-        description="Każde podejście do quizu. Procenty zmienia tylko pierwsze podejście w danej formie w danej lekcji."
+        description="Tu jest każde podejście do quizu. Procenty zmienia tylko pierwsze podejście do lekcji w danej formie."
       >
         <LessonResultsTable lessons={data.lessons} />
       </Section>
@@ -159,7 +254,7 @@ export function ProgressPage() {
       <Section
         id="journal"
         title="Dziennik decyzji"
-        description="Od najnowszych. Każda reakcja systemu wynika z reguły i ma swoje liczby."
+        description="Najnowsze wpisy są na górze. Przy każdej reakcji systemu są liczby, z których wynika."
       >
         {journal.isPending ? (
           <div className="flex justify-center py-6">

@@ -1,6 +1,7 @@
 import { journalLabel, journalText } from "@/features/learning-style/explain";
 
 import { formatDateTime } from "../format";
+import { cancelledTrials } from "../journal-data";
 import type { JournalEntry } from "../types";
 
 type DecisionJournalProps = {
@@ -30,10 +31,12 @@ export function DecisionJournal({
       <p className="text-muted-foreground">Dziennik jest jeszcze pusty.</p>
     );
   }
+  // R7a: a trial cancelled later says so in its own entry
+  const context = { cancelledTrials: cancelledTrials(entries) };
   return (
     <ol role="list" className="divide-y border-y">
       {entries.map((entry) => {
-        const context = contextText(entry, showCourse);
+        const where = contextText(entry, showCourse);
         return (
           <li
             key={entry.id}
@@ -48,9 +51,9 @@ export function DecisionJournal({
               </span>
             </div>
             <div className="space-y-0.5">
-              <p className="text-pretty">{journalText(entry)}</p>
-              {context && (
-                <p className="text-sm text-muted-foreground">{context}</p>
+              <p className="text-pretty">{journalText(entry, context)}</p>
+              {where && (
+                <p className="text-sm text-muted-foreground">{where}</p>
               )}
             </div>
           </li>

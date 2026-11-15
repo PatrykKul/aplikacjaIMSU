@@ -11,7 +11,7 @@ export const TAB_LABELS: Record<EditorTab, string> = {
   outline: "Zarys i wnioski",
   V: "Wzrokowa (V)",
   A: "Słuchowa (A)",
-  K: "Kinestetyczna (K)",
+  K: "Praktyczna (K)",
   quiz: "Quiz (pula)",
 };
 

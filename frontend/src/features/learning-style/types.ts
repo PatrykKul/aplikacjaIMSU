@@ -99,6 +99,12 @@ export type LessonScore = {
   percent: number;
 };
 
+/**
+ * R5 (stage 10): `soft` - the previous counted result in the failed form was
+ * passed (one slip after good results); `strong` - otherwise.
+ */
+export type RetryStrength = "soft" | "strong";
+
 /** R5: the same shape as `data` of the journal event `retry_suggestion`. */
 export type RetrySuggestion = {
   failed: { form: Form; percent: number; previous: LessonScore | null };
@@ -109,7 +115,50 @@ export type RetrySuggestion = {
     survey_percent: number;
     best: LessonScore | null;
   };
+  /** Missing in events written before stage 10: treated as `strong`. */
+  strength?: RetryStrength;
 };
+
+/** R12: one of the last counted results of a series of failures. */
+export type AttentionResult = {
+  lesson_id: number;
+  lesson_title: string;
+  form: Form;
+  percent: number;
+};
+
+/**
+ * R12: at least 3 counted results in a row below the threshold (all courses).
+ * `results` - the last 3 counted results, oldest first.
+ */
+export type Attention = { streak: number; results: AttentionResult[] };
+
+/**
+ * One row of the table of forms (`GET /me/stats`, teacher's student detail).
+ * Rates and averages are null below the data threshold, with the count beside.
+ */
+export type FormTableRow = {
+  /** Distinct lessons with an attempt in this form. */
+  lessons: number;
+  attempts: number;
+  /** Distinct lessons with a passed attempt in this form. */
+  passed_lessons: number;
+  /** Counted results in this form (first attempt of a lesson in it). */
+  first_try_lessons: number;
+  first_try_passed: number;
+  /** % of `first_try_passed`; null when `first_try_lessons` < 2. */
+  first_try_rate: number | null;
+  /** Average of the counted results; null without them. */
+  average: number | null;
+  /** Highest result in this form (any attempt); null without attempts. */
+  best: number | null;
+  /** R3 */
+  confirmed: boolean;
+  /** Percent of the profile; null without a profile. */
+  percent: number | null;
+};
+
+export type FormTable = Record<Form, FormTableRow>;
 
 export type Praise = { form: Form; streak: number; average: number };
 
@@ -126,6 +175,8 @@ export type QuizFeedback = {
   suggestion: RetrySuggestion | null;
   proposal: Proposal | null;
   trial: Trial | null;
+  /** R12: the state after this attempt. */
+  attention: Attention | null;
 };
 
 export type FormSource = "style" | "choice";

@@ -42,8 +42,8 @@ export function LessonMessage({
         title="Ta lekcja jest jeszcze zablokowana"
         description={
           required
-            ? `Najpierw zalicz lekcję ${required.number}: „${required.title}” – quiz od 70%. Wtedy ta lekcja się otworzy.`
-            : "Najpierw zalicz poprzednią lekcję – quiz od 70%."
+            ? `Najpierw zalicz lekcję ${required.number}: „${required.title}” (quiz od 70%). Wtedy ta lekcja się otworzy.`
+            : "Najpierw zalicz poprzednią lekcję (quiz od 70%)."
         }
         action={
           <div className="flex flex-col items-center gap-3">
@@ -82,7 +82,7 @@ export function LessonMessage({
         fullScreen
         icon={ClipboardListIcon}
         title="Najpierw wypełnij ankietę"
-        description="Lekcje dobieramy do Twojego stylu uczenia się, więc potrzebujemy wyniku ankiety."
+        description="Lekcje są dobierane do Twojego stylu uczenia się, a styl wynika z ankiety."
         action={
           <Link href="/survey" className={cn(buttonVariants())}>
             Przejdź do ankiety

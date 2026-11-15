@@ -4,11 +4,18 @@ import { CloudOffIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { profileSummaryLines } from "@/features/learning-style/explain";
-import type { LearningProfile } from "@/features/learning-style/types";
+import {
+  attentionSeries,
+  profileSummaryLines,
+} from "@/features/learning-style/explain";
+import type {
+  Attention,
+  LearningProfile,
+} from "@/features/learning-style/types";
 import { lessonNumbers } from "@/features/progress/chart-data";
 import { DecisionJournal } from "@/features/progress/components/DecisionJournal";
 import { FormPercentages } from "@/features/progress/components/FormPercentages";
+import { FormTable } from "@/features/progress/components/FormTable";
 import { LessonResultsTable } from "@/features/progress/components/LessonResultsTable";
 import { PercentChart } from "@/features/progress/components/PercentChart";
 import { ApiError } from "@/shared/api/client";
@@ -47,8 +54,18 @@ function DetailSection({
 }
 
 /** Style, its source, an open proposal and the trial, in the teacher's words. */
-function ProfileSummary({ profile }: { profile: LearningProfile }) {
+function ProfileSummary({
+  profile,
+  attention,
+}: {
+  profile: LearningProfile;
+  attention: Attention | null;
+}) {
   const lines = profileSummaryLines(profile);
+  // R12, in words (no badge)
+  if (attention) {
+    lines.push({ label: "Wymaga uwagi", text: attentionSeries(attention) });
+  }
   return (
     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[max-content_minmax(0,1fr)]">
       {lines.map((line) => (
@@ -117,7 +134,8 @@ export function StudentDetailPage({
     );
   }
 
-  const { student, profile, history, lessons, journal } = detail.data;
+  const { student, profile, history, lessons, journal, forms, attention } =
+    detail.data;
 
   return (
     <div className="space-y-12">
@@ -146,7 +164,7 @@ export function StudentDetailPage({
           </h1>
           <p className="text-muted-foreground">{student.email}</p>
         </div>
-        <ProfileSummary profile={profile} />
+        <ProfileSummary profile={profile} attention={attention ?? null} />
       </div>
 
       <DetailSection
@@ -155,6 +173,18 @@ export function StudentDetailPage({
         description="Profil ucznia ze wszystkich kursów: start z ankiety, potem +10 / −10 za pierwsze podejście w danej formie w lekcji."
       >
         <FormPercentages profile={profile} />
+      </DetailSection>
+
+      <DetailSection
+        id="student-form-table"
+        title="W której formie uczniowi idzie najlepiej"
+        description="Jeden wiersz to jedna forma, liczby ze wszystkich kursów ucznia. „Za pierwszym razem” i „Średnia” liczą pierwsze podejście do lekcji w tej formie; procent zaliczeń pojawia się od 2 lekcji."
+      >
+        {forms ? (
+          <FormTable forms={forms} style={profile.style} voice="neutral" />
+        ) : (
+          <p className="text-muted-foreground">Brak danych o formach.</p>
+        )}
       </DetailSection>
 
       <DetailSection id="student-chart" title="Procenty w czasie">

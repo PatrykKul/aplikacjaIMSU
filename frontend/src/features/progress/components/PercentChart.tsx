@@ -397,10 +397,10 @@ export function PercentChart({ history, lessonNumbers }: PercentChartProps) {
         </svg>
       </div>
       <figcaption className="text-sm text-muted-foreground">
-        Linia ciągła – wzrokowe (V), kreskowana – słuchowe (A), kropkowana –
-        kinestetyczne (K). Punkt to stan po ankiecie albo policzonym quizie,
-        pionowa linia – zmiana stylu (przekreślona – cofnięta przed pierwszą
-        lekcją). Data i godzina są w podpowiedzi i w tabeli.
+        Linia ciągła to forma wzrokowa (V), kreskowana słuchowa (A), kropkowana
+        praktyczna (K). Punkt to stan po ankiecie albo po policzonym quizie.
+        Pionowa linia oznacza zmianę stylu, przekreślona zmianę cofniętą przed
+        pierwszą lekcją. Datę i godzinę pokazują podpowiedź i tabela.
       </figcaption>
       <ChartTable rows={rows} />
     </figure>

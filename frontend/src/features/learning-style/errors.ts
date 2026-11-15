@@ -11,13 +11,13 @@ const messages: Record<string, string> = {
   SURVEY_REQUIRED:
     "Najpierw wypełnij ankietę stylu uczenia się i wybierz swój styl.",
   SURVEY_ALREADY_DONE:
-    "Ankieta jest już wypełniona – wypełnia się ją tylko raz. Styl możesz zmienić w zakładce „Mój styl”.",
+    "Ankieta jest już wypełniona, wypełnia się ją tylko raz. Styl możesz zmienić w zakładce „Mój styl”.",
   NO_TIE: "Twój styl jest już wybrany.",
   STYLE_NOT_TIED: "Wybierz jeden ze stylów, które miały remis w ankiecie.",
   SAME_STYLE: "To już jest Twój styl.",
   PROPOSAL_NOT_FOUND: "Ta propozycja jest już nieaktualna.",
   PROPOSAL_NOT_OPEN:
-    "Ta propozycja jest już nieaktualna – została przyjęta, odrzucona albo wygasła.",
+    "Ta propozycja jest już nieaktualna: została przyjęta, odrzucona albo wygasła.",
 };
 
 /** Messages for this feature's error codes, then courses (enrollment, lock), then app-wide. */

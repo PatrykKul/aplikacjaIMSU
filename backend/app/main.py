@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.errors import register_error_handlers
 from app.core.health import router as health_router
-from app.modules.assessment.router import quiz_router
+from app.modules.assessment.router import question_stats_router, quiz_router, review_router
 from app.modules.authoring.router import authoring_router
 from app.modules.content.router import files_router, lesson_versions_router
 from app.modules.curriculum.router import courses_router, lessons_router
@@ -42,6 +42,8 @@ def create_app() -> FastAPI:
     app.include_router(course_insights_router)
     app.include_router(me_router)
     app.include_router(quiz_router)
+    app.include_router(review_router)
+    app.include_router(question_stats_router)
     app.include_router(authoring_router)
     return app
 

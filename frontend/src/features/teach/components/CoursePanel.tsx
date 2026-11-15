@@ -4,6 +4,13 @@ import { CloudOffIcon, PencilIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import {
+  EASY_ABOVE,
+  HARD_BELOW,
+  LESSON_MIN_STUDENTS,
+  MATRIX_MIN_RESULTS,
+  QUESTION_MIN_DRAWS,
+} from "@/features/learning-style/explain";
 import { ApiError } from "@/shared/api/client";
 import { PageMessage } from "@/shared/layout/page-states";
 import { cn } from "@/shared/lib/utils";
@@ -14,6 +21,9 @@ import { useCourseStats, useEnrollments, useTeacherCourse } from "../hooks";
 import { CourseStudentsTable } from "./CourseStudentsTable";
 import { EnrollmentRequests } from "./EnrollmentRequests";
 import { FormEffectiveness } from "./FormEffectiveness";
+import { LessonDifficulty } from "./LessonDifficulty";
+import { LessonFormMatrix } from "./LessonFormMatrix";
+import { QuestionAnalysis } from "./QuestionAnalysis";
 import { StyleDistribution } from "./StyleDistribution";
 
 type PanelSectionProps = {
@@ -135,7 +145,7 @@ export function CoursePanel({ courseId }: { courseId: number }) {
       <PanelSection
         id="panel-students"
         title={`Uczniowie (${stats.data.students.length})`}
-        description="Styl i procenty V / A / K ucznia, zaliczone lekcje tego kursu i średnia jego policzonych wyników. Kliknij ucznia, żeby zobaczyć wykres i dziennik decyzji."
+        description="Styl i procenty V / A / K ucznia, zaliczone lekcje tego kursu i średnia jego policzonych wyników. Kliknij ucznia, żeby zobaczyć wykres i dziennik decyzji. Uczeń, którego trzy ostatnie policzone wyniki są poniżej progu, ma przy imieniu dopisek „wymaga uwagi” z tymi wynikami."
       >
         <CourseStudentsTable
           courseId={courseId}
@@ -144,11 +154,41 @@ export function CoursePanel({ courseId }: { courseId: number }) {
       </PanelSection>
 
       <PanelSection
+        id="panel-lessons"
+        title="Które lekcje sprawiają trudność"
+        description={`Zaliczalność to odsetek uczniów, którzy zaliczyli lekcję, spośród tych, którzy ją rozpoczęli; procenty i średnie są podawane od ${LESSON_MIN_STUDENTS} uczniów w lekcji.`}
+      >
+        <LessonDifficulty
+          lessons={stats.data.lessons}
+          hardest={stats.data.hardest}
+        />
+      </PanelSection>
+
+      <PanelSection
+        id="panel-questions"
+        title="Które pytania są za trudne albo źle ułożone"
+        description={`Wylosowane to liczba wysłanych zestawów z tym pytaniem; procenty i ocena są podawane od ${QUESTION_MIN_DRAWS} wylosowań, a pytanie poniżej ${HARD_BELOW}% poprawnych odpowiedzi jest trudne, powyżej ${EASY_ABOVE}% łatwe.`}
+      >
+        <QuestionAnalysis courseId={courseId} />
+      </PanelSection>
+
+      <PanelSection
         id="panel-forms"
         title="Skuteczność form"
         description="Jak wypadają quizy przerobione w każdej z wersji lekcji tego kursu."
       >
         <FormEffectiveness forms={stats.data.forms} />
+      </PanelSection>
+
+      <PanelSection
+        id="panel-matrix"
+        title="W jakiej formie działa każda lekcja"
+        description={`W komórce średnia pierwszych podejść w tej formie i liczba tych wyników; średnia pojawia się od ${MATRIX_MIN_RESULTS} wyników, wcześniej w komórce jest kreska.`}
+      >
+        <LessonFormMatrix
+          matrix={stats.data.matrix}
+          form_gaps={stats.data.form_gaps}
+        />
       </PanelSection>
 
       <PanelSection

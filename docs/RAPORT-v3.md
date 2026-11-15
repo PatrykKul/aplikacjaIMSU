@@ -160,3 +160,79 @@ Twoja baza jest sprzed v3 (ostatnia migracja `249e835bc4e5`, klasy). Dane v2 nie
 | `uczen1@imsu.pl` … `uczen6@imsu.pl` | klasa (Antoni, Julia, Szymon, Lena, Filip, Maja) |
 
 U Ciebie w Programowaniu skuteczność A pokaże `–` (u Patryka `87%`, bo liczy się jego prywatne konto) — to poprawne.
+
+## Statystyki (15.11)
+
+Zlecenie: `..\ZADANIE-CLAUDE-CODE-IMSU-v3-statystyki.md`, punkty 1–10 (punkt 11 zrobiony przed pushem v3). Gałąź `feat/statystyki` od `main`, **bez merge do `main` i bez pushu — czeka na audyt Patryka**. Decyzje D63–D67, kontrakt API i definicje w `moduly/04-learning-style.md`, `moduly/05-assessment.md`, frontend w `moduly/02-curriculum.md`, dane demo w `moduly/06-demo.md`.
+
+### Co zrobione
+
+| Część | Co | Commity |
+|---|---|---|
+| A — backend | `learning_style/stats.py` (podsumowanie, tabela form, statystyki lekcji, najtrudniejsza lekcja, macierz lekcja × forma, wnioski o różnicy form), `assessment/stats.py` (analiza pytań, pytania do powtórki), R5 `strength` (`soft` / `strong`), R12 `attention`, endpointy `GET /me/stats`, `GET /me/review-questions`, `GET /courses/{id}/question-stats`, nowe pola `/courses/{id}/stats` i szczegółów ucznia | `5598547`…`3c0cb4c`, scalenie `2395c4f` |
+| B — frontend ucznia | „Moje postępy”: podsumowanie (4 liczby), „W której formie idzie Ci najlepiej” (`FormTable`, też u nauczyciela), „Do powtórki”, komunikat R12; R5 soft / strong; pkt 10: kolumna „Wyniki lekcji” bez ucinania, anulowany okres próbny oznaczony w swoim wpisie dziennika | `29ceced`…`e355479`, scalenie `5877c83` |
+| C — frontend nauczyciela | panel kursu: „Które lekcje sprawiają trudność”, „Które pytania są za trudne albo źle ułożone” (rozwijane lekcje), „W jakiej formie działa każda lekcja”, „wymaga uwagi” przy uczniu | `f2ee90a`…`060a5f3`, scalenie `9962233` (dziś; jeden konflikt w `frontend/package.json` — połączone listy testów) |
+| D — dane demo | 6 nowych uczniów Matematyki (`uczen7`–`uczen12`), trudne i łatwe pytanie w każdej lekcji, różnica form w lekcji 3, Igor z serią R12; test seeda sekcji 4–6 | `42b7cda`…`1612680`, scalenie `802efb7`, `e6339ce` |
+| Pkt 9 — język | przegląd wszystkich tekstów frontendu (tabela niżej), forma K = „praktyczna” w całym interfejsie, wynik niezaliczonego quizu w neutralnym kolorze; test skanujący źródła | `06629d2` |
+| Zrzuty | `demo-tour.mjs`: zrzuty sekcji `s01`–`s16` (komputer i telefon 390 px), kontrole „wymaga uwagi”, najtrudniejszej lekcji i wniosku macierzy; wiersze kont spoza `@imsu.pl` ukryte przed każdym zrzutem; 27 starych zrzutów o nieaktualnej numeracji usuniętych (nowy zrzut 24 przesunął kolejne o jeden; poprzednie wersje są w historii gita) | `4b92020` |
+
+### Język komunikatów: przed → po (najważniejsze)
+
+| Gdzie | Przed | Po |
+|---|---|---|
+| Wynik quizu, „Co to zmieniło” | Wzrokowe 45% → 35% | Udział formy wzrokowej: 45% → 35%. |
+| Wynik quizu, reguła (porażka) | Pierwsze podejście w tej formie niezaliczone: forma −10 punktów, pozostałe dwie dostają je proporcjonalnie. | Ten wynik obniżył udział formy wzrokowej w Twoim profilu. |
+| Wynik quizu, reguła (zaliczenie) | … forma +10 punktów, pozostałe dwie oddają je proporcjonalnie. | Ten wynik podniósł udział formy słuchowej w Twoim profilu. |
+| Wynik quizu, powtórka | To kolejne podejście w tej formie – procenty bez zmian | Procenty form bez zmian. To kolejne podejście do tej lekcji w tej formie. Profil zmienia tylko pierwsze. |
+| Odblokowanie | Lekcja 4 odblokowana | Lekcja 4 jest już otwarta. |
+| Wynik niezaliczony (kolor czerwony → neutralny) | Jeszcze nie: 2 z 5 (40%) – zaliczenie od 70% | Jeszcze niezaliczone: 2 z 5 (40%). Zaliczenie od 70% |
+| Ocena pytania w quizie | Dobrze! / Jeszcze nie | Poprawnie / Niepoprawnie |
+| R5, uzasadnienie (forma oblana) | Wzrokowe: ten quiz 40%, poprzednia lekcja 40%. | W formie wzrokowej masz w tym quizie 40%, w poprzedniej lekcji 40%. |
+| R5, forma z ankiety | Słuchowe były drugie w Twojej ankiecie (40%), nie mamy jeszcze o nich wyników – warto sprawdzić. | W Twojej ankiecie forma słuchowa była na drugim miejscu (40%). Nie masz jeszcze wyników w tej formie. |
+| R5, forma potwierdzona | Słuchowe zaliczyłeś w lekcji „Wzór i wykres” na 80%. | W formie słuchowej masz zaliczoną lekcję „Wzór i wykres” (80%). |
+| R6, pytanie banera | Lepiej idzie Ci w formie słuchowej – przełączyć styl na stałe? | W formie słuchowej idzie Ci lepiej. Zmienić styl na słuchowy? |
+| R6, dowód | Wzrokowe: 3 lekcje, średnio 53% · Słuchowe: 1 lekcja, średnio 80% | W formie wzrokowej: 3 lekcje, średnio 53%. W formie słuchowej: 1 lekcja, średnio 80%. |
+| R6, skutek | Lekcje, których jeszcze nie zaliczyłeś, będą w formie słuchowej. Procenty się nie zmienią, a przez 2 lekcje sprawdzimy, czy zmiana pomogła. | Lekcje, które nie są jeszcze zaliczone, dostaniesz w formie słuchowej. Procenty się nie zmienią. Po 2 lekcjach w nowej formie zobaczysz, czy zmiana pomogła. |
+| R7, brak punktu odniesienia | Brak wyników w formie wzrokowej do porównania – po 2 lekcjach pokażemy średnią w nowej formie | W formie wzrokowej nie było wyników do porównania. Po 2 lekcjach w nowej formie pojawi się jej średnia |
+| R7, reguła („Mój styl”) | … porównujemy średnią z wcześniejszą: wzrost o co najmniej 10 punktów – zmiana pomogła; spadek o 10 lub więcej – zaproponujemy powrót; pomiędzy – bez wyraźnej różnicy. | Po 2 lekcjach w nowej formie jej średnia jest porównywana z wcześniejszą. Wzrost o co najmniej 10 punktów oznacza, że zmiana pomogła. Przy spadku o 10 punktów lub więcej pojawi się propozycja powrotu do poprzedniego stylu. Wynik pomiędzy to „bez wyraźnej różnicy”. |
+| R7a, dziennik | Zmiana na styl wzrokowy (V) cofnięta przed pierwszą lekcją – wracamy do stylu słuchowego (A) | Zmiana na styl wzrokowy (V) cofnięta przed pierwszą lekcją, znów obowiązuje styl słuchowy (A) |
+| R4, pochwała | Świetna seria! 3 lekcje z rzędu zaliczone w formie wzrokowej, średnio 87%. | Dobra seria: 3 lekcje z rzędu zaliczone w formie wzrokowej, średni wynik 87%. |
+| Dziennik, sugestia soft | Sugestia: rozwiązać quiz jeszcze raz, ewentualnie przerobić lekcję w formie praktycznej. | Sugestia: rozwiązać quiz jeszcze raz albo przerobić lekcję w formie praktycznej. |
+| Dziennik, R12 | … Wskazówka: spróbować innej formy albo poprosić nauczyciela o pomoc. | … Wskazówka po tej serii: inna forma lekcji albo pomoc nauczyciela. |
+| Panel kursu, macierz | … Wersję praktyczną tej lekcji dobrze jest przejrzeć. | … Sprawdź wersję praktyczną tej lekcji. |
+| „Mój styl”, ręczna zmiana | Możesz sam wybrać styl … Lekcje, których jeszcze nie zaliczyłeś, dostaniesz w nowej formie. Przez 2 lekcje potrwa okres próbny – sprawdzimy, czy zmiana pomogła. | Styl możesz też wybrać samodzielnie … Lekcje, które nie są jeszcze zaliczone, dostaniesz w nowej formie. Przez 2 lekcje potrwa okres próbny, po nim zobaczysz, czy zmiana pomogła. |
+| „Mój styl”, procenty | … Forma jest potwierdzona wynikami, gdy zaliczyłeś w niej co najmniej jeden quiz. | … Pozostałe dwie formy oddają albo dostają te punkty tak, żeby suma zawsze wynosiła 100%. Forma jest potwierdzona wynikami, gdy masz w niej co najmniej jeden zaliczony quiz. |
+| Wynik ankiety, „Co dalej” | Procenty zmieniają się po quizach: pierwsze podejście w danej formie w lekcji to +10 punktów za zaliczenie … | Procenty zmieniają się po quizach. Zaliczony quiz (od 70%) podnosi udział formy, w której była lekcja, niezaliczony go obniża. Dokładne zasady są w zakładce „Mój styl”. |
+| Lista kursów, postępy | Nie jesteś jeszcze zapisany na żaden kurs. | Nie masz jeszcze żadnego kursu. |
+| Błąd zapisu | Jesteś już zapisany na ten kurs. | Ten kurs jest już na Twojej liście. |
+| Lekcja bez ankiety | Lekcje dobieramy do Twojego stylu uczenia się, więc potrzebujemy wyniku ankiety. | Lekcje są dobierane do Twojego stylu uczenia się, a styl wynika z ankiety. |
+| Strona startowa | Wynik zmienia procent formy, w której się uczyłeś. … – decydujesz Ty. | Wynik quizu zmienia procent formy, w której była lekcja. … Decyzja należy do Ciebie. |
+| Błąd ogólny | Ups! Coś poszło nie tak. … | Coś poszło nie tak. … |
+| Nazwa formy K (wszędzie) | kinestetyczna / Kinestetyczna (K) / styl kinestetyczny / „Przez działanie” | praktyczna / Praktyczna (K) / styl praktyczny / „Praktycznie” |
+
+Ramki: podpowiedź R5 `strong`, komunikat R12 i ramka „Wymaga uwagi” były już neutralne (`border bg-muted/50`) po scaleniu B; czerwień zostaje tylko przy błędach i złych odpowiedziach. Stałe straże: test `explain.test.mjs` („point 9”) sprawdza przykładowe zdania i przeszukuje wszystkie `.ts` / `.tsx` w `frontend/src` (0 trafień: stara nazwa K, „proporcjonaln…”, „warto”, „nie mamy”, czasowniki na „-łeś/-łaś”, „jesteś … zapisany”, „Ups!”).
+
+### Jak sprawdzone
+
+| Co | Wynik |
+|---|---|
+| `pytest` (baza `imsu_test`) | **602 passed** (21 min) |
+| `ruff check .`, `ruff format --check .` | czyste (119 plików) |
+| `npx tsc --noEmit`, `npm run lint`, `npm run format:check` | czyste |
+| `npm test` | **49 pass** (chart-data, journal-data, explain — w tym 4 nowe testy pkt 9 — i course-panel-text) |
+| `npm run build` | w **osobnej kopii**: `git archive HEAD frontend` do katalogu tymczasowego + `npm ci` + `next build` — kompilacja, TypeScript i 17 stron statycznych OK; `frontend/.next` nietknięty. Ta sama kopia serwowała aplikację do Playwright (`next start -p 3001`) |
+| Seed 2 × (baza deweloperska `imsu`) | 1. przebieg dobudował uczniów 7–12 (baza miała tylko pierwszą grupę); 2. przebieg: 24 × „bez zmian”, **identyczne liczby wierszy we wszystkich tabelach** |
+| `--reset-students` | liczby wierszy identyczne, „Stan kont” i „Skuteczność form” identyczne z wynikiem pierwszego seeda; Matematyka `V 67% (7 ucz.) · A 82% (8 ucz.) · K 67% (4 ucz.)` |
+| Playwright `e2e/demo-tour.mjs` | **51 zrzutów ekranów + 16 zrzutów sekcji na dysku** w `docs/zrzuty-v3/`, 0 problemów (błędy 500 i JS, poziome przewinięcie strony, kontrole: Igor „wymaga uwagi”, najtrudniejsza lekcja 2, wniosek macierzy w lekcji 3, brak widocznych adresów spoza demo). Tylko konta demo. Po przejściu `--reset-students` — stan startowy przywrócony (porównany „Stan kont”) |
+| Obejrzane zrzuty | s01–s04 (panel kursu), s08 (tabela form Kuby), s11 i s16 (telefon: tabele przewijane w sekcji, strona bez poziomego przewijania), 22, 24 (Igor), 32 (sugestia `strong` w szarej ramce, wynik bez czerwieni), 35 (propozycja przyjęta) |
+
+### Co nie działa / wymaga Patryka
+
+- **Wariant R5 `soft` nie ma zrzutu** — żadne konto demo nie stoi przed pojedynczym potknięciem w formie, która działała (Kuba ma drugą porażkę z rzędu → `strong`). Reguła ma testy w `test_rules.py`, frontend — testy zdań w `explain.test.mjs`; ekran nie był oglądany na żywo.
+- **Komunikat R12 u Igora**: „Trzy ostatnie lekcje poniżej progu (40%, 60%, 40%)” — wszystkie trzy wyniki są z tej samej lekcji 2 (w trzech formach). Tekst jest dosłownie ze zlecenia, ale „lekcje” jest tu nieścisłe; do decyzji, czy zmienić na „Trzy ostatnie wyniki poniżej progu”.
+- **Prywatne konto testowe** (jedno konto spoza `@imsu.pl`) ma prośbę o zapis do Matematyki. Na zrzutach jest ukryte (dane bez zmian), ale nagłówek „Prośby o zapis (2)” na zrzucie 22 liczy też je. Przed pokazem odrzuć tę prośbę (scenariusz, „Przygotowanie” pkt 3) — nie robiłem tego sam, bo to zmiana na Twoim koncie.
+- **„warto” w treści kursu demo**: wyjaśnienie pytania q5 lekcji 1 Matematyki („Trzeci punkt warto policzyć…”). To tekst autora kursu, nie komunikat systemu; seed nie odświeża puli istniejącego kursu, więc zmiana w `courses.py` rozjechałaby źródło z bazą. Zostawione.
+- **LaTeX** (`docs/tex`, rozdziały 01 i 03) nadal nazywa formę K „kinestetyczną” — zgodnie z D66 to dopuszczalne w dokumentacji (teoria VAK), ale nie ma tam jeszcze dopisku o nazwie „praktyczna” w interfejsie. Nie zmieniałem LaTeX-a.
+- Teksty nauczyciela i administratora przejrzane, zmienione tylko tam, gdzie trafiały w zasady (nazwa K, „warto”, opis kolumny „wymaga uwagi”); etykiety stanów typu „Szkic – uczniowie jej nie widzą” zostały z półpauzą.
+- Po merge Bartek przy zwykłym `python -m app.demo.seed` dostanie 6 nowych uczniów Matematyki (pierwszy przebieg je tworzy) — instrukcja wyżej nadal działa, zmieniają się tylko liczby w linii „Skuteczność form” (`V 67% (7 ucz.) · A 82% (8 ucz.) · K 67% (4 ucz.)`).
+- Worktree `wt/stat-a`…`stat-d` i gałęzie `feat/stat-*` usunięte po scaleniu (wszystkie commity są w `feat/statystyki`).

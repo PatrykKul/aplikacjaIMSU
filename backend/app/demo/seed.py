@@ -165,7 +165,7 @@ STUDENTS: tuple[Student, ...] = (
             Quiz("p", 3, 80),
         ),
     ),
-    # Class of six: in Matematyka A ~85%, K 70%, V 60% (with Kuba's results)
+    # Class of six (first group)
     Student(
         "uczen1@imsu.pl",
         "Antoni Wójcik",
@@ -219,7 +219,132 @@ STUDENTS: tuple[Student, ...] = (
         "Maja Jankowska",
         (Survey(6, 3, 11), Enrol("m"), Quiz("m", 1, 80), Quiz("m", 2, 60)),
     ),
+    # Second group in Matematyka (course statistics): appended after the first group, so the
+    # draws above stay the same. Lesson 2 is the hardest; lesson 3 works in A, not in V.
+    Student(
+        "uczen7@imsu.pl",
+        "Natalia Zając",
+        # strong in A; fails lesson 2 once and passes it again in A
+        (
+            Survey(6, 11, 3),
+            Enrol("m"),
+            Quiz("m", 1, 100),
+            Quiz("m", 2, 60),
+            Quiz("m", 2, 80),
+            Quiz("m", 3, 100),
+            Quiz("m", 4, 80),
+        ),
+    ),
+    Student(
+        "uczen8@imsu.pl",
+        "Mikołaj Król",
+        # lesson 3 in V 40% -> suggestion A -> A 80%; back in V for lesson 4
+        (
+            Survey(11, 5, 4),
+            Enrol("m"),
+            Quiz("m", 1, 80),
+            Quiz("m", 2, 80),
+            Quiz("m", 3, 40),
+            ChooseForm("m", 3, "A"),
+            Quiz("m", 3, 80),
+            Quiz("m", 4, 80),
+        ),
+    ),
+    Student(
+        "uczen9@imsu.pl",
+        "Hanna Pawlak",
+        # V fails twice, A passes twice -> accepts V -> A; trial running (1 of 2 lessons)
+        (
+            Survey(10, 7, 3),
+            Enrol("m"),
+            Quiz("m", 1, 80),
+            Quiz("m", 2, 60),
+            ChooseForm("m", 2, "A"),
+            Quiz("m", 2, 80),
+            Quiz("m", 3, 40),
+            ChooseForm("m", 3, "A"),
+            Quiz("m", 3, 100),
+            AcceptProposal(),
+            Quiz("m", 4, 60),
+            Quiz("m", 4, 100),
+        ),
+    ),
+    Student(
+        "uczen10@imsu.pl",
+        "Wiktor Michalski",
+        # K fails lessons 3 and 4, passes both in A -> open proposal K -> A
+        (
+            Survey(4, 5, 11),
+            Enrol("m"),
+            Quiz("m", 1, 80),
+            Quiz("m", 2, 80),
+            Quiz("m", 3, 60),
+            ChooseForm("m", 3, "A"),
+            Quiz("m", 3, 80),
+            Quiz("m", 4, 60),
+            ChooseForm("m", 4, "A"),
+            Quiz("m", 4, 80),
+        ),
+    ),
+    Student(
+        "uczen11@imsu.pl",
+        "Amelia Grabowska",
+        # V 100, 100, then lesson 3 60% (passed again in V) and lesson 4 60% (not passed yet)
+        (
+            Survey(12, 4, 4),
+            Enrol("m"),
+            Quiz("m", 1, 100),
+            Quiz("m", 2, 100),
+            Quiz("m", 3, 60),
+            Quiz("m", 3, 80),
+            Quiz("m", 4, 60),
+        ),
+    ),
+    Student(
+        "uczen12@imsu.pl",
+        "Igor Nowicki",
+        # lesson 2 failed in V, A and K: three counted failures in a row (R12, "wymaga uwagi")
+        (
+            Survey(9, 6, 5),
+            Enrol("m"),
+            Quiz("m", 1, 80),
+            Quiz("m", 2, 40),
+            ChooseForm("m", 2, "A"),
+            Quiz("m", 2, 60),
+            ChooseForm("m", 2, "K", "manual"),
+            Quiz("m", 2, 40),
+        ),
+    ),
 )
+
+# --- Question difficulty -----------------------------------------------------------------------
+# A quiz keeps its percent (k of 5 correct); in Matematyka the wrong answers go to the hardest
+# drawn questions, so every lesson has a hard question (one common wrong answer) and an easy one.
+
+
+@dataclass(frozen=True)
+class Difficulty:
+    order: tuple[str, ...]  # question ids of the pool, hardest first
+    trap: tuple[str, int]  # the hard question and its common wrong answer (index among wrong)
+
+    def rank(self, question_id: str) -> int:
+        return self.order.index(question_id) if question_id in self.order else len(self.order)
+
+    def wrong_index(self, question_id: str) -> int:
+        return self.trap[1] if question_id == self.trap[0] else 0
+
+
+# (course, lesson number) -> difficulty; ids and answers from `courses.py`
+DIFFICULTY: dict[tuple[str, int], Difficulty] = {
+    # q8 "y = 4x − 1 has value 7": x = 27 (7 put in place of x)
+    ("m", 1): Difficulty(("q8", "q6", "q5", "q7", "q3", "q4", "q1", "q2"), ("q8", 0)),
+    # q4 "the steepest line": y = 3x (sign of a taken into account)
+    ("m", 2): Difficulty(("q4", "q6", "q7", "q5", "q8", "q2", "q3", "q1"), ("q4", 0)),
+    # q4 "where y = 2x − 4 crosses the x axis": (0, −4) (the y-axis point)
+    ("m", 3): Difficulty(("q4", "q7", "q8", "q5", "q6", "q3", "q1", "q2"), ("q4", 1)),
+    # q1 "taxi formula": y = 8x + 3 (a and b swapped)
+    ("m", 4): Difficulty(("q1", "q7", "q5", "q3", "q8", "q4", "q6", "q2"), ("q1", 0)),
+}
 
 # --- Output ----------------------------------------------------------------------------------
 
@@ -398,20 +523,35 @@ def survey_choices(db: Session, survey: Survey) -> list[SurveyChoice]:
     return choices
 
 
-def take_quiz(db: Session, student: User, lesson: Lesson, percent: int) -> AttemptResponse:
-    """Draw (or reuse the open draw) and answer k of 5 questions correctly."""
+def take_quiz(
+    db: Session,
+    student: User,
+    lesson: Lesson,
+    percent: int,
+    difficulty: Difficulty | None = None,
+) -> AttemptResponse:
+    """Draw (or reuse the open draw) and answer k of 5 questions correctly.
+
+    Without `difficulty` the first k drawn questions are right; with it the hardest drawn ones
+    are wrong. A wrong answer is the first wrong one of the question (the trap of the hard one).
+    """
     lesson = curriculum.get_study_lesson(db, lesson.id, student)
     draw = assessment.current_draw(db, student, lesson)
     quiz = db.scalar(select(LessonQuiz).where(LessonQuiz.lesson_id == lesson.id))
     assert quiz is not None
     pool = {question["id"]: question for question in quiz.questions}
     correct = percent * len(draw.question_ids) // 100
+    ranked = list(draw.question_ids)
+    if difficulty is not None:
+        ranked = sorted(ranked, key=difficulty.rank, reverse=True)  # easiest first
+    right = set(ranked[:correct])
     answers = {}
-    for index, question_id in enumerate(draw.question_ids):
+    for question_id in draw.question_ids:
         question = pool[question_id]
         key = question["correct_answer_id"]
-        wrong = next(a["id"] for a in question["answers"] if a["id"] != key)
-        answers[question_id] = key if index < correct else wrong
+        wrong = [a["id"] for a in question["answers"] if a["id"] != key]
+        index = 0 if difficulty is None else difficulty.wrong_index(question_id)
+        answers[question_id] = key if question_id in right else wrong[index]
     result = assessment.submit_attempt(db, lesson.id, student, draw.id, answers)
     assert result.percent == percent, (student.email, lesson.title, result.percent)
     return result
@@ -461,7 +601,8 @@ def run_step(db: Session, step: Step, student: User, courses: dict[str, CourseMo
     if isinstance(step, Quiz | ChooseForm):
         lesson = curriculum.published_lessons(courses[step.course])[step.lesson - 1]
         if isinstance(step, Quiz):
-            take_quiz(db, student, lesson, step.percent)
+            difficulty = DIFFICULTY.get((step.course, step.lesson))
+            take_quiz(db, student, lesson, step.percent, difficulty)
             return f"{lesson.title}: {step.percent}%"
         learning_style.set_lesson_form(db, lesson.id, student, step.form, step.source)
         return f"{lesson.title}: forma {step.form} ({step.source})"

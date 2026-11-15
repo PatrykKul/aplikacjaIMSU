@@ -1,4 +1,5 @@
-from typing import Annotated, Self
+from datetime import datetime
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
@@ -100,3 +101,51 @@ class AttemptResponse(BaseModel):
     passed: bool
     results: list[QuestionResultResponse]
     feedback: QuizFeedback
+
+
+# --- Statistics ----------------------------------------------------------------------------------
+
+
+class AnswerRefResponse(BaseModel):
+    id: str
+    text: str
+
+
+class ReviewQuestionResponse(BaseModel):
+    """A question answered wrong in the last submitted draw of a lesson (`stats.ReviewQuestion`)."""
+
+    course_id: int
+    course_title: str
+    lesson_id: int
+    lesson_title: str
+    number: int
+    question_id: str
+    text: str
+    chosen_answer: AnswerRefResponse
+    correct_answer: AnswerRefResponse
+    explanation: str
+    answered_at: datetime
+
+
+class WrongAnswerResponse(BaseModel):
+    answer_id: str
+    text: str
+    count: int
+    percent: int | None  # count / drawn; None below QUESTION_MIN_DRAWS
+
+
+class QuestionStatsRowResponse(BaseModel):
+    question_id: str
+    text: str
+    drawn: int
+    correct: int
+    correct_percent: int | None  # None below QUESTION_MIN_DRAWS
+    top_wrong: WrongAnswerResponse | None  # None when nobody answered wrong
+    rating: Literal["hard", "easy", "normal"] | None  # None below QUESTION_MIN_DRAWS
+
+
+class LessonQuestionStatsResponse(BaseModel):
+    lesson_id: int
+    title: str
+    number: int
+    questions: list[QuestionStatsRowResponse]  # hardest first

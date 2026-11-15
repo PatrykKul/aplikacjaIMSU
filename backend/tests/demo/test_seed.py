@@ -1,9 +1,10 @@
 """Demo seed: account states from the specification, idempotency, the show and --reset-students.
 
-The seed runs once for the module (it uploads 79 files and builds 11 histories); the tests that
+The seed runs once for the module (it uploads 79 files and builds 17 histories); the tests that
 change data run last, in file order: the show, the reset that undoes it, then the media refresh.
 """
 
+from collections import Counter
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,8 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.demo import seed
 from app.demo.courses import COURSES, Audio
-from app.modules.assessment.models import LessonQuiz
+from app.modules.assessment import service as assessment
+from app.modules.assessment.models import LessonQuiz, QuizDraw
 from app.modules.authoring import service as authoring
 from app.modules.content import service as content
 from app.modules.content.models import File
@@ -26,7 +28,7 @@ from app.modules.identity import service as identity
 from app.modules.identity.models import ApprovalStatus, User, UserRole
 from app.modules.learning_style import rules
 from app.modules.learning_style import service as learning_style
-from app.modules.learning_style.models import DecisionEvent
+from app.modules.learning_style.models import DecisionEvent, QuizResult
 
 
 @pytest.fixture(scope="module")
@@ -118,7 +120,7 @@ def test_accounts(db: Session, start_counts: dict[str, int]) -> None:
         assert teacher.approval_status == ApprovalStatus.APPROVED
     assert user(db, seed.NEW_TEACHER.email).approval_status == ApprovalStatus.PENDING
     assert learning_style.get_profile(db, user(db, "uczen.nowy@imsu.pl").id) is None
-    for number in range(1, 7):
+    for number in range(1, 13):
         assert user(db, f"uczen{number}@imsu.pl").role == UserRole.STUDENT
 
 
@@ -265,15 +267,140 @@ def test_class_open_proposal(db: Session) -> None:
     assert proposal is not None and (proposal.from_style, proposal.to_style) == ("V", "A")
 
 
+def test_second_group(db: Session) -> None:
+    """Students 7-12 (Matematyka only): profiles, a running trial, a proposal, a failure run."""
+    assert percentages(db, "uczen7@imsu.pl") == {"V": 16, "A": 75, "K": 9}
+    assert percentages(db, "uczen8@imsu.pl") == {"V": 67, "A": 23, "K": 10}
+    assert percentages(db, "uczen9@imsu.pl") == {"V": 32, "A": 53, "K": 15}
+    assert percentages(db, "uczen10@imsu.pl") == {"V": 13, "A": 47, "K": 40}
+    assert percentages(db, "uczen11@imsu.pl") == {"V": 60, "A": 20, "K": 20}
+    assert percentages(db, "uczen12@imsu.pl") == {"V": 59, "A": 24, "K": 17}
+    trial = learning_style.running_trial(db, user(db, "uczen9@imsu.pl").id)
+    assert trial is not None and (trial.from_style, trial.to_style) == ("V", "A")
+    assert trial.before_average == 50
+    proposal = learning_style.open_proposal(db, user(db, "uczen10@imsu.pl").id)
+    assert proposal is not None and (proposal.from_style, proposal.to_style) == ("K", "A")
+    # Igor: three counted failures in a row (V 40, A 60, K 40) in lesson 2
+    igor = learning_style.user_results(db, user(db, "uczen12@imsu.pl").id)
+    assert [(r.form, r.percent, r.counted) for r in igor[-3:]] == [
+        ("V", 40, True),
+        ("A", 60, True),
+        ("K", 40, True),
+    ]
+
+
 def test_math_form_effectiveness_and_course_hint(db: Session) -> None:
     math = course(db, "m")
     stats = learning_style.course_stats(db, math.id, user(db, seed.TEACHER.email))
     averages = {form: item.average for form, item in stats.forms.items()}
-    assert averages == {"V": 60, "A": 86, "K": 70}
-    assert all(item.students >= 2 for item in stats.forms.values())
+    assert averages == {"V": 67, "A": 82, "K": 67}
+    assert {form: item.students for form, item in stats.forms.items()} == {"V": 7, "A": 8, "K": 4}
+    assert len(stats.students) == 13
     rows = learning_style.as_course_results(learning_style.course_results(db, math.id))
     hint = rules.course_hint(rows, user(db, "uczen.zapis@imsu.pl").id)
-    assert hint is not None and hint.form == "A" and hint.students == 3
+    assert hint is not None and (hint.form, hint.average, hint.students) == ("A", 82, 8)
+
+
+def math_results(db: Session) -> dict[int, list[QuizResult]]:
+    """Lesson number -> results of the accepted students of Matematyka, in order."""
+    math = course(db, "m")
+    accepted = set(curriculum.accepted_student_ids(db, math.id))
+    numbers = {lesson.id: n for n, lesson in enumerate(curriculum.published_lessons(math), 1)}
+    rows = db.scalars(
+        select(QuizResult).where(QuizResult.course_id == math.id).order_by(QuizResult.id)
+    )
+    by_lesson: dict[int, list[QuizResult]] = {n: [] for n in numbers.values()}
+    for row in rows:
+        if row.user_id in accepted:
+            by_lesson[numbers[row.lesson_id]].append(row)
+    return by_lesson
+
+
+def test_math_lessons_differ(db: Session) -> None:
+    """Lesson statistics (stage 10): >= 3 students in every lesson, lesson 2 clearly the hardest,
+    lesson 3 the only one with a form gap (A 90 vs V 47), retries before passing."""
+    by_lesson = math_results(db)
+    assert len({r.user_id for rows in by_lesson.values() for r in rows}) >= 10
+    rates = {}
+    for number, rows in by_lesson.items():
+        started = {r.user_id for r in rows}
+        passed = {r.user_id for r in rows if r.passed}
+        assert len(started) >= 3, number
+        rates[number] = round(100 * len(passed) / len(started))
+    assert rates == {1: 100, 2: 67, 3: 100, 4: 80}
+    cells: dict[int, dict[str, int]] = {}
+    for number, rows in by_lesson.items():
+        counted = {f: [r.percent for r in rows if r.form == f and r.counted] for f in rules.FORMS}
+        cells[number] = {f: rules.average(v) or 0 for f, v in counted.items() if len(v) >= 2}
+    gaps = [n for n, c in cells.items() if max(c.values()) - min(c.values()) >= 20]
+    assert gaps == [3]
+    assert (cells[3]["A"], cells[3]["V"]) == (90, 47)
+    third = by_lesson[3]
+    assert sum(r.passed for r in third) < len(third)  # some students passed on a retry
+
+
+def test_math_questions_hard_and_easy(db: Session) -> None:
+    """Every lesson: a hard question (< 40% right, one wrong answer chosen by the majority) and
+    an easy one (> 90% right), each drawn at least 5 times in the sets of accepted students."""
+    math = course(db, "m")
+    accepted = set(curriculum.accepted_student_ids(db, math.id))
+    for number, lesson in enumerate(curriculum.published_lessons(math), 1):
+        quiz = db.scalar(select(LessonQuiz).where(LessonQuiz.lesson_id == lesson.id))
+        assert quiz is not None
+        keys = {q["id"]: q["correct_answer_id"] for q in quiz.questions}
+        chosen: dict[str, list[str]] = {qid: [] for qid in keys}
+        draws = db.scalars(
+            select(QuizDraw).where(
+                QuizDraw.lesson_id == lesson.id, QuizDraw.submitted_at.is_not(None)
+            )
+        )
+        for draw in draws:
+            if draw.user_id in accepted and draw.answers is not None:
+                for qid in draw.question_ids:
+                    chosen[qid].append(draw.answers[qid])
+        trap, _ = seed.DIFFICULTY["m", number].trap
+        hard = chosen[trap]
+        assert len(hard) >= 5, number
+        assert 100 * sum(a == keys[trap] for a in hard) < 40 * len(hard), number
+        wrong = Counter(a for a in hard if a != keys[trap])
+        assert 2 * wrong.most_common(1)[0][1] > len(hard), number
+        easy = [
+            qid
+            for qid, answers in chosen.items()
+            if len(answers) >= 5 and 100 * sum(a == keys[qid] for a in answers) > 90 * len(answers)
+        ]
+        assert easy, number
+
+
+def test_math_panel_sections_have_data_and_conclusions(db: Session) -> None:
+    """Course panel sections 4-6 through the services the API uses: lesson stats with the
+    hardest lesson, question analysis with a hard and an easy question per lesson, the form
+    matrix with its gap, and the student who needs attention."""
+    math = course(db, "m")
+    teacher = user(db, seed.TEACHER.email)
+    stats = learning_style.course_stats(db, math.id, teacher)
+    assert all(row.pass_rate is not None for row in stats.lessons)
+    assert stats.hardest is not None and stats.hardest.number == 2
+    assert any((row.attempts_to_pass or 0) > 1 for row in stats.lessons)
+    assert [gap.number for gap in stats.form_gaps] == [3]
+    gap = stats.form_gaps[0]
+    assert (gap.best.form, gap.best.average, gap.worst.form, gap.worst.average) == (
+        "A",
+        90,
+        "V",
+        47,
+    )
+    assert all(cell.n > 0 for row in stats.matrix for cell in row.cells.values() if cell.average)
+    flagged = [s.email for s in stats.students if s.attention is not None]
+    assert flagged == ["uczen12@imsu.pl"]
+    lessons = assessment.question_stats(db, math.id, teacher)
+    assert len(lessons) == 4
+    for lesson in lessons:
+        ratings = {q.rating for q in lesson.questions}
+        assert {"hard", "easy"} <= ratings, lesson.number
+        hardest = lesson.questions[0]
+        assert hardest.rating == "hard" and hardest.top_wrong is not None, lesson.number
+        assert hardest.top_wrong.percent is not None and hardest.top_wrong.percent > 50
 
 
 def test_other_courses_belong_to_their_teachers(db: Session) -> None:

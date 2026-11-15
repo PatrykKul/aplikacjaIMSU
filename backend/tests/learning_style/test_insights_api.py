@@ -389,3 +389,230 @@ def test_student_detail_only_for_accepted_students(
     login(other_teacher)
     response = client.get(f"/courses/{course['id']}/students/{accepted.id}")
     assert response.json() == {"code": "COURSE_NOT_FOUND"}
+
+
+# --- Student statistics ("My progress": summary, form table, R12) --------------------------------
+
+
+def stats_of(client: TestClient) -> dict[str, Any]:
+    response = client.get("/me/stats")
+    assert response.status_code == 200, response.json()
+    return response.json()
+
+
+def test_student_stats(client: TestClient, course, learner):
+    learner(course["id"], survey_styles(9, 8, 3))
+    l1, l2 = first_lessons(course)
+    take_quiz(client, l1, 40)  # counted, failed
+    take_quiz(client, l1, 80)  # not counted, passed
+    take_quiz(client, l2, 100)  # counted, passed
+    set_form(client, l2, "A")
+    take_quiz(client, l2, 60)  # counted, failed in A
+
+    body = stats_of(client)
+    percentages = client.get("/profile/learning-style").json()["percentages"]
+
+    assert body["summary"] == {
+        "passed_lessons": 2,
+        "attempts": 4,
+        "average": 67,  # 40, 100, 60
+        "counted": 3,
+        "streak": 0,  # the newest counted result failed
+    }
+    assert body["forms"]["V"] == {
+        "lessons": 2,
+        "attempts": 3,
+        "passed_lessons": 2,
+        "first_try_lessons": 2,
+        "first_try_passed": 1,
+        "first_try_rate": 50,
+        "average": 70,
+        "best": 100,
+        "confirmed": True,
+        "percent": percentages["V"],
+    }
+    assert body["forms"]["A"] == {
+        "lessons": 1,
+        "attempts": 1,
+        "passed_lessons": 0,
+        "first_try_lessons": 1,
+        "first_try_passed": 0,
+        "first_try_rate": None,  # 1 lesson only
+        "average": 60,
+        "best": 60,
+        "confirmed": False,
+        "percent": percentages["A"],
+    }
+    assert (body["forms"]["K"]["attempts"], body["forms"]["K"]["best"]) == (0, None)
+    assert body["attention"] is None
+
+
+def test_student_stats_streak_and_attention(client: TestClient, course, learner):
+    learner(course["id"], "V")
+    l1, l2, l3 = first_lessons(course, 3)
+    take_quiz(client, l1, 80)
+    take_quiz(client, l2, 100)
+    assert stats_of(client)["summary"]["streak"] == 2
+    take_quiz(client, l3, 40)
+    for form in ("A", "K"):
+        set_form(client, l3, form)
+        take_quiz(client, l3, 20)
+    body = stats_of(client)
+    assert body["summary"]["streak"] == 0
+    assert body["attention"]["streak"] == 3
+    assert [item["form"] for item in body["attention"]["results"]] == ["V", "A", "K"]
+
+
+def test_student_stats_without_results_or_survey(
+    client: TestClient, course, learner, login, student
+):
+    learner(course["id"], "A")
+    body = stats_of(client)
+    assert body["summary"] == {
+        "passed_lessons": 0,
+        "attempts": 0,
+        "average": None,
+        "counted": 0,
+        "streak": 0,
+    }
+    assert body["forms"]["A"]["percent"] == 90
+    assert body["forms"]["A"]["first_try_rate"] is None
+    assert body["attention"] is None
+    login(student)  # no survey: no profile percentages
+    assert {row["percent"] for row in stats_of(client)["forms"].values()} == {None}
+
+
+def test_student_stats_only_for_students(client: TestClient, login, teacher, admin):
+    for user in (teacher, admin):
+        login(user)
+        response = client.get("/me/stats")
+        assert (response.status_code, response.json()) == (403, {"code": "FORBIDDEN"})
+
+
+# --- Course statistics: lessons, the hardest lesson, matrix, attention ---------------------------
+
+
+def course_stats(client: TestClient, course_id: int) -> dict[str, Any]:
+    response = client.get(f"/courses/{course_id}/stats")
+    assert response.status_code == 200, response.json()
+    return response.json()
+
+
+def test_course_lesson_stats_hardest_and_matrix(
+    client: TestClient, course, learner, login, teacher
+):
+    l1, l2 = first_lessons(course)
+    learner(course["id"], "V")
+    take_quiz(client, l1, 80)  # passed in the 1st attempt
+    take_quiz(client, l2, 100)
+    learner(course["id"], "V")
+    take_quiz(client, l1, 100)
+    learner(course["id"], "A")
+    take_quiz(client, l1, 20)
+    take_quiz(client, l1, 80)  # passed in the 2nd attempt (not counted)
+    learner(course["id"], "A")
+    take_quiz(client, l1, 60)  # not passed
+    rejected = learner(course["id"], "K")
+    take_quiz(client, l1, 0)  # drops out after the rejection
+    login(teacher)
+    client.post(f"/courses/{course['id']}/enrollments/{rejected.id}/reject")
+
+    body = course_stats(client, course["id"])
+
+    first = {
+        "lesson_id": l1,
+        "title": "Lekcja 1",
+        "number": 1,
+        "started": 4,
+        "passed": 3,
+        "pass_rate": 75,
+        "first_average": 65,  # 80, 100, 20, 60
+        "first_results": 4,
+        "attempts_to_pass": 1.3,  # (1 + 1 + 2) / 3
+    }
+    assert body["lessons"][0] == first
+    assert body["lessons"][1] == {
+        "lesson_id": l2,
+        "title": "Lekcja 2",
+        "number": 2,
+        "started": 1,
+        "passed": 1,
+        "pass_rate": None,  # below 3 students
+        "first_average": None,
+        "first_results": 1,
+        "attempts_to_pass": 1.0,
+    }
+    assert [row["started"] for row in body["lessons"]] == [4, 1, 0, 0]
+    assert body["lessons"][3]["attempts_to_pass"] is None
+    assert body["hardest"] == first
+    assert body["matrix"][0] == {
+        "lesson_id": l1,
+        "title": "Lekcja 1",
+        "number": 1,
+        "cells": {
+            "V": {"average": 90, "n": 2},
+            "A": {"average": 40, "n": 2},
+            "K": {"average": None, "n": 0},  # the rejected student does not count
+        },
+    }
+    assert body["matrix"][1]["cells"]["V"] == {"average": None, "n": 1}
+    assert body["form_gaps"] == [
+        {
+            "lesson_id": l1,
+            "title": "Lekcja 1",
+            "number": 1,
+            "best": {"form": "V", "average": 90, "n": 2},
+            "worst": {"form": "A", "average": 40, "n": 2},
+        }
+    ]
+
+
+def test_course_stats_without_results(client: TestClient, course, login, teacher, db):
+    hidden = course["lessons"][3]["id"]
+    db.execute(update(Lesson).where(Lesson.id == hidden).values(is_published=False))
+    db.commit()
+    login(teacher)
+    body = course_stats(client, course["id"])
+    assert [row["number"] for row in body["lessons"]] == [1, 2, 3]  # published only
+    assert [row["number"] for row in body["matrix"]] == [1, 2, 3]
+    assert body["hardest"] is None
+    assert body["form_gaps"] == []
+    assert body["lessons"][0]["pass_rate"] is None
+
+
+def test_no_hardest_lesson_when_everyone_passes(
+    client: TestClient, course, learner, login, teacher
+):
+    l1 = first_lessons(course)[0]
+    for _ in range(3):
+        learner(course["id"], "V")
+        take_quiz(client, l1, 80)
+    login(teacher)
+    body = course_stats(client, course["id"])
+    assert body["lessons"][0]["pass_rate"] == 100
+    assert body["hardest"] is None
+
+
+def test_course_stats_attention_looks_at_all_courses(
+    client: TestClient, course, quiz_course, learner, enroll, login, teacher
+):
+    other = quiz_course(title="Angielski", lessons=("Unit 1",))
+    student = learner(course["id"], "V")
+    enroll(student, other["id"])
+    unit = other["lessons"][0]["id"]
+    for form in ("V", "A", "K"):
+        set_form(client, unit, form)
+        take_quiz(client, unit, 40)
+    calm = learner(course["id"], "V")
+    take_quiz(client, first_lessons(course)[0], 40)
+    login(teacher)
+    rows = {row["id"]: row for row in course_stats(client, course["id"])["students"]}
+    attention = rows[student.id]["attention"]
+    assert attention["streak"] == 3
+    assert {item["lesson_id"] for item in attention["results"]} == {unit}
+    assert rows[calm.id]["attention"] is None
+
+    detail = client.get(f"/courses/{course['id']}/students/{student.id}").json()
+    assert detail["attention"] == attention
+    assert detail["forms"]["A"]["attempts"] == 1  # from the other course
+    assert detail["forms"]["V"]["first_try_lessons"] == 1

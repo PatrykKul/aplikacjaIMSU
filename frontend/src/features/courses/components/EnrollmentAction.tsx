@@ -14,7 +14,7 @@ type EnrollmentActionProps = {
   status: EnrollmentStatus | null;
 };
 
-/** "Zapisz się" / "Prośba wysłana – czeka na nauczyciela" / "Prośba odrzucona" + "Poproś ponownie". */
+/** "Zapisz się" / "Prośba wysłana, czeka na nauczyciela" / "Prośba odrzucona" + "Poproś ponownie". */
 export function EnrollmentAction({ courseId, status }: EnrollmentActionProps) {
   const request = useRequestEnrollment(courseId);
 
@@ -27,7 +27,7 @@ export function EnrollmentAction({ courseId, status }: EnrollmentActionProps) {
       {status === "pending" && (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <ClockIcon aria-hidden="true" className="size-4 shrink-0" />
-          Prośba wysłana – czeka na nauczyciela
+          Prośba wysłana, czeka na nauczyciela
         </p>
       )}
       {status === "rejected" && (

@@ -31,6 +31,8 @@ export const courseKey = (id: number) => ["courses", id] as const;
 export const enrollmentsKey = (id: number) =>
   ["courses", id, "enrollments"] as const;
 export const courseStatsKey = (id: number) => ["courses", id, "stats"] as const;
+export const courseQuestionStatsKey = (id: number) =>
+  ["courses", id, "question-stats"] as const;
 export const courseStudentKey = (id: number, studentId: number) =>
   ["courses", id, "students", studentId] as const;
 export const lessonKey = (id: number) => ["lessons", id] as const;
@@ -286,6 +288,9 @@ export function useDecideEnrollment(courseId: number) {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: enrollmentsKey(courseId) }),
         queryClient.invalidateQueries({ queryKey: courseStatsKey(courseId) }),
+        queryClient.invalidateQueries({
+          queryKey: courseQuestionStatsKey(courseId),
+        }),
         queryClient.invalidateQueries({ queryKey: coursesKey, exact: true }),
       ]),
   });
@@ -295,6 +300,14 @@ export function useCourseStats(courseId: number) {
   return useQuery({
     queryKey: courseStatsKey(courseId),
     queryFn: () => statsApi.course(courseId),
+  });
+}
+
+/** Question statistics load apart from the panel, so they never block it. */
+export function useCourseQuestionStats(courseId: number) {
+  return useQuery({
+    queryKey: courseQuestionStatsKey(courseId),
+    queryFn: () => statsApi.questions(courseId),
   });
 }
 

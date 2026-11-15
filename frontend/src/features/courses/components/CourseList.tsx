@@ -61,8 +61,8 @@ function MyCourses({ courses }: { courses: CourseSummary[] }) {
       </h2>
       {courses.length === 0 ? (
         <p className="text-muted-foreground">
-          Nie jesteś jeszcze zapisany na żaden kurs. Wybierz kurs z katalogu
-          poniżej i poproś o zapis – nauczyciel przyjmie prośbę.
+          Nie masz jeszcze żadnego kursu. Wybierz kurs z katalogu poniżej i
+          poproś o zapis. Lekcje otworzą się, gdy nauczyciel przyjmie prośbę.
         </p>
       ) : (
         <ul role="list" className="divide-y border-y">

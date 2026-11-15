@@ -130,7 +130,7 @@ Decyzje dotyczące wyglądu dopisujemy niżej po każdym kroku, razem z krótkim
 - **Wynik i profil:** styl słownie („wzrokowiec + słuchowiec”) z opisem, wagi / punkty V / A / K jako trzy poziome paski (`StyleBars`), źródło stylu plakietką; propozycja zmiany stylu jako baner z „Przełącz” (primary) i „Zostaję przy swoim” (outline) oraz zdaniem „Dlaczego to widzisz”.
 - **Lekcja:** nad blokami ramka `Alert` „Lekcja dopasowana do stylu…” z uzasadnieniem i linkiem „Zmień styl”. Zwinięty załącznik: karta w miejscu materiału — ikona i nazwa rodzaju („Nagranie”, „PDF”…), tytuł, przycisk „Pokaż materiał” (outline; na telefonie pod treścią); bez plakietek form — to, że materiał jest dla innego stylu, mówi notka nad lekcją. Rozwinięty ma pod spodem „Zwiń materiał” (ghost). W podglądzie nauczyciela wszystko rozwinięte, pod paskiem podglądu zdanie, co widzi uczeń.
 - **Quiz pod lekcją:** karta „Sprawdź się”, pytania z plakietką formy (np. „Wzrokowa (V)”), po sprawdzeniu poprawna odpowiedź na zielono z ikoną `check`, błędna z `x`, wynik słownie i liczbowo, informacja o adaptacji (`AdaptationFeedback`), „Rozwiąż jeszcze raz” (outline).
-- **Edytor quizu:** pytania jako karty; forma pytania w `Select` („Wspólne / Wzrokowa / Słuchowa / Kinestetyczna”); usunięcie quizu przez `AlertDialog`.
+- **Edytor quizu:** pytania jako karty; forma pytania w `Select` („Wspólne / Wzrokowa / Słuchowa / Kinestetyczna” — v2; w v3 forma K nazywa się w interfejsie „praktyczna”, D66); usunięcie quizu przez `AlertDialog`.
 
 ### Paleta (W6, etap 7)
 

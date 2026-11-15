@@ -24,13 +24,13 @@ export function formatPercent(value: number | null | undefined): string {
 export const FORM_NAMES: Record<Form, string> = {
   V: "wzrokowa",
   A: "słuchowa",
-  K: "kinestetyczna",
+  K: "praktyczna",
 };
 
 export const STYLE_NAMES: Record<Form, string> = {
   V: "wzrokowy",
   A: "słuchowy",
-  K: "kinestetyczny",
+  K: "praktyczny",
 };
 
 // Literal class names, so Tailwind can find them in the source

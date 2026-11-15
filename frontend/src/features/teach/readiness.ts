@@ -9,14 +9,14 @@ import type { IssueArea, ReadinessIssue } from "./types";
 const FORM_NAMES: Record<Form, string> = {
   V: "wzrokowa",
   A: "słuchowa",
-  K: "kinestetyczna",
+  K: "praktyczna",
 };
 
 export const AREA_LABELS: Record<IssueArea, string> = {
   lesson: "Zarys i wnioski",
   V: "Wersja wzrokowa (V)",
   A: "Wersja słuchowa (A)",
-  K: "Wersja kinestetyczna (K)",
+  K: "Wersja praktyczna (K)",
   quiz: "Quiz (pula)",
 };
 
@@ -140,5 +140,5 @@ export function versionRequirements(
 export const VERSION_INTROS: Record<Form, string> = {
   V: "Uczeń wzrokowy uczy się z obrazu: schematu, wykresu, filmu. Tekst objaśnia, co na nim widać.",
   A: "Uczeń słuchowy uczy się ze słuchania: nagrania albo tekstu czytanego przez lektora przeglądarki. Krótki opis mówi, czego posłucha.",
-  K: "Uczeń kinestetyczny uczy się przez działanie: wykonuje zadanie z karty PDF według instrukcji krok po kroku.",
+  K: "Uczeń ze stylem praktycznym uczy się przez działanie: wykonuje zadanie z karty PDF według instrukcji krok po kroku.",
 };

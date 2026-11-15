@@ -24,7 +24,7 @@ const messages: Record<string, string> = {
     "Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.",
 };
 
-const FALLBACK = "Ups! Coś poszło nie tak. Spróbuj ponownie za chwilę.";
+const FALLBACK = "Coś poszło nie tak. Spróbuj ponownie za chwilę.";
 
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
