@@ -27,10 +27,40 @@ const problems = [];
 
 // --- Helpers -------------------------------------------------------------------------------
 
+/**
+ * Screenshots show demo accounts only: a table row with an address outside
+ * @imsu.pl (e.g. a private test account asking to join a demo course) is
+ * hidden on the page (the data stays), and any such address left is a problem.
+ */
+async function hideNonDemo(page, name) {
+  const left = await page.evaluate(() => {
+    // Text node by text node: cells of one row are not glued together
+    const isForeign = (text) =>
+      (text.match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g) ?? []).some(
+        (address) => !address.endsWith("@imsu.pl"),
+      );
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+    );
+    const foreign = [];
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (isForeign(node.textContent ?? "")) foreign.push(node);
+    }
+    for (const node of foreign) {
+      const row = node.parentElement?.closest("tr, li");
+      if (row) row.style.display = "none";
+    }
+    return foreign.some((node) => node.parentElement?.checkVisibility());
+  });
+  if (left) problems.push(`${name}: an address outside the demo accounts`);
+}
+
 async function snap(page, name) {
   shot += 1;
   await page.waitForLoadState("networkidle").catch(() => {});
   await page.waitForTimeout(400);
+  await hideNonDemo(page, name);
   const file = path.join(OUT, `${String(shot).padStart(2, "0")}-${name}.png`);
   await page.screenshot({ path: file, fullPage: true });
   const overflow = await page.evaluate(
@@ -40,6 +70,52 @@ async function snap(page, name) {
   );
   if (overflow) problems.push(`${name}: horizontal scroll`);
   console.log(`  ${path.basename(file)}`);
+}
+
+// Stage 10: one section of a page ("s01-…"), numbered apart from the screens above
+let sectionShot = 0;
+
+async function snapSection(page, id, name) {
+  sectionShot += 1;
+  await page.waitForLoadState("networkidle").catch(() => {});
+  // The sticky header and toasts would cover a tall section
+  await page.addStyleTag({
+    content:
+      "header { position: static !important; } [data-sonner-toaster] { display: none !important; }",
+  });
+  const section = page.locator(`section[aria-labelledby="${id}"]`);
+  await section.waitFor();
+  await section.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  await hideNonDemo(page, name);
+  const file = path.join(
+    OUT,
+    `s${String(sectionShot).padStart(2, "0")}-${name}.png`,
+  );
+  await section.screenshot({ path: file });
+  // A wide table scrolls inside its section, never the whole page
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth,
+  );
+  if (overflow) problems.push(`${name}: horizontal scroll`);
+  console.log(`  ${path.basename(file)}`);
+}
+
+/** Open every lesson of "Które pytania są za trudne albo źle ułożone". */
+async function openQuestionLessons(page) {
+  const triggers = page
+    .locator('section[aria-labelledby="panel-questions"]')
+    .locator("button[aria-expanded]");
+  await triggers.first().waitFor();
+  const count = await triggers.count();
+  for (let index = 0; index < count; index += 1) {
+    const trigger = triggers.nth(index);
+    if ((await trigger.getAttribute("aria-expanded")) !== "true") {
+      await trigger.click();
+    }
+  }
 }
 
 async function session(browser, email, viewport = DESKTOP) {
@@ -282,6 +358,54 @@ console.log("nauczyciel.demo: kursy, edytor lekcji, panel kursu");
   await request.getByRole("button", { name: "Przyjmij" }).click();
   await page.waitForTimeout(800);
   await snap(page, "anna-panel-kursu-po-przyjeciu");
+
+  // Stage 10: sections 4-6 and "wymaga uwagi" (start state, before the show)
+  const igorRow = page.locator("tr", { hasText: "Igor Nowicki" });
+  expect(
+    (await igorRow.getByText(/wymaga uwagi/).count()) === 1,
+    "course panel: Igor has no attention note",
+  );
+  await snapSection(page, "panel-students", "anna-uczniowie-wymaga-uwagi");
+  await snapSection(page, "panel-lessons", "anna-trudnosc-lekcji");
+  expect(
+    (await page.getByText(/Najtrudniejsza jest lekcja 2/).count()) === 1,
+    "course panel: the hardest lesson is not lesson 2",
+  );
+  await openQuestionLessons(page);
+  await snapSection(page, "panel-questions", "anna-analiza-pytan");
+  await snapSection(page, "panel-matrix", "anna-macierz-form");
+  expect(
+    (await page
+      .getByText(/W lekcji 3 „Miejsce zerowe” forma słuchowa/)
+      .count()) === 1,
+    "course panel: no form gap in lesson 3",
+  );
+  await igorRow.getByRole("link", { name: "Igor Nowicki" }).click();
+  await page.waitForURL(/\/students\//);
+  await snapSection(page, "student-form-table", "anna-igor-tabela-form");
+  await context.close();
+}
+
+console.log("uczen12: seria porażek (R12)");
+{
+  const { context, page } = await session(browser, "uczen12@imsu.pl");
+  await page.goto(`${APP}/progress`);
+  await page
+    .getByText(/Trzy ostatnie lekcje poniżej progu/)
+    .first()
+    .waitFor();
+  await snap(page, "igor-moje-postepy-wymaga-uwagi");
+  await snapSection(page, "summary", "igor-podsumowanie");
+  await context.close();
+}
+
+console.log("uczen.demo: statystyki w „Moich postępach” (przed pokazem)");
+{
+  const { context, page } = await session(browser, "uczen.demo@imsu.pl");
+  await page.goto(`${APP}/progress`);
+  await snapSection(page, "summary", "kuba-podsumowanie");
+  await snapSection(page, "forms", "kuba-tabela-form");
+  await snapSection(page, "review", "kuba-do-powtorki");
   await context.close();
 }
 
@@ -468,11 +592,25 @@ console.log("Telefon (390 px)");
   const kuba = await session(browser, "uczen.demo@imsu.pl", PHONE);
   await kuba.page.goto(`${APP}/courses/${math.id}/lessons/${zeroLesson.id}`);
   await snap(kuba.page, "telefon-kuba-lekcja");
+  await kuba.page.goto(`${APP}/progress`);
+  await snapSection(kuba.page, "summary", "telefon-kuba-podsumowanie");
+  await snapSection(kuba.page, "forms", "telefon-kuba-tabela-form");
+  await snapSection(kuba.page, "review", "telefon-kuba-do-powtorki");
   await kuba.context.close();
+  const anna = await session(browser, "nauczyciel.demo@imsu.pl", PHONE);
+  await anna.page.goto(`${APP}/teach/courses/${math.id}/panel`);
+  await snapSection(anna.page, "panel-students", "telefon-anna-uczniowie");
+  await snapSection(anna.page, "panel-lessons", "telefon-anna-trudnosc-lekcji");
+  await openQuestionLessons(anna.page);
+  await snapSection(anna.page, "panel-questions", "telefon-anna-analiza-pytan");
+  await snapSection(anna.page, "panel-matrix", "telefon-anna-macierz-form");
+  await anna.context.close();
 }
 
 await browser.close();
-console.log(`\n${shot} zrzutów w ${OUT}`);
+console.log(
+  `\n${shot} zrzutów ekranów i ${sectionShot} zrzutów sekcji w ${OUT}`,
+);
 if (problems.length > 0) {
   console.log("Problemy:");
   for (const problem of problems) console.log(`  - ${problem}`);
