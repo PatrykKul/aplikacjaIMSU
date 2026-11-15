@@ -9,12 +9,14 @@ import type {
   ClearedLesson,
   JournalEntry,
   Percentages,
+  StatsSummary,
 } from "@/features/progress/types";
 import { plural } from "@/shared/lib/plural";
 
 import type {
   CourseHint,
   FormStats,
+  FormTable,
   LearningProfile,
   LessonRef,
   Praise,
@@ -33,6 +35,9 @@ export const STEP = 10;
 export const TRIAL_LESSONS = 2;
 export const HELPED_GAIN = 10;
 export const REVERT_DROP = 10;
+
+// Stage 10 (`learning_style/stats.py`, `rules.py`)
+export const FIRST_TRY_MIN_LESSONS = 2;
 
 // --- Names of forms and styles ---
 
@@ -71,6 +76,22 @@ const STYLE_ADJ_GEN: Record<Form, string> = {
   K: "kinestetycznego",
 };
 
+/**
+ * Stage 10: the names of forms in the interface (K is "praktyczna"). Used by
+ * everything added in stage 10; the maps above get renamed in point 9.
+ */
+const FORM_UI: Record<Form, string> = {
+  V: "wzrokowa",
+  A: "słuchowa",
+  K: "praktyczna",
+};
+
+const FORM_UI_LOC: Record<Form, string> = {
+  V: "wzrokowej",
+  A: "słuchowej",
+  K: "praktycznej",
+};
+
 export const STYLE_DESCRIPTIONS: Record<Form, string> = {
   V: "Najłatwiej uczysz się z obrazów, schematów, wykresów i filmów.",
   A: "Najłatwiej uczysz się, słuchając wyjaśnień i nagrań.",
@@ -103,6 +124,16 @@ export function inForm(form: Form): string {
  */
 export function lessonFormText(form: Form, chosen: boolean): string {
   return `${capitalize(FORM_ADJ[form])} (${chosen ? "wybrana dla tej lekcji" : "Twój styl"})`;
+}
+
+/** "Praktyczna (K)" - stage 10 name of the form. */
+export function formUiLabel(form: Form): string {
+  return `${capitalize(FORM_UI[form])} (${form})`;
+}
+
+/** "w formie praktycznej" - stage 10 name of the form. */
+export function inFormUi(form: Form): string {
+  return `w formie ${FORM_UI_LOC[form]}`;
 }
 
 /** "wzrokowy (V)" */
@@ -450,6 +481,112 @@ export function clearedLessonsText(cleared: ClearedLesson[], to: Form): string {
 /** "Zmiana na styl wzrokowy (V) cofnięta przed pierwszą lekcją – wracamy do stylu słuchowego (A)" */
 export function styleChangeRevertedText(from: Form, to: Form): string {
   return `Zmiana na styl ${styleName(from)} cofnięta przed pierwszą lekcją – wracamy do stylu ${STYLE_ADJ_GEN[to]} (${to})`;
+}
+
+// --- Stage 10: statistics of "Moje postępy" ---
+
+export type SummaryItem = { value: string; label: string };
+
+/** One row of 4 numbers: passed lessons, solved quizzes, average, streak. */
+export function statsSummaryItems(summary: StatsSummary): SummaryItem[] {
+  const { passed_lessons, attempts, average, counted, streak } = summary;
+  return [
+    {
+      value: String(passed_lessons),
+      label: plural(
+        passed_lessons,
+        "zaliczona lekcja",
+        "zaliczone lekcje",
+        "zaliczonych lekcji",
+      ),
+    },
+    {
+      value: String(attempts),
+      label: plural(
+        attempts,
+        "rozwiązany quiz",
+        "rozwiązane quizy",
+        "rozwiązanych quizów",
+      ),
+    },
+    {
+      value: percent(average),
+      label:
+        counted > 0
+          ? `średnia z pierwszych podejść (${lessonsText(counted)})`
+          : "średnia z pierwszych podejść",
+    },
+    {
+      value: String(streak),
+      label: plural(
+        streak,
+        "zaliczona lekcja z rzędu",
+        "zaliczone lekcje z rzędu",
+        "zaliczonych lekcji z rzędu",
+      ),
+    },
+  ];
+}
+
+/** A cell below the data threshold: "za mało danych (n = 1)". */
+export function tooFewText(n: number): string {
+  return `za mało danych (n = ${n})`;
+}
+
+/** Status of a form in words (R3). */
+export function formStatusText(confirmed: boolean): string {
+  return confirmed ? "potwierdzona wynikami" : "tylko z ankiety";
+}
+
+/** Next to the active style in the table of forms. */
+export function activeStyleText(voice: Voice = "student"): string {
+  return voice === "student" ? "Twój styl" : "styl ucznia";
+}
+
+/**
+ * One sentence under the table of forms, only facts from it, e.g.
+ * "Najwyższa średnia: słuchowa 84% (4 lekcje). Wzrokowa: 70% (2 lekcje).
+ * Praktyczna: nie masz jeszcze wyników."
+ */
+export function formTableConclusion(
+  forms: FormTable,
+  voice: Voice = "student",
+): string {
+  const student = voice === "student";
+  const withAverage = FORMS.filter((form) => forms[form].average !== null);
+  if (withAverage.length === 0) {
+    return student
+      ? "Nie masz jeszcze wyników quizów w żadnej formie."
+      : "Brak wyników quizów w żadnej formie.";
+  }
+  const averageOf = (form: Form) => forms[form].average ?? 0;
+  const describe = (form: Form) =>
+    `${averageOf(form)}% (${lessonsText(forms[form].first_try_lessons)})`;
+
+  // Highest average first; a tie keeps the order V, A, K
+  const sorted = [...withAverage].sort(
+    (a, b) =>
+      averageOf(b) - averageOf(a) || FORMS.indexOf(a) - FORMS.indexOf(b),
+  );
+  const top = sorted.filter((form) => averageOf(form) === averageOf(sorted[0]));
+  const rest = sorted.filter((form) => !top.includes(form));
+  const without = FORMS.filter((form) => forms[form].average === null);
+
+  const lead =
+    withAverage.length === 1
+      ? "Średnia z pierwszych podejść"
+      : "Najwyższa średnia";
+  const parts = [
+    `${lead}: ${top.map((form) => `${FORM_UI[form]} ${describe(form)}`).join(" i ")}.`,
+    ...rest.map((form) => `${capitalize(FORM_UI[form])}: ${describe(form)}.`),
+  ];
+  if (without.length > 0) {
+    const names = capitalize(without.map((form) => FORM_UI[form]).join(" i "));
+    parts.push(
+      `${names}: ${student ? "nie masz jeszcze wyników" : "brak wyników"}.`,
+    );
+  }
+  return parts.join(" ");
 }
 
 // --- The teacher's view of a student ---

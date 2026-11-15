@@ -9,7 +9,7 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --test src/features/progress/chart-data.test.mjs"
+    "test": "node --test src/features/progress/chart-data.test.mjs src/features/learning-style/explain.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

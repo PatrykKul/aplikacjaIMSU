@@ -1,5 +1,7 @@
 import type { Form } from "@/features/content/types";
 import type {
+  Attention,
+  FormTable,
   LearningProfile,
   LessonRef,
   Percentages,
@@ -185,4 +187,46 @@ export type StudentDetail = {
   history: HistoryPoint[];
   lessons: LessonProgress[];
   journal: JournalEntry[];
+  /** Table of forms over all courses of the student (as in `/me/stats`). */
+  forms: FormTable;
+  attention: Attention | null;
+};
+
+// --- Stage 10: statistics of the student ---
+
+export type StatsSummary = {
+  /** Passed lessons in all courses. */
+  passed_lessons: number;
+  /** Submitted attempts (rows of `quiz_results`). */
+  attempts: number;
+  /** Average of the counted results; null without them. */
+  average: number | null;
+  counted: number;
+  /** Passed counted results in a row, from the newest back. */
+  streak: number;
+};
+
+/** `GET /me/stats` */
+export type StudentStats = {
+  summary: StatsSummary;
+  forms: FormTable;
+  attention: Attention | null;
+};
+
+export type ReviewAnswer = { id: string; text: string };
+
+/** `GET /me/review-questions`: answered wrong in the last submitted set of a lesson. */
+export type ReviewQuestion = {
+  course_id: number;
+  course_title: string;
+  lesson_id: number;
+  lesson_title: string;
+  // null for a lesson unpublished after the attempt
+  number: number | null;
+  question_id: string;
+  text: string;
+  chosen_answer: ReviewAnswer;
+  correct_answer: ReviewAnswer;
+  explanation: string;
+  answered_at: string;
 };
