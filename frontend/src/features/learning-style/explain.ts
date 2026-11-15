@@ -22,6 +22,7 @@ import type {
   Praise,
   Proposal,
   ProposalEvidence,
+  RetryStrength,
   RetrySuggestion,
   StyleSource,
   Trial,
@@ -278,6 +279,31 @@ function surveyRank(form: Form, survey: Percentages): string | null {
     (a, b) => survey[b] - survey[a] || FORMS.indexOf(a) - FORMS.indexOf(b),
   );
   return ORDINALS[sorted.indexOf(form)] ?? null;
+}
+
+/** Events and answers written before stage 10 have no `strength`. */
+export function suggestionStrength(suggestion: RetrySuggestion): RetryStrength {
+  return suggestion.strength ?? "strong";
+}
+
+/** R5 soft: the main action after the quiz. */
+export const SOFT_RETRY_ACTION = "Rozwiąż jeszcze raz";
+
+/**
+ * R5 soft, the calm second option, split around its links:
+ * after the quiz "Możesz też [przerobić tę lekcję w formie słuchowej]."; above
+ * the lesson "Możesz [rozwiązać quiz jeszcze raz] albo [przerobić …]."
+ */
+export const SOFT_RETRY_TEXT = {
+  afterQuiz: "Możesz też",
+  inLesson: "Możesz",
+  quizLink: "rozwiązać quiz jeszcze raz",
+  or: "albo",
+};
+
+/** The link of the soft option: "przerobić tę lekcję w formie słuchowej" */
+export function softSuggestionLink(form: Form): string {
+  return `przerobić tę lekcję ${inFormUi(form)}`;
 }
 
 /** "Spróbuj tej lekcji w formie słuchowej" */
@@ -729,7 +755,9 @@ export function journalText(entry: JournalEntry): string {
     }
     case "retry_suggestion":
       return joinSentences(
-        `Sugestia: przerobić lekcję ${inForm(entry.data.suggested.form)}.`,
+        suggestionStrength(entry.data) === "soft"
+          ? `Sugestia: rozwiązać quiz jeszcze raz, ewentualnie przerobić lekcję ${inFormUi(entry.data.suggested.form)}.`
+          : `Sugestia: przerobić lekcję ${inForm(entry.data.suggested.form)}.`,
         suggestionReason(entry.data, { voice: "neutral" }),
       );
     case "lesson_form_changed":

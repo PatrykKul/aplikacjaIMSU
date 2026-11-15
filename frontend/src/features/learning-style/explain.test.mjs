@@ -156,6 +156,49 @@ describe("statsSummaryItems", () => {
   });
 });
 
+describe("R5 strength", () => {
+  const suggestion = (strength) => ({
+    failed: { form: "V", percent: 60, previous: null },
+    suggested: {
+      form: "K",
+      reason: "survey",
+      percent: 20,
+      survey_percent: 20,
+      best: null,
+    },
+    ...(strength && { strength }),
+  });
+
+  test("a missing field (older events) is strong", () => {
+    assert.equal(explain.suggestionStrength(suggestion()), "strong");
+    assert.equal(explain.suggestionStrength(suggestion("soft")), "soft");
+  });
+
+  test("the soft link uses the interface name of K", () => {
+    assert.equal(
+      explain.softSuggestionLink("K"),
+      "przerobić tę lekcję w formie praktycznej",
+    );
+  });
+
+  test("the journal says which variant the student saw", () => {
+    const journal = (data) =>
+      explain.journalText({
+        id: 1,
+        at: "2026-11-15T10:00:00Z",
+        course: null,
+        lesson: null,
+        type: "retry_suggestion",
+        data,
+      });
+    assert.match(
+      journal(suggestion("soft")),
+      /^Sugestia: rozwiązać quiz jeszcze raz, ewentualnie przerobić lekcję w formie praktycznej\./,
+    );
+    assert.match(journal(suggestion()), /^Sugestia: przerobić lekcję w formie/);
+  });
+});
+
 describe("table cells", () => {
   test("below the threshold and status words", () => {
     assert.equal(explain.tooFewText(1), "za mało danych (n = 1)");
