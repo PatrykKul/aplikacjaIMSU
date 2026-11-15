@@ -4,8 +4,14 @@ import { CloudOffIcon, SearchXIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { profileSummaryLines } from "@/features/learning-style/explain";
-import type { LearningProfile } from "@/features/learning-style/types";
+import {
+  attentionSeries,
+  profileSummaryLines,
+} from "@/features/learning-style/explain";
+import type {
+  Attention,
+  LearningProfile,
+} from "@/features/learning-style/types";
 import { lessonNumbers } from "@/features/progress/chart-data";
 import { DecisionJournal } from "@/features/progress/components/DecisionJournal";
 import { FormPercentages } from "@/features/progress/components/FormPercentages";
@@ -48,8 +54,18 @@ function DetailSection({
 }
 
 /** Style, its source, an open proposal and the trial, in the teacher's words. */
-function ProfileSummary({ profile }: { profile: LearningProfile }) {
+function ProfileSummary({
+  profile,
+  attention,
+}: {
+  profile: LearningProfile;
+  attention: Attention | null;
+}) {
   const lines = profileSummaryLines(profile);
+  // R12, in words (no badge)
+  if (attention) {
+    lines.push({ label: "Wymaga uwagi", text: attentionSeries(attention) });
+  }
   return (
     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[max-content_minmax(0,1fr)]">
       {lines.map((line) => (
@@ -118,7 +134,8 @@ export function StudentDetailPage({
     );
   }
 
-  const { student, profile, history, lessons, journal, forms } = detail.data;
+  const { student, profile, history, lessons, journal, forms, attention } =
+    detail.data;
 
   return (
     <div className="space-y-12">
@@ -147,7 +164,7 @@ export function StudentDetailPage({
           </h1>
           <p className="text-muted-foreground">{student.email}</p>
         </div>
-        <ProfileSummary profile={profile} />
+        <ProfileSummary profile={profile} attention={attention ?? null} />
       </div>
 
       <DetailSection

@@ -158,6 +158,8 @@ export type JournalEvent =
       };
     }
   | { type: "praise"; data: Praise }
+  /** R12: written once per series, when it reaches 3 failed counted results. */
+  | { type: "attention_needed"; data: Attention }
   | {
       type: "trial_finished";
       data: {

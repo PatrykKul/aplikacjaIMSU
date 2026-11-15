@@ -156,6 +156,63 @@ describe("statsSummaryItems", () => {
   });
 });
 
+describe("R12 attention", () => {
+  const result = (percent, title = "Lekcja") => ({
+    lesson_id: 1,
+    lesson_title: title,
+    form: "V",
+    percent,
+  });
+
+  test("the sentence of the task", () => {
+    const attention = {
+      streak: 3,
+      results: [result(55), result(40), result(50)],
+    };
+    assert.equal(
+      explain.attentionText(attention),
+      "Trzy ostatnie lekcje poniżej progu (55%, 40%, 50%). Spróbuj innej formy albo poproś nauczyciela o pomoc.",
+    );
+  });
+
+  test("a longer series names its length and the three newest results", () => {
+    const attention = {
+      streak: 5,
+      results: [result(55), result(40), result(50)],
+    };
+    assert.equal(
+      explain.attentionSeries(attention),
+      "5 ostatnich lekcji poniżej progu, trzy najnowsze: 55%, 40%, 50%.",
+    );
+  });
+
+  test("journal entry attention_needed", () => {
+    const text = explain.journalText({
+      id: 1,
+      at: "2026-11-15T10:00:00Z",
+      course: null,
+      lesson: null,
+      type: "attention_needed",
+      data: {
+        streak: 3,
+        results: [
+          result(55, "Pętla for"),
+          result(40, "Funkcje"),
+          result(50, "Listy"),
+        ],
+      },
+    });
+    assert.equal(
+      text,
+      "3 lekcje z rzędu poniżej progu: „Pętla for” 55%, „Funkcje” 40%, „Listy” 50%. Wskazówka: spróbować innej formy albo poprosić nauczyciela o pomoc.",
+    );
+    assert.equal(
+      explain.journalLabel({ type: "attention_needed" }),
+      "Wymaga uwagi",
+    );
+  });
+});
+
 describe("R5 strength", () => {
   const suggestion = (strength) => ({
     failed: { form: "V", percent: 60, previous: null },

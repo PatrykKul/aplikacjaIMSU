@@ -14,6 +14,7 @@ import type {
 import { plural } from "@/shared/lib/plural";
 
 import type {
+  Attention,
   CourseHint,
   FormStats,
   FormTable,
@@ -39,6 +40,7 @@ export const REVERT_DROP = 10;
 
 // Stage 10 (`learning_style/stats.py`, `rules.py`)
 export const FIRST_TRY_MIN_LESSONS = 2;
+export const ATTENTION_STREAK = 3;
 
 // --- Names of forms and styles ---
 
@@ -615,6 +617,33 @@ export function formTableConclusion(
   return parts.join(" ");
 }
 
+// --- Stage 10, R12: a series of failed counted results ---
+
+/** "Trzy ostatnie lekcje poniżej progu (55%, 40%, 50%)." - also for the teacher. */
+export function attentionSeries(attention: Attention): string {
+  const percents = attention.results
+    .map((result) => `${result.percent}%`)
+    .join(", ");
+  if (attention.streak === ATTENTION_STREAK) {
+    return `Trzy ostatnie lekcje poniżej progu (${percents}).`;
+  }
+  const lessons = plural(
+    attention.streak,
+    "ostatnia lekcja",
+    "ostatnie lekcje",
+    "ostatnich lekcji",
+  );
+  return `${attention.streak} ${lessons} poniżej progu, trzy najnowsze: ${percents}.`;
+}
+
+/**
+ * The message for the student: "Trzy ostatnie lekcje poniżej progu
+ * (55%, 40%, 50%). Spróbuj innej formy albo poproś nauczyciela o pomoc."
+ */
+export function attentionText(attention: Attention): string {
+  return `${attentionSeries(attention)} Spróbuj innej formy albo poproś nauczyciela o pomoc.`;
+}
+
 // --- The teacher's view of a student ---
 
 export type SummaryLine = { label: string; text: string };
@@ -725,6 +754,7 @@ const JOURNAL_LABELS: Record<JournalEntry["type"], string> = {
   trial_started: "Okres próbny",
   trial_finished: "Okres próbny",
   praise: "Pochwała",
+  attention_needed: "Wymaga uwagi",
 };
 
 /** Short kind of the entry, e.g. "Quiz", "Sugestia". */
@@ -805,6 +835,15 @@ export function journalText(entry: JournalEntry): string {
     }
     case "praise":
       return `Pochwała: ${praiseText(entry.data)}.`;
+    case "attention_needed": {
+      const results = entry.data.results
+        .map((result) => `„${result.lesson_title}” ${result.percent}%`)
+        .join(", ");
+      return joinSentences(
+        `${capitalize(lessonsText(entry.data.streak))} z rzędu poniżej progu: ${results}.`,
+        "Wskazówka: spróbować innej formy albo poprosić nauczyciela o pomoc.",
+      );
+    }
     case "trial_finished":
       return joinSentences(
         `Koniec okresu próbnego stylu ${STYLE_ADJ_GEN[entry.data.to]} (${entry.data.to}).`,

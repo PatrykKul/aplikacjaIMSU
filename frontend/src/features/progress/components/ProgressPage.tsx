@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { CourseProgressBar } from "@/features/courses/components/CourseProgressBar";
+import { AttentionNote } from "@/features/learning-style/components/AttentionNote";
 import { useLearningProfile } from "@/features/learning-style/hooks";
 import { PageMessage } from "@/shared/layout/page-states";
 import { Button } from "@/shared/ui/button";
@@ -181,6 +182,10 @@ export function ProgressPage() {
           decyzja systemu z liczbami, z których wynika.
         </p>
       </div>
+
+      {stats.data?.attention && (
+        <AttentionNote attention={stats.data.attention} />
+      )}
 
       <Section
         id="summary"

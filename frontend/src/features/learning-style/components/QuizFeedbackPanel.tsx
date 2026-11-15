@@ -11,6 +11,7 @@ import {
   quizChangeRule,
 } from "../explain";
 import type { QuizFeedback } from "../types";
+import { AttentionNote } from "./AttentionNote";
 import { RetrySuggestionBox } from "./RetrySuggestionBox";
 import { StyleProposalBanner } from "./StyleProposalBanner";
 import { TrialNote } from "./TrialNote";
@@ -70,6 +71,8 @@ export function QuizFeedbackPanel({
           onAgain={onAgain}
         />
       )}
+
+      {feedback.attention && <AttentionNote attention={feedback.attention} />}
 
       {feedback.trial && <TrialNote trial={feedback.trial} />}
 
