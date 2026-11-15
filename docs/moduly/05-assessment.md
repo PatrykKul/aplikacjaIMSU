@@ -7,7 +7,8 @@ Quiz lekcji: pula pytań z wyjaśnieniami, losowanie 5 pytań na podejście, oce
 - Losowanie zestawu dla ucznia (R9, `drawing.py`), zapis zestawu na serwerze (`quiz_draws`) — klucz odpowiedzi i wyjaśnienia nie trafiają do przeglądarki przed wysłaniem.
 - Ocena **tylko wobec wylosowanego zestawu** (`grading.py`) i przekazanie wyniku do modelu ucznia **wyłącznie** przez `learning_style.hooks.record_quiz_result` (nie ma endpointu, przez który przeglądarka zgłasza wynik). Forma wyniku = forma lekcji w chwili wysłania.
 - Gotowość puli do publikacji (R11, `readiness.py`).
-- Korzysta z `curriculum.service` (`get_study_lesson`, `get_owned_lesson`, `get_visible_lesson`) i `learning_style.service` (`require_style`, `lesson_form`, `now`). Interfejs dla innych: `question_count(db, lesson_id)` (dla `authoring`), `current_draw`, `submit_attempt`, `save_quiz` (seed), `rng` (źródło losowości — seed i testy podstawiają `random.Random(seed)`).
+- Statystyki pytań (`stats.py`): „Do powtórki” dla ucznia i analiza pytań dla autora — z wysłanych zestawów (`quiz_draws.answers`), bez nowych tabel.
+- Korzysta z `curriculum.service` (`get_study_lesson`, `get_owned_lesson`, `get_visible_lesson`, `get_owned_course`, `list_courses`, `is_accepted`, `published_lessons`, `accepted_student_ids`), `learning_style.service` (`require_style`, `require_student`, `lesson_form`, `now`) i stałych / pomocniczych funkcji `learning_style.rules` (`QUIZ_SIZE`, `rate`). Interfejs dla innych: `question_count(db, lesson_id)` (dla `authoring`), `current_draw`, `submit_attempt`, `save_quiz` (seed), `rng` (źródło losowości — seed i testy podstawiają `random.Random(seed)`).
 
 ## Model danych
 
@@ -37,6 +38,21 @@ Pytanie (`schemas.QuizQuestion`): `id` (`[A-Za-z0-9_-]{1,40}`), `text` (1–500)
 - Zaliczenie: `percent >= 70` (`learning_style.rules.PASS_THRESHOLD`) — od 4 z 5. Podejść bez limitu.
 - Po ocenie: zapis `answers`, `percent`, `submitted_at`, potem `record_quiz_result` (R2–R7, odblokowanie lekcji; `moduly/04-learning-style.md`).
 
+### Statystyki pytań (`stats.py`, czyste funkcje)
+Odpowiedzi z wysłanych zestawów sprawdzane są wobec **bieżącej** puli: pytanie usunięte z puli wypada, zmieniony klucz zmienia, co jest poprawne. Udziały: `learning_style.rules.rate` (połówka w górę); poniżej progu `null` razem z liczebnością (`drawn`).
+
+| Stała | Wartość | Znaczenie |
+|---|---|---|
+| `QUESTION_MIN_DRAWS` | 5 | analiza pytań: `correct_percent`, `top_wrong.percent`, `rating` |
+| `HARD_BELOW` / `EASY_ABOVE` | 40 / 90 | ocena pytania: `hard` (< 40), `easy` (> 90), inaczej `normal` |
+| `REVIEW_LIMIT` | 5 | „Do powtórki”: najwyżej tyle pytań |
+
+Stałe powtórzone we frontendzie (`explain.ts`).
+
+- `question_stats(questions, draws)` (autor) — dla każdego pytania puli: `drawn` (w ilu wysłanych zestawach), `correct` (ile razy dobrze), `correct_percent` (`null`, gdy `drawn < 5`), `top_wrong` — najczęściej wybrana zła odpowiedź {`answer_id`, `text`, `count`, `percent` = `count / drawn` (`null`, gdy `drawn < 5`)}, remis → kolejność odpowiedzi w pytaniu, `null`, gdy nikt nie odpowiedział źle; `rating` (`null`, gdy `drawn < 5`). Kolejność: `correct_percent` rosnąco, bez procentu na końcu, potem kolejność w puli.
+  - Przykład: pytanie w 5 zestawach, 2 razy dobrze, „B” wybrane 2 razy → `correct_percent` 40, `normal`, `top_wrong` B (2, 40%); w 6 zestawach 2 razy dobrze → 33, `hard`; zawsze dobrze → 100, `easy`, `top_wrong = null`.
+- `review_questions(lessons, pools, draws)` (uczeń) — dla każdej lekcji **ostatni wysłany zestaw** (`submitted_at`, potem `id`); pytania odpowiedziane w nim źle i nadal obecne w puli. Najnowsze zestawy pierwsze, w zestawie kolejność pokazania; najwyżej 5. Pomijane: pytanie spoza puli, wybrana odpowiedź usunięta przez autora (nie ma czego pokazać), odpowiedź poprawna według bieżącego klucza. Poprawne kolejne podejście „czyści” lekcję.
+
 ### R11 — pula (`readiness.quiz_issues(count)`)
 `count < 5` → `{area: "quiz", code: "QUIZ_TOO_FEW_QUESTIONS", count, min: 5}`. Opublikowana lekcja musi zachować pełną pulę: `PUT` z < 5 pytaniami i `DELETE` → `409 PUBLISHED_LESSON_INCOMPLETE` z `issues` (najpierw wycofanie publikacji). Szkic może mieć mniejszą pulę albo żadną.
 
@@ -49,8 +65,12 @@ Pytanie (`schemas.QuizQuestion`): `id` (`[A-Za-z0-9_-]{1,40}`), `text` (1–500)
 | `DELETE /lessons/{id}/quiz` | autor | usunięcie puli, 204 | 404, 409 (lekcja opublikowana) |
 | `GET /lessons/{id}/quiz` | uczeń (ankieta, przyjęty, lekcja odblokowana) | otwarty albo nowy zestaw: `{draw_id, questions: [{id, text, answers}], pool_size, form}` — **bez klucza i wyjaśnień** | 403 `SURVEY_REQUIRED` / `ENROLLMENT_REQUIRED` / `LESSON_LOCKED`, 404 `QUIZ_NOT_FOUND` / `LESSON_NOT_FOUND`, 403 `FORBIDDEN` (inne role) |
 | `POST /lessons/{id}/quiz/attempts` | uczeń | `{draw_id, answers: {question_id: answer_id}}` → `AttemptResponse` | 409 `DRAW_NOT_OPEN`, 400 `QUIZ_INCOMPLETE` / `QUIZ_ANSWER_MISMATCH`, 403 jak wyżej |
+| `GET /me/review-questions` | uczeń | `ReviewQuestionResponse[]` (maks. 5) — tylko opublikowane lekcje kursów, na które uczeń jest przyjęty | 403 `FORBIDDEN` (inne role) |
+| `GET /courses/{id}/question-stats` | autor (zatwierdzony) | `[{lesson_id, title, number, questions: QuestionStatsRow[]}]` — opublikowane lekcje w kolejności kursu, zestawy uczniów obecnie przyjętych | 404 `COURSE_NOT_FOUND` (także cudzy kurs), 403 `FORBIDDEN` / `TEACHER_NOT_APPROVED` |
 
 `AttemptResponse`: `draw_id`, `percent`, `correct_count`, `total`, `passed`, `results`: [{`question_id`, `text`, `answers`, `chosen_answer_id`, `correct_answer_id`, `correct`, `explanation`}], `feedback`: `QuizFeedback` (`moduly/04-learning-style.md`). `form` w `GET` = forma, w której wynik zostanie zapisany (wybór lekcji albo aktywny styl).
+
+`ReviewQuestionResponse`: `course_id`, `course_title`, `lesson_id`, `lesson_title`, `number`, `question_id`, `text`, `chosen_answer` {`id`, `text`}, `correct_answer` {`id`, `text`}, `explanation`, `answered_at` (`submitted_at` zestawu). `QuestionStatsRow`: `question_id`, `text`, `drawn`, `correct`, `correct_percent`, `top_wrong` {`answer_id`, `text`, `count`, `percent`} / null, `rating` (`hard` / `easy` / `normal` / null).
 
 ## Frontend
 - `features/assessment`:
@@ -64,10 +84,12 @@ Pytanie (`schemas.QuizQuestion`): `id` (`[A-Za-z0-9_-]{1,40}`), `text` (1–500)
 - `test_drawing.py`: pierwsze losowanie 5 różnych, powtórka preferuje pytania spoza ostatniego zestawu, duża pula — same nowe, pula 5 — cała, pula < 5 — wszystkie, determinizm z ziarnem, tasowanie, domyślny generator.
 - `test_grading.py`: liczenie poprawnych, komplet poprawnych / błędnych, niepasujące odpowiedzi, brak pytań.
 - `test_quiz_api.py`: zapis i odczyt puli z wyjaśnieniami, pusta pula w edytorze, admin czyta, tylko autor edytuje, walidacja, szkic z małą pulą i usunięciem, opublikowana lekcja zachowuje pełną pulę; uczeń dostaje 5 pytań bez klucza, ten sam otwarty zestaw po odświeżeniu, inne pytania przy powtórce, warunki (ankieta, zapis, odblokowanie), inne role, lekcja bez puli, nieopublikowana lekcja → 404, wynik z wyjaśnieniami, zestaw wysyłany raz, cudzy zestaw / inna lekcja, odpowiedzi spoza zestawu, pula zmieniona po losowaniu, nieaktualny otwarty zestaw zastąpiony, zestaw zapisuje formę, zmiana formy lekcji przy otwartym zestawie losuje nowy (powrót do tej samej formy — bez zmian).
+- `test_stats.py` (czyste funkcje): stałe, granice oceny (39 / 40 / 90 / 91), liczby pytania i najczęstsza zła odpowiedź, próg 5 zestawów, remis złych odpowiedzi w kolejności pytania, brak złych odpowiedzi, kolejność (procent rosnąco, remis według puli, bez danych na końcu), pytania spoza puli; do powtórki: pola, ostatni wysłany zestaw lekcji, poprawne podejście czyści lekcję, najnowsze pierwsze i kolejność w zestawie, limit 5, pytanie usunięte / odpowiedź usunięta / zmieniony klucz, tylko podane lekcje, lekcja bez puli.
+- `test_stats_api.py`: „Do powtórki” przez API (pola, ostatni zestaw, najnowsze pierwsze, tylko własne pytania, kurs po odrzuceniu ucznia znika, tylko uczeń); analiza pytań (kolejność lekcji i pytań, liczby i ocena, zła odpowiedź z procentem, próg 5 zestawów, uczeń odrzucony nie liczy się) i dostęp (cudzy kurs 404, uczeń i admin 403 `FORBIDDEN`, brak kursu 404, niezatwierdzony nauczyciel 403 `TEACHER_NOT_APPROVED`).
 - Przebieg wyniku w modelu ucznia: `tests/learning_style/test_adaptation_flow.py`.
 
 ## Jak sprawdzić ręcznie
 `uczen.demo@imsu.pl`: Matematyka → lekcja 3 → „Sprawdź się” (5 pytań) → F5: te same pytania → odpowiedzi → wynik z wyjaśnieniami i „Co to zmieniło” → „Rozwiąż jeszcze raz”: co najmniej 3 nowe pytania (pula 8), wynik powtórki w tej samej formie „procenty bez zmian”. `nauczyciel.demo@imsu.pl`: edytor lekcji → „Quiz (pula)” → usunięcie pytań do 4 w opublikowanej lekcji i zapis → komunikat o brakującym pytaniu.
 
 ## Ograniczenia
-Tylko pytania jednokrotnego wyboru; quiz zawsze na końcu lekcji; przy puli 8 powtórka zawiera 2 pytania z poprzedniego zestawu (uczeń zna ich wyjaśnienia) — patrz „druga szansa” w `moduly/04-learning-style.md`; zmiana puli unieważnia otwarte zestawy uczniów zawierające usunięte pytania; zmiana formy lekcji porzuca otwarty zestaw (uczeń może zobaczyć część jego pytań przed nowym losowaniem).
+Tylko pytania jednokrotnego wyboru; quiz zawsze na końcu lekcji; przy puli 8 powtórka zawiera 2 pytania z poprzedniego zestawu (uczeń zna ich wyjaśnienia) — patrz „druga szansa” w `moduly/04-learning-style.md`; zmiana puli unieważnia otwarte zestawy uczniów zawierające usunięte pytania; zmiana formy lekcji porzuca otwarty zestaw (uczeń może zobaczyć część jego pytań przed nowym losowaniem). Statystyki pytań oceniają stare odpowiedzi według bieżącego klucza — po zmianie poprawnej odpowiedzi liczby pytania mieszają dwie wersje; powtórki tego samego ucznia liczą się jako kolejne zestawy.
